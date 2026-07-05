@@ -1,0 +1,13 @@
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="hEpic" cx="45%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#c48cf0"/>
+      <stop offset="100%" stop-color="#6a2ea0"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="32" cy="54" rx="20" ry="6" fill="#000" opacity="0.3"/>
+  <circle cx="32" cy="30" r="24" fill="url(#hEpic)" stroke="#3a1560" stroke-width="2.5"/>
+  <path d="M32 8 L40 26 L32 40 L24 26 Z" fill="#e8caff" opacity="0.85" stroke="#6a2ea0" stroke-width="1"/>
+  <rect x="20" y="28" width="24" height="6" rx="2" fill="#f0c840" opacity="0.85"/>
+  <circle cx="32" cy="30" r="24" fill="none" stroke="#e6b8ff" stroke-width="1.5" opacity="0.8"/>
+</svg>

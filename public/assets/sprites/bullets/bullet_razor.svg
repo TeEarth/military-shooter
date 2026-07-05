@@ -1,0 +1,12 @@
+<svg viewBox="0 0 28 6" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="razorGlow" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#0af0ff" stop-opacity="0"/>
+      <stop offset="50%" stop-color="#0af0ff" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#e0feff" stop-opacity="1"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="28" height="6" rx="3" fill="url(#razorGlow)" opacity="0.55"/>
+  <rect x="0" y="1.5" width="28" height="3" rx="1.5" fill="#0af0ff" stroke="#0668a8" stroke-width="0.6"/>
+  <rect x="2" y="2.4" width="24" height="1.2" rx="0.6" fill="#eafcff" opacity="0.85"/>
+</svg>

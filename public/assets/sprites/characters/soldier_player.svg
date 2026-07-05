@@ -1,0 +1,43 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="bodyGrad" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#5a7a3a"/>
+      <stop offset="100%" stop-color="#3c5424"/>
+    </radialGradient>
+    <radialGradient id="helmetGrad" cx="45%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#7a9450"/>
+      <stop offset="100%" stop-color="#4a6030"/>
+    </radialGradient>
+  </defs>
+
+  <!-- soft ground shadow -->
+  <ellipse cx="64" cy="100" rx="34" ry="10" fill="#000000" opacity="0.25"/>
+
+  <!-- backpack -->
+  <ellipse cx="64" cy="78" rx="22" ry="18" fill="#2f4520"/>
+
+  <!-- body (round, top-down torso) -->
+  <circle cx="64" cy="64" r="34" fill="url(#bodyGrad)" stroke="#243315" stroke-width="2.5"/>
+
+  <!-- chest strap / vest detail -->
+  <path d="M40 50 Q64 60 88 50" stroke="#243315" stroke-width="3" fill="none" opacity="0.6"/>
+  <circle cx="64" cy="64" r="6" fill="#c9a24d" stroke="#7a5c1e" stroke-width="1.5"/>
+
+  <!-- helmet (head, round, facing up/direction) -->
+  <circle cx="64" cy="46" r="20" fill="url(#helmetGrad)" stroke="#233113" stroke-width="2.5"/>
+  <path d="M46 42 A18 18 0 0 1 82 42" fill="#233113" opacity="0.35"/>
+
+  <!-- visor/eyes hint -->
+  <ellipse cx="64" cy="48" rx="9" ry="4" fill="#1c1c1c" opacity="0.55"/>
+
+  <!-- gun barrel pointing forward (up) -->
+  <rect x="60" y="4" width="8" height="30" rx="3" fill="#2b2b2b" stroke="#111111" stroke-width="1.5"/>
+  <rect x="58" y="30" width="12" height="10" rx="2" fill="#3a3a3a"/>
+
+  <!-- arms (small circles at side, holding weapon) -->
+  <circle cx="38" cy="66" r="9" fill="#4a6428" stroke="#243315" stroke-width="2"/>
+  <circle cx="90" cy="66" r="9" fill="#4a6428" stroke="#243315" stroke-width="2"/>
+
+  <!-- rim light for "alive" vibrant feel -->
+  <circle cx="64" cy="64" r="34" fill="none" stroke="#a8c47a" stroke-width="1.5" opacity="0.4"/>
+</svg>

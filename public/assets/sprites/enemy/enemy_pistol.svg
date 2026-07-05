@@ -1,0 +1,11 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="64" cy="100" rx="34" ry="10" fill="#000" opacity="0.25"/>
+  <ellipse cx="64" cy="78" rx="22" ry="18" fill="#3a1c1c"/>
+  <circle cx="64" cy="64" r="34" fill="#8a3a3a" stroke="#301010" stroke-width="2.5"/>
+  <circle cx="64" cy="46" r="20" fill="#9c4a45" stroke="#2c0f0f" stroke-width="2.5"/>
+  <ellipse cx="64" cy="48" rx="9" ry="4" fill="#1c0808" opacity="0.6"/>
+  <rect x="60" y="94" width="7" height="20" rx="2" fill="#2b2b2b"/>
+  <circle cx="38" cy="66" r="9" fill="#7a3232"/>
+  <circle cx="90" cy="66" r="9" fill="#7a3232"/>
+  <text x="64" y="124" font-size="9" text-anchor="middle" fill="#f0a" opacity="0">P</text>
+</svg>

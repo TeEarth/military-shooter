@@ -1,0 +1,15 @@
+<svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="ticketGoldTop" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#fff2b0"/>
+      <stop offset="60%" stop-color="#f0c020"/>
+      <stop offset="100%" stop-color="#a87c10"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="40" cy="72" rx="26" ry="6" fill="#000" opacity="0.25"/>
+  <circle cx="40" cy="36" r="30" fill="#7a5a10"/>
+  <path d="M10 36 A30 30 0 0 0 70 36 Z" fill="url(#ticketGoldTop)"/>
+  <circle cx="40" cy="36" r="30" fill="none" stroke="#5c4008" stroke-width="3"/>
+  <circle cx="40" cy="36" r="8" fill="#fff7d6" stroke="#5c4008" stroke-width="2"/>
+  <path d="M40 6 L43 14 L51 14 L44.5 19 L47 27 L40 22 L33 27 L35.5 19 L29 14 L37 14 Z" fill="#fff7d6" opacity="0.9"/>
+</svg>

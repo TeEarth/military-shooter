@@ -1,0 +1,142 @@
+"use client";
+
+import { useEffect } from "react";
+import Link from "next/link";
+import { signOut } from "next-auth/react";
+import CurrencyBar from "@/components/ui/CurrencyBar";
+import { sfx } from "@/lib/sfx";
+import { getWeaponSprite } from "@/lib/spriteHelpers";
+
+interface Player {
+  id: string;
+  username: string;
+  level: number;
+  coin: number;
+  diamond: number;
+  ticket: number;
+  exp: number;
+  currentStage: number;
+}
+
+interface VipProgress {
+  level: number;
+  expIntoCurrentLevel: number;
+  expRequiredForNextLevel: number | null;
+  isMaxLevel: boolean;
+}
+
+const MENU_ITEMS = [
+  { href: "/play", label: "PLAY", icon: "⚔️", primary: true },
+  { href: "/character", label: "CHARACTER", icon: "🪖" },
+  { href: "/inventory", label: "INVENTORY", icon: "🎒" },
+  { href: "/gacha", label: "GACHA", icon: "🏪" },
+  { href: "/shop", label: "SHOP", icon: "💱" },
+  { href: "/mission", label: "MISSION", icon: "🎯" },
+  { href: "/leaderboard", label: "LEADERBOARD", icon: "🏆" },
+  { href: "/mailbox", label: "MAILBOX", icon: "📬" },
+  { href: "/income", label: "INCOME", icon: "💰" },
+  { href: "/settings", label: "SETTINGS", icon: "⚙️" },
+];
+
+export default function HomeClient({ player, characterSprite, characterName, equippedWeaponId, vipProgress, greenBanknoteBalance }: { player: Player; characterSprite: string; characterName: string; equippedWeaponId: string; vipProgress: VipProgress; greenBanknoteBalance: number }) {
+  // Warm the server-side sheet cache for the screens the player is most likely to
+  // open next, so /play and /character render instantly off a warm cache instead
+  // of triggering a fresh Google Sheets read on click.
+  useEffect(() => {
+    fetch("/api/stages").catch(() => {});
+    fetch("/api/characters").catch(() => {});
+    fetch("/api/weapons").catch(() => {});
+  }, []);
+
+  return (
+    <div className="min-h-screen relative overflow-hidden flex flex-col">
+      {/* v8 #8: battlefield background, darkened/blurred so it stays a backdrop, not the focus */}
+      <div
+        className="absolute inset-0 bg-cover bg-center opacity-25 blur-sm scale-110"
+        style={{ backgroundImage: "url(/assets/sprites/background/battlefield_ground.svg)" }}
+      />
+      <div className="absolute inset-0 page-bg-themed opacity-90" />
+
+      <div className="relative z-10 flex flex-col flex-1">
+        {/* Top Bar */}
+        <div className="bg-military-dark/80 backdrop-blur-sm border-b border-military-steel px-4 py-3 flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-military-tan text-sm font-bold truncate">{player.username}</p>
+            <p className="text-military-steel text-xs">LVL {player.level}</p>
+          </div>
+
+          {/* v9 #2: VIP level + progress toward next level, earned only from story/farm stage-clear exp */}
+          <div className="flex-1 max-w-xs hidden sm:block">
+            <div className="flex justify-between text-xs mb-0.5">
+              <span className="text-military-gold font-bold">VIP {vipProgress.level}</span>
+              {!vipProgress.isMaxLevel && (
+                <span className="text-military-steel">{vipProgress.expIntoCurrentLevel}/{vipProgress.expRequiredForNextLevel} exp</span>
+              )}
+            </div>
+            <div className="h-1.5 bg-military-darker border border-military-steel">
+              <div
+                className="h-full bg-military-gold"
+                style={{ width: vipProgress.isMaxLevel ? "100%" : `${Math.min(100, (vipProgress.expIntoCurrentLevel / (vipProgress.expRequiredForNextLevel ?? 1)) * 100)}%` }}
+              />
+            </div>
+          </div>
+
+          <CurrencyBar coin={player.coin} diamond={player.diamond} ticket={player.ticket} exp={player.exp} greenBanknote={greenBanknoteBalance} />
+          <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-military-steel text-xs hover:text-white flex-shrink-0">LOGOUT</button>
+        </div>
+
+        {/* Main content: big equipped character + menu grid */}
+        <div className="flex-1 flex flex-col lg:flex-row items-center justify-center gap-8 p-6 max-w-5xl mx-auto w-full">
+          <div className="flex flex-col items-center flex-shrink-0">
+            <h1 className="text-2xl font-black text-military-tan tracking-widest mb-4 uppercase text-center">
+              Military Shooter 2D
+            </h1>
+            {characterSprite ? (
+              <div className="relative w-48 h-48">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={characterSprite}
+                  alt={characterName}
+                  className="w-48 h-48 object-contain"
+                  style={{ filter: "drop-shadow(0 0 24px rgba(197,169,125,0.4))" }}
+                />
+                {/* v10 #3: shows the currently equipped weapon in-hand, matching in-game */}
+                {equippedWeaponId && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={getWeaponSprite(equippedWeaponId)}
+                    alt=""
+                    className="absolute w-14 h-24 object-contain pointer-events-none"
+                    style={{ left: "58%", top: "18%" }}
+                  />
+                )}
+              </div>
+            ) : (
+              <div className="w-48 h-48 flex items-center justify-center text-6xl">🪖</div>
+            )}
+            <p className="text-military-steel text-sm mt-2">{characterName}</p>
+            <p className="text-military-steel text-xs">Stage Progress: {player.currentStage}</p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3 w-full max-w-lg">
+            {MENU_ITEMS.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => sfx.play("ui_click")}
+                className={`card-military card-themed-glow flex flex-col items-center justify-center transition-all duration-200 ${
+                  item.primary
+                    ? "col-span-3 bg-military-green border-military-tan hover:bg-military-olive text-xl py-6"
+                    : "p-4"
+                }`}
+              >
+                <span className="text-2xl mb-1">{item.icon}</span>
+                <span className="text-xs tracking-wider">{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

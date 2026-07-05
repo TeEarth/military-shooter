@@ -1,0 +1,31 @@
+<svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="grassPattern" width="64" height="64" patternUnits="userSpaceOnUse">
+      <rect width="64" height="64" fill="#4a6b2e"/>
+      <rect width="64" height="64" fill="#3d5c26" opacity="0.4"/>
+      <circle cx="12" cy="14" r="2.5" fill="#5c7f3a" opacity="0.7"/>
+      <circle cx="40" cy="8" r="2" fill="#5c7f3a" opacity="0.6"/>
+      <circle cx="28" cy="34" r="3" fill="#365220" opacity="0.6"/>
+      <circle cx="54" cy="46" r="2.5" fill="#5c7f3a" opacity="0.7"/>
+      <circle cx="8" cy="52" r="2" fill="#365220" opacity="0.5"/>
+    </pattern>
+  </defs>
+  <rect width="512" height="512" fill="url(#grassPattern)"/>
+
+  <!-- dirt patches for variation / life -->
+  <ellipse cx="120" cy="140" rx="70" ry="40" fill="#6b5230" opacity="0.5"/>
+  <ellipse cx="380" cy="360" rx="90" ry="50" fill="#6b5230" opacity="0.45"/>
+  <ellipse cx="300" cy="120" rx="50" ry="28" fill="#6b5230" opacity="0.35"/>
+
+  <!-- cracked road / path -->
+  <path d="M0 260 Q160 220 260 270 T512 250" stroke="#7a6a4a" stroke-width="34" fill="none" opacity="0.4"/>
+
+  <!-- scattered rubble/rocks for liveliness -->
+  <g fill="#5a5a52" opacity="0.7">
+    <circle cx="90" cy="380" r="8"/>
+    <circle cx="104" cy="392" r="5"/>
+    <circle cx="420" cy="150" r="7"/>
+    <circle cx="200" cy="440" r="6"/>
+    <circle cx="440" cy="460" r="9"/>
+  </g>
+</svg>

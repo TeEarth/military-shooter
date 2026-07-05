@@ -1,0 +1,297 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import type { GachaConfigRow, GachaPullResult } from "@/lib/google/gacha";
+import type { Rarity } from "@/lib/google/inventory";
+import { sfx } from "@/lib/sfx";
+import { getEquipmentSprite } from "@/lib/spriteHelpers";
+import CurrencyBar from "@/components/ui/CurrencyBar";
+
+interface PoolGroup {
+  poolId: string;
+  entries: GachaConfigRow[];
+}
+
+const RARITY_COLOR: Record<string, string> = {
+  common: "text-gray-300",
+  rare: "text-blue-400",
+  epic: "text-purple-400",
+  legendary: "text-military-gold",
+};
+
+const RARITY_BORDER: Record<Rarity, string> = {
+  common: "border-gray-400",
+  rare: "border-blue-400",
+  epic: "border-purple-400",
+  legendary: "border-military-gold",
+};
+
+type AnimPhase = "idle" | "capsule" | "pop" | "reveal";
+
+/** v10 #1: x10 pull costs 10x the single price minus a flat 5% discount. */
+const MULTI_PULL_COUNT = 10;
+const MULTI_PULL_DISCOUNT = 0.05;
+
+/** v8 #4: ticket pool gets its own gold capsule sprite, diamond pool keeps the original. */
+function capsuleSpriteForCurrency(currency: string): string {
+  return currency === "ticket" ? "/assets/sprites/ui/gacha_capsule_ticket.svg" : "/assets/sprites/ui/shop_gacha_capsule.svg";
+}
+
+export default function GachaClient({ pools, coin, diamond: initialDiamond, ticket: initialTicket, exp, greenBanknote }: { pools: PoolGroup[]; coin: number; diamond: number; ticket: number; exp: number; greenBanknote: number }) {
+  const [diamond, setDiamond] = useState(initialDiamond);
+  const [ticket, setTicket] = useState(initialTicket);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
+  const [lastResult, setLastResult] = useState<GachaPullResult | null>(null);
+  const [multiResults, setMultiResults] = useState<GachaPullResult[] | null>(null);
+  const [phase, setPhase] = useState<AnimPhase>("idle");
+  const [activeCurrency, setActiveCurrency] = useState<string>("diamond");
+
+  async function pull(poolId: string, currency: string) {
+    if (loading) return;
+    sfx.play("ui_click");
+    setLoading(true);
+    setLastResult(null);
+    setMultiResults(null);
+    setActiveCurrency(currency);
+    setPhase("capsule");
+    try {
+      const res = await fetch("/api/gacha/pull", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ poolId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Sequence: capsule spins (1.1s) -> pops (0.25s, sfx here) -> burst + item reveal (0.5-0.7s).
+        setTimeout(() => {
+          setPhase("pop");
+          sfx.play("gacha_reveal");
+        }, 1100);
+        setTimeout(() => {
+          setPhase("reveal");
+          setLastResult(data.result);
+          if (data.updatedPlayer) {
+            setDiamond(data.updatedPlayer.diamond);
+            setTicket(data.updatedPlayer.ticket);
+          }
+        }, 1350);
+      } else {
+        setMessage(data.error);
+        setPhase("idle");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  /** Same capsule->pop->reveal beats as a single pull, but reveal shows all 10
+   *  results at once in a grid (staggered via CSS nth-child delay, see
+   *  .gacha-anim-item's animation-delay rule) instead of one item at a time —
+   *  keeps the "อลังการ" capsule spectacle without a 10x-long sequence. */
+  async function pullMulti(poolId: string, currency: string) {
+    if (loading) return;
+    sfx.play("ui_click");
+    setLoading(true);
+    setLastResult(null);
+    setMultiResults(null);
+    setActiveCurrency(currency);
+    setPhase("capsule");
+    try {
+      const res = await fetch("/api/gacha/pull-multi", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ poolId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setTimeout(() => {
+          setPhase("pop");
+          sfx.play("gacha_reveal");
+        }, 1100);
+        setTimeout(() => {
+          setPhase("reveal");
+          setMultiResults(data.results);
+          if (data.updatedPlayer) {
+            setDiamond(data.updatedPlayer.diamond);
+            setTicket(data.updatedPlayer.ticket);
+          }
+        }, 1350);
+      } else {
+        setMessage(data.error);
+        setPhase("idle");
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderResultContent(result: GachaPullResult) {
+    if (result.rewardType === "currency") {
+      return (
+        <div className="gacha-anim-item">
+          <span className="text-5xl block mb-2">{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
+          <p className="text-military-gold font-bold">+{result.rewardAmount} {result.rewardCurrency === "coin" ? "coin" : "diamond"}</p>
+        </div>
+      );
+    }
+
+    const rarity = (result.rarity ?? "common") as Rarity;
+    const isLegendary = rarity === "legendary";
+
+    return (
+      <div className="gacha-anim-item flex flex-col items-center">
+        <div className={`relative w-24 h-24 mb-2 rounded-full border-2 ${RARITY_BORDER[rarity]} ${isLegendary ? "gacha-anim-glow-legendary" : ""} ${RARITY_COLOR[rarity]} flex items-center justify-center bg-military-darker`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={getEquipmentSprite(result.equipmentId ?? "")} alt={result.equipmentName ?? ""} className="w-16 h-16 object-contain" />
+        </div>
+        <p className={`font-bold uppercase ${RARITY_COLOR[rarity]}`}>{rarity} {result.slot}</p>
+        <p className="text-white">{result.equipmentName}</p>
+        {result.isDupe ? (
+          <p className="text-green-400 text-sm">Duplicate — upgraded to level {result.newUpgradeLevel}!</p>
+        ) : (
+          <p className="text-military-gold text-sm">New item added to inventory!</p>
+        )}
+      </div>
+    );
+  }
+
+  function renderCompactResult(result: GachaPullResult, key: number) {
+    // Staggered reveal (40ms/item) so all 10 land almost together but still
+    // feel like a cascade rather than a flat, static grid.
+    const style = { animationDelay: `${key * 40}ms` } as React.CSSProperties;
+
+    if (result.rewardType === "currency") {
+      return (
+        <div key={key} style={style} className="gacha-anim-item flex flex-col items-center bg-military-darker/60 border border-military-steel rounded p-2">
+          <span className="text-2xl">{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
+          <p className="text-military-gold text-xs font-bold">+{result.rewardAmount}</p>
+        </div>
+      );
+    }
+    const rarity = (result.rarity ?? "common") as Rarity;
+    return (
+      <div key={key} style={style} className={`gacha-anim-item flex flex-col items-center bg-military-darker/60 border rounded p-2 ${RARITY_BORDER[rarity]}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={getEquipmentSprite(result.equipmentId ?? "")} alt={result.equipmentName ?? ""} className="w-10 h-10 object-contain" />
+        <p className={`text-[10px] font-bold uppercase ${RARITY_COLOR[rarity]}`}>{rarity}</p>
+        {result.isDupe && <p className="text-green-400 text-[10px]">+lvl {result.newUpgradeLevel}</p>}
+      </div>
+    );
+  }
+
+  const isLegendaryReveal = lastResult?.rewardType === "equipment" && lastResult.rarity === "legendary";
+  const hasLegendaryInMulti = (multiResults ?? []).some((r) => r.rewardType === "equipment" && r.rarity === "legendary");
+
+  return (
+    <div className="min-h-screen page-bg-themed p-6">
+      <div className="flex items-center gap-4 mb-6">
+        <Link href="/home" className="text-military-steel hover:text-white text-sm">← BACK</Link>
+        <div className="flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/assets/sprites/ui/shop_gacha_capsule.svg" alt="" className="w-8 h-8" />
+          <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">Gacha</h1>
+        </div>
+        <div className="ml-auto">
+          <CurrencyBar coin={coin} diamond={diamond} ticket={ticket} exp={exp} greenBanknote={greenBanknote} />
+        </div>
+      </div>
+
+      {message && <div className="max-w-3xl mx-auto mb-4 text-red-400 text-sm">{message}</div>}
+
+      {phase !== "idle" && (
+        <div className="max-w-3xl mx-auto mb-6 card-military text-center py-10 relative overflow-hidden" style={{ minHeight: 220 }}>
+          {phase === "capsule" && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={capsuleSpriteForCurrency(activeCurrency)} alt="" className="w-20 h-20 mx-auto gacha-anim-capsule" />
+          )}
+
+          {phase === "pop" && (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={capsuleSpriteForCurrency(activeCurrency)} alt="" className="w-20 h-20 mx-auto gacha-anim-pop" />
+              {Array.from({ length: 8 }).map((_, i) => {
+                const angle = (i / 8) * Math.PI * 2;
+                return (
+                  <span
+                    key={i}
+                    className="gacha-anim-particle absolute left-1/2 top-1/2 w-2 h-2 rounded-full bg-military-gold"
+                    style={{ "--px": `${Math.cos(angle) * 70}px`, "--py": `${Math.sin(angle) * 70}px` } as React.CSSProperties}
+                  />
+                );
+              })}
+            </>
+          )}
+
+          {phase === "reveal" && (
+            <>
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/assets/sprites/ui/gacha_burst.svg"
+                  alt=""
+                  className={`w-64 h-64 ${isLegendaryReveal || hasLegendaryInMulti ? "gacha-anim-burst-legendary" : "gacha-anim-burst"}`}
+                />
+              </div>
+              <div className="relative">
+                {multiResults ? (
+                  <div className="grid grid-cols-5 gap-2 max-w-md mx-auto">
+                    {multiResults.map((r, i) => renderCompactResult(r, i))}
+                  </div>
+                ) : (
+                  lastResult && renderResultContent(lastResult)
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+        {pools.map((pool) => {
+          const cost = pool.entries[0]?.cost ?? 0;
+          const currency = pool.entries[0]?.currency ?? "diamond";
+          const balance = currency === "diamond" ? diamond : ticket;
+          const multiCost = Math.round(cost * MULTI_PULL_COUNT * (1 - MULTI_PULL_DISCOUNT));
+
+          return (
+            <div key={pool.poolId} className="card-military text-center">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={capsuleSpriteForCurrency(currency)} alt="" className="w-16 h-16 mx-auto mb-3" />
+              <h2 className="font-bold text-lg mb-3 capitalize">{pool.poolId.replace(/_/g, " ")}</h2>
+
+              <div className="text-xs text-military-steel space-y-1 mb-4 text-left">
+                {pool.entries.map((e, i) => (
+                  <div key={i} className="flex justify-between">
+                    <span className={e.rewardType === "equipment" ? RARITY_COLOR[e.rarity] : ""}>
+                      {e.rewardType === "equipment" ? e.rarity.toUpperCase() : `${e.rewardCurrency} +${e.rewardAmount}`}
+                    </span>
+                    <span>{Math.round(e.dropRate * 100)}%</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => pull(pool.poolId, currency)}
+                  disabled={loading || balance < cost}
+                  className="btn-gold flex-1 py-2"
+                >
+                  {loading ? "..." : `Pull — ${currency === "diamond" ? "💎" : "🎟️"} ${cost}`}
+                </button>
+                <button
+                  onClick={() => pullMulti(pool.poolId, currency)}
+                  disabled={loading || balance < multiCost}
+                  className="btn-gold flex-1 py-2"
+                  title="10 independent pulls, 5% cheaper than 10x the single price"
+                >
+                  {loading ? "..." : `x10 — ${currency === "diamond" ? "💎" : "🎟️"} ${multiCost}`}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {pools.length === 0 && <p className="text-military-steel text-sm col-span-2 text-center py-12">No gacha pools configured yet.</p>}
+      </div>
+    </div>
+  );
+}
