@@ -63,6 +63,13 @@ export async function POST(req: NextRequest) {
 
   const multiplier = requestedNum ? stageStatMultiplier(requestedNum) : 1;
 
+  // v12: the stage-layout PDF's stage10 description explicitly calls out that
+  // enemy #5 (Rocket) gets 5x its normal HP on that map — tied to the stage10
+  // TEMPLATE itself, so every reused instance (stage10, stage20, stage30, ...)
+  // gets it too, not just the literal first stage10 playthrough.
+  const ROCKET_HP_MULTIPLIER_STAGE = "stage10";
+  const rocketHpMultiplier = lookupId === ROCKET_HP_MULTIPLIER_STAGE ? 5 : 1;
+
   const baseEnemies = (
     await Promise.all(
       spawns.map(async (s) => {
@@ -70,9 +77,10 @@ export async function POST(req: NextRequest) {
         if (!enemy) return null;
         const enemyWeapon = await getWeaponById(enemy.weaponId);
         if (!enemyWeapon) return null;
+        const hpMultiplier = enemy.id === "enemy_rocket" ? rocketHpMultiplier : 1;
         return {
           ...enemy,
-          hp: Math.round(enemy.hp * multiplier),
+          hp: Math.round(enemy.hp * multiplier * hpMultiplier),
           weapon: { ...enemyWeapon, damage: Math.round(enemyWeapon.damage * multiplier) },
           spawnX: s.spawnX,
           spawnY: s.spawnY,

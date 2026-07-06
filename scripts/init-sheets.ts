@@ -186,21 +186,26 @@ async function main() {
 
   // ---------- Stage (10 story + 1 farm) — v11/v12: playerSpawnX/Y are real
   // coordinates traced from the user's "แผนผัง Stage 1-10, Stage Farm" PDF
-  // (see scripts/extract-stage-pdf.py + scripts/data/stage-layout-raw.json),
-  // scaled from the PDF's 792x612 page space onto each stage's actual
-  // width/height. No longer placeholders. ----------
+  // (see scripts/extract-stage-pdf.py + scripts/data/stage-layout-raw.json).
+  // name/rewardCoin/rewardExp are ALSO real, from that PDF's per-stage
+  // description pages (not repeated boilerplate as first assumed — each
+  // stage's actual name + reward, confirmed with the user). stage10's
+  // description also calls out that enemy_rocket gets 5x HP on that specific
+  // map — implemented in src/app/api/game/start/route.ts, not a column here. ----------
   await seedIfEmpty("Stage", [
-    { id: "stage01", name: "Boot Camp", isRepeatable: false, width: 1280, height: 720, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 100, rewardExp: 150, playerSpawnX: 61, playerSpawnY: 583 },
-    { id: "stage02", name: "Urban Assault", isRepeatable: false, width: 1440, height: 810, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 150, rewardExp: 200, playerSpawnX: 128, playerSpawnY: 372 },
-    { id: "stage03", name: "Jungle Patrol", isRepeatable: false, width: 1440, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 200, rewardExp: 280, playerSpawnX: 284, playerSpawnY: 612 },
-    { id: "stage04", name: "Desert Storm", isRepeatable: false, width: 1600, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 250, rewardExp: 350, playerSpawnX: 76, playerSpawnY: 729 },
-    { id: "stage05", name: "Commander Showdown", isRepeatable: false, width: 1440, height: 810, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 500, rewardExp: 700, playerSpawnX: 403, playerSpawnY: 536 },
-    { id: "stage06", name: "Coastal Defense", isRepeatable: false, width: 1280, height: 720, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 550, rewardExp: 750, playerSpawnX: 622, playerSpawnY: 357 },
-    { id: "stage07", name: "Mountain Pass", isRepeatable: false, width: 1440, height: 810, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 600, rewardExp: 800, playerSpawnX: 1256, playerSpawnY: 188 },
-    { id: "stage08", name: "Night Raid", isRepeatable: false, width: 1440, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 650, rewardExp: 850, playerSpawnX: 167, playerSpawnY: 434 },
-    { id: "stage09", name: "Fortress Siege", isRepeatable: false, width: 1600, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 700, rewardExp: 900, playerSpawnX: 887, playerSpawnY: 717 },
-    { id: "stage10", name: "Final Stand", isRepeatable: false, width: 1440, height: 810, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 1000, rewardExp: 1400, playerSpawnX: 68, playerSpawnY: 656 },
-    { id: "farm_01", name: "Training Grounds", isRepeatable: true, width: 1280, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 80, rewardExp: 60, playerSpawnX: 636, playerSpawnY: 467 },
+    { id: "stage01", name: "The Forest", isRepeatable: false, width: 1280, height: 720, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 50, rewardExp: 100, playerSpawnX: 61, playerSpawnY: 583 },
+    { id: "stage02", name: "The Mansion", isRepeatable: false, width: 1440, height: 810, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 50, rewardExp: 100, playerSpawnX: 128, playerSpawnY: 372 },
+    { id: "stage03", name: "House", isRepeatable: false, width: 1440, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 50, rewardExp: 100, playerSpawnX: 284, playerSpawnY: 612 },
+    { id: "stage04", name: "The Camping", isRepeatable: false, width: 1600, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 50, rewardExp: 100, playerSpawnX: 76, playerSpawnY: 729 },
+    { id: "stage05", name: "Shotgun", isRepeatable: false, width: 1440, height: 810, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 50, rewardExp: 100, playerSpawnX: 403, playerSpawnY: 536 },
+    { id: "stage06", name: "Strong Mansion", isRepeatable: false, width: 1280, height: 720, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 75, rewardExp: 150, playerSpawnX: 622, playerSpawnY: 357 },
+    { id: "stage07", name: "Sniper", isRepeatable: false, width: 1440, height: 810, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 75, rewardExp: 150, playerSpawnX: 1256, playerSpawnY: 188 },
+    { id: "stage08", name: "Rocket", isRepeatable: false, width: 1440, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 75, rewardExp: 150, playerSpawnX: 167, playerSpawnY: 434 },
+    { id: "stage09", name: "Enemy Mansion", isRepeatable: false, width: 1600, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 75, rewardExp: 150, playerSpawnX: 887, playerSpawnY: 717 },
+    { id: "stage10", name: "Boss 1", isRepeatable: false, width: 1440, height: 810, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 100, rewardExp: 200, playerSpawnX: 68, playerSpawnY: 656 },
+    // rewardExp: 10 is exact from the PDF ("เมื่อผ่านแต่ละ wave จะได้ทีละ 10 Exp") — /api/game/complete
+    // multiplies this by farmWaveReached, so 10 really is "per wave", not a typo.
+    { id: "farm_01", name: "Training Grounds", isRepeatable: true, width: 1280, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 80, rewardExp: 10, playerSpawnX: 636, playerSpawnY: 467 },
   ]);
 
   // ---------- StageEnemy (story stages only — farm generates waves procedurally) ----------
