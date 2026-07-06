@@ -17,9 +17,20 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(req: NextRequest) {
   const res = NextResponse.redirect(new URL("/login", req.url));
 
-  for (const name of ["authjs.session-token", "__Secure-authjs.session-token"]) {
-    res.cookies.delete(name);
-  }
+  // v12: plain res.cookies.delete(name) was silently failing in production
+  // specifically for "__Secure-"-prefixed cookies. Per the cookie-prefix spec
+  // (RFC 6265bis), a browser REJECTS any Set-Cookie for a "__Secure-"-prefixed
+  // name that doesn't also carry the Secure attribute — including deletions —
+  // so on Vercel (HTTPS, where NextAuth uses the "__Secure-" prefix) the old
+  // session cookie never actually got cleared, and /login -> /home ->
+  // force-logout -> /login looped forever. Explicitly setting `secure: true`
+  // for that name (never needed on http://localhost, which is why this only
+  // showed up in production) fixes it. `httpOnly`/`sameSite` are set to match
+  // the original login cookie's attributes, though only `secure` is required
+  // by the browser to actually accept the deletion.
+  const expired = { path: "/", expires: new Date(0), httpOnly: true, sameSite: "lax" as const };
+  res.cookies.set("authjs.session-token", "", expired);
+  res.cookies.set("__Secure-authjs.session-token", "", { ...expired, secure: true });
 
   return res;
 }

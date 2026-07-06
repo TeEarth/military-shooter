@@ -97,18 +97,17 @@ async function main() {
   const player = await createPlayer({ email, username: email.split("@")[0], password, isTestAccount: true });
   console.log(`Created fresh test account: ${player.id}`);
 
-  // 3. Unlimited currency for testing purchases/gacha/exchange without running dry.
-  await updatePlayer(player.id, {
-    coin: UNLIMITED,
-    diamond: UNLIMITED,
-    ticket: UNLIMITED,
-  });
+  // 3. v12: coin/diamond stay at their normal createPlayer() default (0, per
+  //    config/economy.ts — "everything starts at zero") so the account plays
+  //    like a real new player. Only ticket is unlimited, for testing
+  //    ticket-gated features (gacha, top-up flows) without running dry.
+  await updatePlayer(player.id, { ticket: UNLIMITED });
 
   console.log("\n✅ Test account ready");
   console.log(`Email:    ${email}`);
   console.log(`Password: ${password}`);
   console.log(`Player ID: ${player.id}`);
-  console.log(`Currency: ${UNLIMITED.toLocaleString()} coin/diamond/ticket`);
+  console.log(`Currency: 0 coin, 0 diamond, ${UNLIMITED.toLocaleString()} ticket (unlimited)`);
 }
 
 main().catch((err) => {
