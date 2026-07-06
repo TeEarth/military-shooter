@@ -494,6 +494,11 @@ export default function CharacterHubClient(props: Props) {
             const currentTier = playerPassives.find((p) => p.passiveId === passiveId)?.currentTier ?? 0;
             const nextConfig = props.passiveConfigs.find((c) => c.passiveId === passiveId && c.tier === currentTier + 1);
             const maxed = currentTier >= 10;
+            // v13: show the ACTUAL current bonus (sum of every tier already bought),
+            // not just the tier number — this is the real % already applied to stats.
+            const currentBonusPercent = props.passiveConfigs
+              .filter((c) => c.passiveId === passiveId && c.tier <= currentTier)
+              .reduce((sum, c) => sum + c.bonusPercent, 0);
 
             return (
               <div key={passiveId} className="card-military">
@@ -501,6 +506,7 @@ export default function CharacterHubClient(props: Props) {
                   <h3 className="font-bold">{PASSIVE_LABELS[passiveId]}</h3>
                   <span className="text-xs text-military-steel">Tier {currentTier}/10</span>
                 </div>
+                <p className="text-military-gold text-sm font-bold mb-2">Current bonus: +{currentBonusPercent}%</p>
                 <div className="h-2 bg-military-darker border border-military-steel mb-3">
                   <div className="h-full bg-military-tan" style={{ width: `${(currentTier / 10) * 100}%` }} />
                 </div>

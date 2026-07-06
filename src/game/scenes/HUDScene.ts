@@ -40,6 +40,9 @@ export class HUDScene extends Phaser.Scene {
   /** v9 #6: shrinks the minimap and text so nothing creeps into the bottom
    *  corners where the mobile move/aim joysticks + fire button live. */
   private isMobile = false;
+  /** v13: farm stage's 5s "get ready" countdown + per-wave banner. */
+  private farmCountdownText!: Phaser.GameObjects.Text;
+  private farmWaveBannerText!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: "HUDScene" });
@@ -103,9 +106,36 @@ export class HUDScene extends Phaser.Scene {
 
     this.createPauseButton(width);
     this.createRefillButton(width);
+    this.createReloadButton(width);
+
+    const { height } = this.scale;
+    this.farmCountdownText = this.add.text(width / 2, height / 2, "", {
+      fontFamily: "Orbitron, monospace", fontSize: "56px", color: "#ffcc00", fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(60).setVisible(false);
+
+    this.farmWaveBannerText = this.add.text(width / 2, height / 2 - 70, "", {
+      fontFamily: "Orbitron, monospace", fontSize: "26px", color: "#4ade80", fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(60).setVisible(false);
 
     const gameScene = this.scene.get("GameScene");
     gameScene.events.on("hud-update", this.onHudUpdate, this);
+    gameScene.events.on("farm-countdown", this.onFarmCountdown, this);
+    gameScene.events.on("farm-wave-start", this.onFarmWaveStart, this);
+  }
+
+  /** v13: "GET READY: N" during the farm stage's opening 5s (no enemies yet). */
+  private onFarmCountdown(secondsLeft: number) {
+    if (secondsLeft <= 0) {
+      this.farmCountdownText.setVisible(false);
+      return;
+    }
+    this.farmCountdownText.setText(`GET READY: ${secondsLeft}`).setVisible(true);
+  }
+
+  /** v13: "WAVE N" banner shown briefly on every wave transition (not just the first). */
+  private onFarmWaveStart(wave: number) {
+    this.farmWaveBannerText.setText(`WAVE ${wave} STARTING`).setVisible(true);
+    this.time.delayedCall(2000, () => this.farmWaveBannerText.setVisible(false));
   }
 
   private createPauseButton(width: number) {
@@ -140,6 +170,27 @@ export class HUDScene extends Phaser.Scene {
       sfx.play("ui_click");
       const gameScene = this.scene.get("GameScene") as Phaser.Scene & { openAmmoRefill: () => void };
       gameScene.openAmmoRefill();
+    });
+    btn.on("pointerover", () => btn.setColor("#f3c98a"));
+    btn.on("pointerout", () => btn.setColor("#c5a97d"));
+  }
+
+  /** v13: on-screen reload button — same effect as the R key, for players who
+   *  don't have (or don't notice) the keyboard shortcut, and for mobile where
+   *  there's no keyboard at all. */
+  private createReloadButton(width: number) {
+    const btn = this.add.text(width - 10, 126, "🔄 RELOAD", {
+      fontFamily: "Orbitron, monospace",
+      fontSize: "12px",
+      color: "#c5a97d",
+      backgroundColor: "#1a1a2e",
+      padding: { x: 8, y: 4 },
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+
+    btn.on("pointerdown", () => {
+      sfx.play("ui_click");
+      const gameScene = this.scene.get("GameScene") as Phaser.Scene & { triggerReload: () => void };
+      gameScene.triggerReload();
     });
     btn.on("pointerover", () => btn.setColor("#f3c98a"));
     btn.on("pointerout", () => btn.setColor("#c5a97d"));
@@ -217,6 +268,10 @@ export class HUDScene extends Phaser.Scene {
 
   shutdown() {
     const gameScene = this.scene.get("GameScene");
-    if (gameScene) gameScene.events.off("hud-update", this.onHudUpdate, this);
+    if (gameScene) {
+      gameScene.events.off("hud-update", this.onHudUpdate, this);
+      gameScene.events.off("farm-countdown", this.onFarmCountdown, this);
+      gameScene.events.off("farm-wave-start", this.onFarmWaveStart, this);
+    }
   }
 }

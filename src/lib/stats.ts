@@ -22,7 +22,14 @@ import type { CombatLoadout } from "@/types/loadout";
 
 export interface StatLine {
   base: number;
+  /** Combined bonus % (equipment + passive) — kept for the final-value formula. */
   bonusPercent: number;
+  /** v13: equipment and passive bonuses shown SEPARATELY in the UI, not just
+   *  merged — so a player can see "gear gives +12%, passives give +8%"
+   *  instead of one opaque "+20%". Always 0 for stats equipment/passives
+   *  don't contribute to (e.g. moveSpeed). */
+  equipmentBonusPercent: number;
+  passiveBonusPercent: number;
   final: number;
 }
 
@@ -41,13 +48,15 @@ export interface FullStatBreakdown {
   shieldMax: number;
 }
 
-function multiplicative(base: number, bonusPercent: number): StatLine {
-  return { base, bonusPercent, final: base * (1 + bonusPercent / 100) };
+function multiplicative(base: number, equipmentBonusPercent: number, passiveBonusPercent: number): StatLine {
+  const bonusPercent = equipmentBonusPercent + passiveBonusPercent;
+  return { base, bonusPercent, equipmentBonusPercent, passiveBonusPercent, final: base * (1 + bonusPercent / 100) };
 }
 
 /** For stats that are already percentages: every source is summed as a flat addend, uncapped. */
-function additive(base: number, bonusPercent: number): StatLine {
-  return { base, bonusPercent, final: base + bonusPercent };
+function additive(base: number, equipmentBonusPercent: number, passiveBonusPercent: number): StatLine {
+  const bonusPercent = equipmentBonusPercent + passiveBonusPercent;
+  return { base, bonusPercent, equipmentBonusPercent, passiveBonusPercent, final: base + bonusPercent };
 }
 
 export async function computeFullStats(playerId: string, character: CharacterRow, weapon: WeaponRow): Promise<FullStatBreakdown> {
@@ -65,25 +74,19 @@ export function buildStatBreakdown(
   equipTotals: EquipmentStatTotals,
   passives: PassiveTotals
 ): FullStatBreakdown {
-  const hpBonusPercent = passives.hpPercent + equipTotals.hpPercent;
-  const damageBonusPercent = passives.damagePercent + equipTotals.damagePercent;
-
-  const accuracyBonus = character.accuracy + passives.accuracy; // equipment has no accuracy bonus in the current tables
-  const armorBonus = 0; // equipment/passives have no armor% bonus in the current tables — character.armorPercent IS the base
-  const critChanceBonus = character.critChance + equipTotals.critChancePercent + passives.critChance;
-  const critDamageBonus = character.critDamage + equipTotals.critDamagePercent + passives.critDamagePercent;
-
   return {
-    hp: multiplicative(character.hpMax, hpBonusPercent),
-    damage: multiplicative(weapon.damage, damageBonusPercent),
-    moveSpeed: { base: character.speed, bonusPercent: 0, final: character.speed },
-    accuracy: additive(weapon.accuracy, accuracyBonus),
-    armorPercent: additive(character.armorPercent, armorBonus),
-    critChance: additive(weapon.critChance, critChanceBonus),
-    critDamage: additive(weapon.critDamage, critDamageBonus),
-    reloadTime: { base: weapon.reloadTime, bonusPercent: -passives.reloadSpeedPercent, final: Math.max(0.2, weapon.reloadTime * (1 - passives.reloadSpeedPercent / 100)) },
-    fireRate: multiplicative(weapon.fireRate, passives.fireRatePercent),
-    dailyAmmo: multiplicative(weapon.dailyAmmo, passives.dailyAmmoPercent),
+    hp: multiplicative(character.hpMax, equipTotals.hpPercent, passives.hpPercent),
+    damage: multiplicative(weapon.damage, equipTotals.damagePercent, passives.damagePercent),
+    moveSpeed: { base: character.speed, bonusPercent: 0, equipmentBonusPercent: 0, passiveBonusPercent: 0, final: character.speed },
+    // equipment has no accuracy bonus in the current tables
+    accuracy: additive(weapon.accuracy + character.accuracy, 0, passives.accuracy),
+    // equipment/passives have no armor% bonus in the current tables — character.armorPercent IS the base
+    armorPercent: additive(character.armorPercent, 0, 0),
+    critChance: additive(weapon.critChance + character.critChance, equipTotals.critChancePercent, passives.critChance),
+    critDamage: additive(weapon.critDamage + character.critDamage, equipTotals.critDamagePercent, passives.critDamagePercent),
+    reloadTime: { base: weapon.reloadTime, bonusPercent: -passives.reloadSpeedPercent, equipmentBonusPercent: 0, passiveBonusPercent: -passives.reloadSpeedPercent, final: Math.max(0.2, weapon.reloadTime * (1 - passives.reloadSpeedPercent / 100)) },
+    fireRate: multiplicative(weapon.fireRate, 0, passives.fireRatePercent),
+    dailyAmmo: multiplicative(weapon.dailyAmmo, 0, passives.dailyAmmoPercent),
     shieldMax: equipTotals.shieldValue,
   };
 }

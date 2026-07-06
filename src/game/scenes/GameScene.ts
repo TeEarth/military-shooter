@@ -26,6 +26,16 @@ export class GameScene extends Phaser.Scene {
   private currentWave = 1;
   private highestWaveCleared = 0;
 
+  // v13: farm stage start sequence — 5s with no enemies so the player can get
+  // their bearings, then wave 1 spawns but stays "frozen" (no movement, no
+  // damage either direction) for 3s before combat actually starts. Only the
+  // opening sequence gets this treatment; later wave transitions keep the
+  // existing 1s gap + a banner, no freeze.
+  private farmPhase: "countdown" | "freeze" | "active" = "active";
+  private farmPhaseElapsed = 0;
+  private static readonly FARM_COUNTDOWN_MS = 5000;
+  private static readonly FARM_FREEZE_MS = 3000;
+
   private kills = 0;
   private deaths = 0;
   private startTime = 0;
@@ -41,6 +51,8 @@ export class GameScene extends Phaser.Scene {
   private shootKey!: Phaser.Input.Keyboard.Key;
   private reloadKey!: Phaser.Input.Keyboard.Key;
   private failedAssetKeys!: Set<string>;
+  /** v13: set by the HUD's on-screen RELOAD button, consumed (and reset) by update(). */
+  private reloadRequested = false;
   private mobileControls?: MobileControls;
   /** Last non-null aim direction from the mobile aim stick — kept so the
    *  character keeps facing/firing that way after the stick is released. */
@@ -100,7 +112,9 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.isFarmStage) {
-      this.spawnWave(this.currentWave);
+      // Wave 1 doesn't spawn immediately — see updateFarmPhase(), driven from update().
+      this.farmPhase = "countdown";
+      this.farmPhaseElapsed = 0;
     } else {
       for (const spawn of enemySpawns) {
         this.enemies.push(new Enemy(this, spawn.spawnX, spawn.spawnY, spawn, this.enemyBullets, this.enemyGroup, 1, 1, this.failedAssetKeys));
@@ -208,6 +222,31 @@ export class GameScene extends Phaser.Scene {
       const spawn: EnemySpawn = { ...template, spawnX: x, spawnY: y };
       this.enemies.push(new Enemy(this, x, y, spawn, this.enemyBullets, this.enemyGroup, multiplier, multiplier, this.failedAssetKeys));
     }
+
+    // v13: "which wave is coming up" on-screen banner, every wave transition.
+    this.events.emit("farm-wave-start", wave);
+  }
+
+  /** v13: drives the farm stage's opening sequence — 5s with no enemies, then
+   *  wave 1 spawns but stays frozen (no movement/damage either direction) for
+   *  3s more. Called every frame from update() while isFarmStage; a no-op
+   *  once farmPhase reaches "active". */
+  private updateFarmPhase(delta: number) {
+    if (this.farmPhase === "active") return;
+    this.farmPhaseElapsed += delta;
+
+    if (this.farmPhase === "countdown") {
+      const remainingMs = Math.max(0, GameScene.FARM_COUNTDOWN_MS - this.farmPhaseElapsed);
+      this.events.emit("farm-countdown", Math.ceil(remainingMs / 1000));
+      if (this.farmPhaseElapsed >= GameScene.FARM_COUNTDOWN_MS) {
+        this.farmPhase = "freeze";
+        this.farmPhaseElapsed = 0;
+        this.events.emit("farm-countdown", 0);
+        this.spawnWave(this.currentWave);
+      }
+    } else if (this.farmPhase === "freeze" && this.farmPhaseElapsed >= GameScene.FARM_FREEZE_MS) {
+      this.farmPhase = "active";
+    }
   }
 
   private detonateBullet(bullet: Phaser.Physics.Arcade.Image, isPlayerBullet: boolean) {
@@ -227,6 +266,7 @@ export class GameScene extends Phaser.Scene {
 
   private applyAoeSplash(x: number, y: number, damage: number, isPlayerBullet: boolean, radius: number = PLAYER_CONFIG.aoeRadius) {
     if (damage <= 0) return;
+    if (this.farmPhase === "freeze") return; // v13: no damage either direction during the farm-stage freeze window
     const explosion = this.add.circle(x, y, radius, 0xff8800, 0.35).setDepth(15);
     this.tweens.add({ targets: explosion, alpha: 0, scale: 1.3, duration: 300, onComplete: () => explosion.destroy() });
 
@@ -286,6 +326,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
 
+    if (this.farmPhase === "freeze") {
+      this.showFloatingText(enemySprite.x, enemySprite.y, "FROZEN", "#66ccff");
+      return; // v13: enemies can't be damaged during the farm-stage freeze window
+    }
+
     if (isMiss || damage <= 0) {
       sfx.play("miss");
       this.showFloatingText(enemySprite.x, enemySprite.y, "MISS", "#999999");
@@ -324,6 +369,7 @@ export class GameScene extends Phaser.Scene {
     }
 
     if (this.player.isInvincible) return;
+    if (this.farmPhase === "freeze") return; // v13: defensive — enemies don't fire during freeze, but a bullet already mid-flight when freeze started shouldn't land damage either
 
     if (isMiss || damage <= 0) {
       sfx.play("miss");
@@ -381,7 +427,10 @@ export class GameScene extends Phaser.Scene {
     let moveUp = this.cursors.up.isDown || this.wasd.W.isDown;
     let moveDown = this.cursors.down.isDown || this.wasd.S.isDown;
     let isShooting = this.shootKey.isDown || this.input.activePointer.isDown;
-    const isReloading = Phaser.Input.Keyboard.JustDown(this.reloadKey);
+    // v13: the on-screen RELOAD button pulses this.reloadRequested for exactly
+    // one frame, same one-shot semantics as JustDown(R) below.
+    const isReloading = Phaser.Input.Keyboard.JustDown(this.reloadKey) || this.reloadRequested;
+    this.reloadRequested = false;
 
     const pointer = this.input.activePointer;
     let worldPointer = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
@@ -408,10 +457,19 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
+    if (this.isFarmStage) this.updateFarmPhase(delta);
+    const frozen = this.farmPhase === "freeze";
+
     this.player.update(moveLeft, moveRight, moveUp, moveDown, isShooting, isReloading, worldPointer, delta, this.covers);
 
-    for (const enemy of this.enemies) {
-      if (!enemy.isDead) enemy.update(this.player.sprite.x, this.player.sprite.y);
+    // v13: during the post-spawn freeze window, enemies don't move/shoot at
+    // all — combined with the no-damage guards in the hit handlers below,
+    // this is what makes freeze a true "both sides harmless" pause, not just
+    // a visual one.
+    if (!frozen) {
+      for (const enemy of this.enemies) {
+        if (!enemy.isDead) enemy.update(this.player.sprite.x, this.player.sprite.y);
+      }
     }
 
     this.checkWinCondition();
@@ -490,6 +548,13 @@ export class GameScene extends Phaser.Scene {
     this.scene.pause();
     this.scene.pause("HUDScene");
     this.scene.launch("AmmoRefillScene");
+  }
+
+  /** v13: on-screen RELOAD button — sets the same one-frame pulse the R key
+   *  sets, consumed on the next update(). */
+  triggerReload() {
+    if (this.stageEnded || this.scene.isPaused()) return;
+    this.reloadRequested = true;
   }
 
   /** Called by AmmoRefillScene after a successful refill to update the live Player instance. */

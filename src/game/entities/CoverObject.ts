@@ -55,15 +55,21 @@ type HitboxShape =
   | { kind: "rect"; widthFrac: number; heightFrac: number; offsetXFrac: number; offsetYFrac: number };
 
 const HITBOX_SHAPE: Record<CoverType, HitboxShape> = {
-  // 5 mound ellipses cluster around (64,62) of a 128x96 viewBox — circle sized
-  // to ~40% of width per the spec table, centered on the mound cluster (not
-  // the shadow ellipse below it).
-  sandbag: { kind: "circle", radiusFrac: 0.4, centerXFrac: 0.5, centerYFrac: 0.646 },
+  // v13: shrunk further (0.4 -> 0.32) — still reported as blocking visually-
+  // empty space around the mound cluster. Arcade's setCircle() can only ever
+  // be a TRUE circle, not an ellipse, so any non-square display box (this
+  // cover's COVER_SIZES aren't square) already can't perfectly hug an
+  // asymmetric sprite — erring smaller trades a sliver of unhit-tested solid
+  // pixels for guaranteeing no shots get blocked by empty space, which is the
+  // direction the user explicitly asked for. Flag with a screenshot if a
+  // specific stage's cover still feels wrong — this couldn't be pixel-verified
+  // visually in this sandbox (no working in-browser preview against this
+  // project's backend), only reasoned about from the source SVG geometry.
+  sandbag: { kind: "circle", radiusFrac: 0.32, centerXFrac: 0.5, centerYFrac: 0.646 },
   // Wooden frame rect x12,y18,w72,h60 of a 96x96 viewBox — matches exactly, unchanged.
   crate: { kind: "rect", widthFrac: 0.75, heightFrac: 0.625, offsetXFrac: 0.125, offsetYFrac: 0.1875 },
-  // Canopy circle r=30 centered (40,38) of an 80x80 viewBox — hitbox at ~57% of
-  // that radius so it's the trunk + inner canopy only, not the outer leaf clusters.
-  tree: { kind: "circle", radiusFrac: 0.2138, centerXFrac: 0.5, centerYFrac: 0.475 },
+  // v13: shrunk further (0.2138 -> 0.16) for the same reason as sandbag above.
+  tree: { kind: "circle", radiusFrac: 0.16, centerXFrac: 0.5, centerYFrac: 0.475 },
   // Wall strip rect x4,y6,w112,h30 of a 120x48 viewBox — matches exactly, unchanged.
   wall: { kind: "rect", widthFrac: 0.933, heightFrac: 0.625, offsetXFrac: 0.033, offsetYFrac: 0.125 },
   // Wall-only rect x16,y30,w64,h50 of a 96x96 viewBox — excludes the roof triangle above y=30.

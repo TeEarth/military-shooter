@@ -90,13 +90,24 @@ function UpgradeStars({ level }: { level: number }) {
   );
 }
 
+/** v13: base rarity bonus and cumulative dupe-upgrade bonus kept SEPARATE
+ *  (not pre-merged) so the UI can show "base +5% (+3% from ★3 upgrades) = +8%"
+ *  instead of only the opaque merged total. */
 function equipmentBonus(item: EquipmentRow, upgradeLevel: number) {
   const dupe = DUPE_UPGRADE_BONUS[item.rarity];
+  const upgrade = {
+    hpPercent: upgradeLevel * dupe.hpPercent,
+    damagePercent: upgradeLevel * dupe.damagePercent,
+    critChancePercent: upgradeLevel * dupe.critChancePercent,
+    critDamagePercent: upgradeLevel * dupe.critDamagePercent,
+  };
   return {
-    hpPercent: item.hpPercent + upgradeLevel * dupe.hpPercent,
-    damagePercent: item.damagePercent + upgradeLevel * dupe.damagePercent,
-    critChancePercent: item.critChancePercent + upgradeLevel * dupe.critChancePercent,
-    critDamagePercent: item.critDamagePercent + upgradeLevel * dupe.critDamagePercent,
+    base: { hpPercent: item.hpPercent, damagePercent: item.damagePercent, critChancePercent: item.critChancePercent, critDamagePercent: item.critDamagePercent },
+    upgrade,
+    hpPercent: item.hpPercent + upgrade.hpPercent,
+    damagePercent: item.damagePercent + upgrade.damagePercent,
+    critChancePercent: item.critChancePercent + upgrade.critChancePercent,
+    critDamagePercent: item.critDamagePercent + upgrade.critDamagePercent,
     shieldValue: item.shieldValue,
   };
 }
@@ -308,10 +319,18 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
                     const line = stats[key];
                     const round = (n: number) => (decimals > 0 ? n.toFixed(decimals) : Math.round(n).toString());
                     return (
-                      <div key={key} className="flex justify-between text-sm">
+                      <div key={key} className="flex justify-between items-baseline text-sm">
                         <span className="text-military-steel">{label}</span>
-                        <span className="text-white">
-                          {round(line.base)}{suffix} <span className="text-military-gold">({line.bonusPercent >= 0 ? "+" : ""}{line.bonusPercent.toFixed(1)}%)</span> = <span className="font-bold">{round(line.final)}{suffix}</span>
+                        <span className="text-white text-right">
+                          {round(line.base)}{suffix}
+                          {/* v13: equipment/passive bonuses shown as separate tags instead of one merged %, per request */}
+                          {line.equipmentBonusPercent !== 0 && (
+                            <span className="text-blue-400"> (อุปกรณ์ {line.equipmentBonusPercent >= 0 ? "+" : ""}{line.equipmentBonusPercent.toFixed(1)}%)</span>
+                          )}
+                          {line.passiveBonusPercent !== 0 && (
+                            <span className="text-purple-400"> (passive {line.passiveBonusPercent >= 0 ? "+" : ""}{line.passiveBonusPercent.toFixed(1)}%)</span>
+                          )}
+                          {" = "}<span className="font-bold">{round(line.final)}{suffix}</span>
                         </span>
                       </div>
                     );
@@ -344,11 +363,23 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
                           {SLOT_LABEL[slot]} (<span className={RARITY_TEXT[item.rarity]}>{item.rarity}</span>{item.upgradeLevel > 0 ? `, ★${item.upgradeLevel}` : ""})
                         </span>
                       </div>
-                      <div className="text-xs text-military-steel flex flex-wrap gap-x-3 gap-y-1">
-                        {bonus.hpPercent > 0 && <span>HP +{bonus.hpPercent}%</span>}
-                        {bonus.damagePercent > 0 && <span>ATK +{bonus.damagePercent}%</span>}
-                        {bonus.critChancePercent > 0 && <span>Crit% +{bonus.critChancePercent}%</span>}
-                        {bonus.critDamagePercent > 0 && <span>CritDMG +{bonus.critDamagePercent}%</span>}
+                      <div className="text-xs text-military-steel flex flex-col gap-1">
+                        {([
+                          ["HP", "hpPercent"],
+                          ["ATK", "damagePercent"],
+                          ["Crit%", "critChancePercent"],
+                          ["CritDMG", "critDamagePercent"],
+                        ] as const).map(([label, key]) =>
+                          bonus[key] > 0 ? (
+                            <span key={key}>
+                              {label} +{bonus.base[key]}%
+                              {bonus.upgrade[key] > 0 && (
+                                <span className="text-green-400"> (+{bonus.upgrade[key]}% จาก ★{item.upgradeLevel})</span>
+                              )}
+                              {" = "}<span className="font-bold text-white">+{bonus[key]}%</span>
+                            </span>
+                          ) : null
+                        )}
                         {bonus.shieldValue > 0 && <span>Shield +{bonus.shieldValue}</span>}
                       </div>
                     </div>

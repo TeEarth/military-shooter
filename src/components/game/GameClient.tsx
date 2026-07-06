@@ -70,9 +70,15 @@ export default function GameClient() {
 
         if (cancelled || !containerRef.current) return;
 
-        // v9 #6: mobile is real touch hardware AND a narrow viewport — a touch-
-        // capable laptop/tablet in a wide window must never get the joystick UI.
-        const isMobile = ("ontouchstart" in window || navigator.maxTouchPoints > 0) && window.innerWidth < 768;
+        // v9 #6 / v13 fix: mobile is real touch hardware AND a phone-sized
+        // viewport — a touch-capable laptop/tablet in a wide window must
+        // never get the joystick UI. Checking innerWidth alone broke this on
+        // real phones: this game is landscape-only, and a phone rotated to
+        // landscape commonly reports innerWidth well over 768 (e.g. ~930 on
+        // an iPhone 14 Pro Max) while innerHeight stays small — so the
+        // joystick silently never appeared on an actual phone. Checking the
+        // SMALLER of the two dimensions makes the check orientation-independent.
+        const isMobile = ("ontouchstart" in window || navigator.maxTouchPoints > 0) && Math.min(window.innerWidth, window.innerHeight) < 500;
 
         const game = new Phaser.Game({
           type: Phaser.AUTO,
