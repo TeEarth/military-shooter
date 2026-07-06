@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPlayerById } from "@/lib/google/player";
+import { getPlayerById } from "@/lib/db/player";
 import { getWeaponById } from "@/lib/google/weapon";
-import { getRemainingAmmo, refillAmmoViaAd, refillAmmoViaDiamond } from "@/lib/google/weaponAmmo";
-import { getPassiveTotals } from "@/lib/google/passive";
+import { getRemainingAmmo, refillAmmoViaAd, refillAmmoViaDiamond } from "@/lib/db/weaponAmmo";
+import { getPassiveTotals } from "@/lib/db/passive";
 
 export async function GET(req: NextRequest) {
   const session = await auth();

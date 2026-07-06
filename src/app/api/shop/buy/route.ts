@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPlayerById, addCurrency, toPublicPlayer } from "@/lib/google/player";
+import { getPlayerById, addCurrency, toPublicPlayer } from "@/lib/db/player";
 import { getCharacterById, meetsSpecialRequirements } from "@/lib/google/character";
 import { getWeaponById } from "@/lib/google/weapon";
 import {
@@ -8,7 +8,7 @@ import {
   ownsWeapon,
   grantWeaponToPlayer,
   unlockCharacterForPlayer,
-} from "@/lib/google/inventory";
+} from "@/lib/db/inventory";
 
 /**
  * Characters and weapons are still bought directly here. Equipment is NOT —

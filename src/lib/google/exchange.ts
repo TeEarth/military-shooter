@@ -1,5 +1,5 @@
 import { getCachedSheet } from "./cache";
-import { getPlayerById, updatePlayer } from "./player";
+import { getPlayerById, updatePlayer } from "../db/player";
 
 const SHEET = "CurrencyExchangeConfig";
 

@@ -1,9 +1,9 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getPlayerById, toPublicPlayer } from "@/lib/google/player";
+import { getPlayerById, toPublicPlayer } from "@/lib/db/player";
 import { getCharacterById } from "@/lib/google/character";
 import { computeVipProgress } from "@/lib/google/vip";
-import { getPlayerIncome } from "@/lib/google/income";
+import { getPlayerIncome } from "@/lib/db/income";
 import HomeClient from "@/components/home/HomeClient";
 
 export default async function HomePage() {

@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getPlayerById } from "@/lib/google/player";
+import { getPlayerById } from "@/lib/db/player";
 import SettingsClient from "@/components/settings/SettingsClient";
 
 export default async function SettingsPage() {

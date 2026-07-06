@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPlayerById } from "@/lib/google/player";
-import { setEquipped, ownsEquipment } from "@/lib/google/inventory";
+import { getPlayerById } from "@/lib/db/player";
+import { setEquipped, ownsEquipment } from "@/lib/db/inventory";
 
 export async function POST(req: NextRequest) {
   const session = await auth();

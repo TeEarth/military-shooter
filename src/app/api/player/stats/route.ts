@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPlayerById } from "@/lib/google/player";
+import { getPlayerById } from "@/lib/db/player";
 import { getCharacterById } from "@/lib/google/character";
 import { getWeaponById } from "@/lib/google/weapon";
-import { getEquippedWeaponId } from "@/lib/google/inventory";
+import { getEquippedWeaponId } from "@/lib/db/inventory";
 import { computeFullStats } from "@/lib/stats";
 
 const DEFAULT_WEAPON_ID = "pistol";

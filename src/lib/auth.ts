@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { createPlayer, getPlayerByEmail, verifyPassword } from "./google/player";
+import { createPlayer, getPlayerByEmail, verifyPassword } from "./db/player";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [

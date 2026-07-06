@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { createPlayer } from "@/lib/google/player";
+import { createPlayer } from "@/lib/db/player";
 
 const schema = z.object({
   email: z.string().email(),

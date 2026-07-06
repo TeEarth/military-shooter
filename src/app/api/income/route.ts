@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPlayerIncome, getWithdrawalRequests } from "@/lib/google/income";
+import { getPlayerIncome, getWithdrawalRequests } from "@/lib/db/income";
 import { getAllTopUpPackages } from "@/lib/google/topup";
 
 export async function GET() {

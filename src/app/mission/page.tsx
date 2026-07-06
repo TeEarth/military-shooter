@@ -1,9 +1,9 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getAllMissionsForPlayer, getPlayerMissionProgress } from "@/lib/google/mission";
-import { getPlayerById } from "@/lib/google/player";
-import { getCompletedStageIds } from "@/lib/google/stageProgress";
-import { getPlayerIncome } from "@/lib/google/income";
+import { getAllMissionsForPlayer, getPlayerMissionProgress } from "@/lib/db/mission";
+import { getPlayerById } from "@/lib/db/player";
+import { getCompletedStageIds } from "@/lib/db/stageProgress";
+import { getPlayerIncome } from "@/lib/db/income";
 import MissionClient from "@/components/mission/MissionClient";
 
 export default async function MissionPage() {

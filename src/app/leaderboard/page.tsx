@@ -1,4 +1,4 @@
-import { getAllPlayers } from "@/lib/google/player";
+import { getAllPlayers } from "@/lib/db/player";
 import Link from "next/link";
 
 export default async function LeaderboardPage() {

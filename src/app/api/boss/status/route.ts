@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getCompletedStageIds } from "@/lib/google/stageProgress";
-import { getBossStageConfig, getBossEncounterCount, scaledBossHp } from "@/lib/google/bossStage";
+import { getCompletedStageIds } from "@/lib/db/stageProgress";
+import { getBossStageConfig, getBossEncounterCount, scaledBossHp } from "@/lib/db/bossStage";
 
 export async function GET() {
   const session = await auth();

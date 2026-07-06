@@ -1,8 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getPlayerById } from "@/lib/google/player";
+import { getPlayerById } from "@/lib/db/player";
 import { getAllExchangeRates } from "@/lib/google/exchange";
-import { getPlayerIncome } from "@/lib/google/income";
+import { getPlayerIncome } from "@/lib/db/income";
 import ShopClient from "@/components/shop/ShopClient";
 
 export default async function ShopPage() {

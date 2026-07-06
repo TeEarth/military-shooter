@@ -1,10 +1,10 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getPlayerById } from "@/lib/google/player";
+import { getPlayerById } from "@/lib/db/player";
 import { getCharacterById } from "@/lib/google/character";
 import { getAllWeapons } from "@/lib/google/weapon";
-import { getAllEquipment, getPlayerEquipment, getPlayerWeapons, getAllEquipmentUpgradeLevels } from "@/lib/google/inventory";
-import { getPlayerIncome } from "@/lib/google/income";
+import { getAllEquipment, getPlayerEquipment, getPlayerWeapons, getAllEquipmentUpgradeLevels } from "@/lib/db/inventory";
+import { getPlayerIncome } from "@/lib/db/income";
 import InventoryClient from "@/components/inventory/InventoryClient";
 
 export default async function InventoryPage() {

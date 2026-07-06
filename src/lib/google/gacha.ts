@@ -1,5 +1,5 @@
 import { getCachedSheet } from "./cache";
-import { addCurrency, getPlayerById } from "./player";
+import { addCurrency, getPlayerById } from "../db/player";
 import {
   getAllEquipment,
   ownsEquipment,
@@ -7,7 +7,7 @@ import {
   incrementEquipmentUpgradeLevel,
   type EquipmentSlot,
   type Rarity,
-} from "./inventory";
+} from "../db/inventory";
 
 const SHEET = "GachaConfig";
 

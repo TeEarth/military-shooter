@@ -1,5 +1,5 @@
 import { getCachedSheet } from "./cache";
-import { addCurrency } from "./player";
+import { addCurrency } from "../db/player";
 
 const SHEET = "TicketTopUp";
 

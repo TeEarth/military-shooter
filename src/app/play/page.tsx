@@ -1,9 +1,9 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getAllStages } from "@/lib/google/stage";
-import { getPlayerById } from "@/lib/google/player";
-import { getCompletedStageIds } from "@/lib/google/stageProgress";
-import { getBossStageConfig, getBossEncounterCount, scaledBossHp } from "@/lib/google/bossStage";
+import { getPlayerById } from "@/lib/db/player";
+import { getCompletedStageIds } from "@/lib/db/stageProgress";
+import { getBossStageConfig, getBossEncounterCount, scaledBossHp } from "@/lib/db/bossStage";
 import StageSelectClient from "@/components/play/StageSelectClient";
 
 export default async function PlayPage() {

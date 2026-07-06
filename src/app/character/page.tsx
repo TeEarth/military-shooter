@@ -2,11 +2,11 @@ import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getAllCharacters } from "@/lib/google/character";
 import { getAllWeapons } from "@/lib/google/weapon";
-import { getAllPassiveConfigs } from "@/lib/google/passive";
-import { getPlayerById } from "@/lib/google/player";
-import { getPlayerCharacters, getPlayerWeapons, getEquippedWeaponId } from "@/lib/google/inventory";
-import { getPlayerPassives } from "@/lib/google/passive";
-import { getPlayerIncome } from "@/lib/google/income";
+import { getAllPassiveConfigs } from "@/lib/db/passive";
+import { getPlayerById } from "@/lib/db/player";
+import { getPlayerCharacters, getPlayerWeapons, getEquippedWeaponId } from "@/lib/db/inventory";
+import { getPlayerPassives } from "@/lib/db/passive";
+import { getPlayerIncome } from "@/lib/db/income";
 import CharacterHubClient from "@/components/character/CharacterHubClient";
 
 export default async function CharacterPage() {

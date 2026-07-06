@@ -1,8 +1,8 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getPlayerById } from "@/lib/google/player";
+import { getPlayerById } from "@/lib/db/player";
 import { getGachaPools } from "@/lib/google/gacha";
-import { getPlayerIncome } from "@/lib/google/income";
+import { getPlayerIncome } from "@/lib/db/income";
 import GachaClient from "@/components/gacha/GachaClient";
 
 export default async function GachaPage() {

@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { after } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPlayerById, addCurrency, recordFarmWave, updatePlayer } from "@/lib/google/player";
+import { getPlayerById, addCurrency, recordFarmWave, updatePlayer } from "@/lib/db/player";
 import { getStageById } from "@/lib/google/stage";
-import { getCompletedStageIds, markStageCompleted } from "@/lib/google/stageProgress";
-import { deductWeaponAmmo } from "@/lib/google/weaponAmmo";
-import { incrementMissionProgress, setMissionProgressIfHigher } from "@/lib/google/mission";
+import { getCompletedStageIds, markStageCompleted } from "@/lib/db/stageProgress";
+import { deductWeaponAmmo } from "@/lib/db/weaponAmmo";
+import { incrementMissionProgress, setMissionProgressIfHigher } from "@/lib/db/mission";
 import { parseStageNumber, templateStageId } from "@/lib/stageTemplate";
-import { incrementBossEncounterCount } from "@/lib/google/bossStage";
-import { addGreenBanknotes } from "@/lib/google/income";
+import { incrementBossEncounterCount } from "@/lib/db/bossStage";
+import { addGreenBanknotes } from "@/lib/db/income";
 import { computeVipProgress } from "@/lib/google/vip";
 
 const MILESTONE_INTERVAL = 5;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAllStages } from "@/lib/google/stage";
 import { auth } from "@/lib/auth";
-import { getPlayerById } from "@/lib/google/player";
+import { getPlayerById } from "@/lib/db/player";
 
 function stageNumber(stageId: string): number {
   return Number(stageId.replace(/\D/g, "")) || 0;

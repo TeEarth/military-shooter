@@ -1,8 +1,8 @@
 import { getCachedSheet, invalidateSheetCache } from "./cache";
 import { appendRow, readSheetRaw, updateRow, parseBool } from "./sheet";
-import { addCurrency } from "./player";
+import { addCurrency } from "../db/player";
 import { getStageById } from "./stage";
-import { grantEquipmentToPlayer, unlockCharacterForPlayer } from "./inventory";
+import { grantEquipmentToPlayer, unlockCharacterForPlayer } from "../db/inventory";
 
 const MAIL_SHEET = "Mail";
 

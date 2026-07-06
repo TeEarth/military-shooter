@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { addCurrency } from "@/lib/google/player";
+import { addCurrency } from "@/lib/db/player";
 
 /**
  * Mock payment endpoint. No real payment gateway is connected yet.

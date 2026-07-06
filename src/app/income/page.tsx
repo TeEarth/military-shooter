@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import { getPlayerById } from "@/lib/google/player";
-import { getPlayerIncome, getWithdrawalRequests } from "@/lib/google/income";
+import { getPlayerById } from "@/lib/db/player";
+import { getPlayerIncome, getWithdrawalRequests } from "@/lib/db/income";
 import { getAllTopUpPackages } from "@/lib/google/topup";
 import IncomeClient from "@/components/income/IncomeClient";
 

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { upgradePassive, type PassiveId } from "@/lib/google/passive";
-import { toPublicPlayer, getPlayerById } from "@/lib/google/player";
+import { upgradePassive, type PassiveId } from "@/lib/db/passive";
+import { toPublicPlayer, getPlayerById } from "@/lib/db/player";
 
 export async function POST(req: NextRequest) {
   const session = await auth();

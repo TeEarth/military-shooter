@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPlayerById } from "@/lib/google/player";
+import { getPlayerById } from "@/lib/db/player";
 import { getStageById, getStageEnemies, getStageCovers } from "@/lib/google/stage";
 import { getEnemyById, getAllEnemies } from "@/lib/google/enemy";
 import { getCharacterById } from "@/lib/google/character";
 import { getWeaponById } from "@/lib/google/weapon";
-import { getEquippedWeaponId } from "@/lib/google/inventory";
-import { getRemainingAmmo } from "@/lib/google/weaponAmmo";
-import { isStageCompleted } from "@/lib/google/stageProgress";
+import { getEquippedWeaponId } from "@/lib/db/inventory";
+import { getRemainingAmmo } from "@/lib/db/weaponAmmo";
+import { isStageCompleted } from "@/lib/db/stageProgress";
 import { computeFullStats, statsToLoadout } from "@/lib/stats";
 import { parseStageNumber, templateStageId, stageStatMultiplier, extraEnemyCount } from "@/lib/stageTemplate";
-import { getBossStageConfig, getBossEncounterCount, scaledBossHp } from "@/lib/google/bossStage";
-import { getCompletedStageIds } from "@/lib/google/stageProgress";
+import { getBossStageConfig, getBossEncounterCount, scaledBossHp } from "@/lib/db/bossStage";
+import { getCompletedStageIds } from "@/lib/db/stageProgress";
 
 const DEFAULT_WEAPON_ID = "pistol";
 

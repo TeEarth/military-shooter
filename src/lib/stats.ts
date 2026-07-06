@@ -1,8 +1,8 @@
 import type { CharacterRow } from "./google/character";
 import type { WeaponRow } from "./google/weapon";
-import type { EquipmentStatTotals } from "./google/inventory";
-import { getEquippedStatTotals } from "./google/inventory";
-import { getPassiveTotals, type PassiveTotals } from "./google/passive";
+import type { EquipmentStatTotals } from "./db/inventory";
+import { getEquippedStatTotals } from "./db/inventory";
+import { getPassiveTotals, type PassiveTotals } from "./db/passive";
 import type { CombatLoadout } from "@/types/loadout";
 
 /**

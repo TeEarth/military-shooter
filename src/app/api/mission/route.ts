@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { claimMission } from "@/lib/google/mission";
+import { claimMission } from "@/lib/db/mission";
 
 export async function POST(req: NextRequest) {
   const session = await auth();

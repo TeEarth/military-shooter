@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getAllPlayers } from "@/lib/google/player";
+import { getAllPlayers } from "@/lib/db/player";
 
 export async function GET() {
   const players = await getAllPlayers();

@@ -2,36 +2,45 @@
  * Repeatable test-account reset — run this before every test pass, as many
  * times as you like (NOT a one-off migration).
  *
- * v9 #4: before creating the new account, this now deletes EVERY row flagged
- * `isTestAccount = true` in Players (not just the one account you named) —
- * plus the named email's row even if it predates the flag — along with all
- * their related rows across every per-player sheet. Real player accounts are
- * never touched: the flag is only ever set by this script (see
- * createPlayer()'s isTestAccount param), so nothing without it gets deleted.
+ * v12: rewritten for the Supabase migration — player data (Players and every
+ * per-player table) now lives in Supabase, not Google Sheets, so this script
+ * deletes rows there directly instead of via deleteRowsWhere(). No cache to
+ * invalidate anymore (db/*.ts hits Postgres directly, no local cache layer),
+ * which removes the whole stale-cache dance the old Sheets version needed.
  *
- * The new account is created fresh with unlimited currency (v6/v7 rules still
- * apply: no auto-granted characters/weapons beyond the normal Bob+Pistol
- * starter every player gets), and the password is ALWAYS reset to a known
- * value (v7 #1) and printed clearly every run.
+ * v9 #4: before creating the new account, this still deletes EVERY row
+ * flagged `isTestAccount = true` in Players (not just the one account you
+ * named) — plus the named email's row even if it predates the flag — along
+ * with all their related rows across every per-player table. Real player
+ * accounts are never touched: the flag is only ever set by this script.
+ *
+ * The new account is created fresh with unlimited currency (v6/v7 rules
+ * still apply: no auto-granted characters/weapons beyond the normal
+ * Bob+Pistol starter), and the password is ALWAYS reset to a known value
+ * (v7 #1) and printed clearly every run.
  *
  * Usage: npx tsx scripts/reset-test-account.ts --email=someone@example.com [--password=Something123!]
  *    or: npm run test:reset -- --email=someone@example.com
  */
 import "dotenv/config";
-import { getAllPlayers, getPlayerByEmail, createPlayer, updatePlayer } from "../src/lib/google/player";
+import { getAllPlayers, getPlayerByEmail, createPlayer, updatePlayer } from "../src/lib/db/player";
+import { getSupabaseClient } from "../src/lib/supabase/client";
 import { deleteRowsWhere } from "../src/lib/google/sheet";
-import { invalidateSheetCache } from "../src/lib/google/cache";
 
 const UNLIMITED = 999_999_999;
 const DEFAULT_PASSWORD = "Test1234!";
 
-// Every sheet that stores per-player rows keyed by playerId — wiped for each
-// deleted test account alongside its Players row itself.
-const PER_PLAYER_SHEETS = [
-  "PlayerWeapon", "PlayerEquipment", "PlayerCharacter", "PlayerStageProgress",
-  "PlayerWeaponAmmo", "PlayerPassive", "PlayerMission", "PlayerIncome",
-  "PlayerBossProgress", "PlayerEquipmentLevel", "WithdrawalRequest",
+// Every Supabase table that stores per-player rows keyed by player_id — wiped
+// for each deleted test account alongside its Players row itself.
+const PER_PLAYER_TABLES = [
+  "player_weapon", "player_equipment", "player_equipment_level", "player_character",
+  "player_weapon_ammo", "player_passive", "player_stage_progress", "player_mission",
+  "player_income", "player_boss_progress",
 ];
+
+// WithdrawalRequest was never migrated to Supabase (admin-processed, stays
+// editable via Google Sheets) — still needs the old Sheets-based wipe.
+const WITHDRAWAL_REQUEST_SHEET = "WithdrawalRequest";
 
 function parseArg(prefix: string): string | undefined {
   return process.argv.find((a) => a.startsWith(prefix))?.slice(prefix.length);
@@ -50,6 +59,7 @@ async function main() {
   const email = parseEmail();
   const passwordArg = parseArg("--password=");
   const password = passwordArg ?? DEFAULT_PASSWORD;
+  const supabase = getSupabaseClient();
 
   // 1. Find every account to wipe: everything already flagged isTestAccount,
   //    plus the specifically-named email (even if it predates the flag).
@@ -63,22 +73,21 @@ async function main() {
   if (wipeIds.size === 0) {
     console.log("No previous test accounts found to wipe.");
   } else {
-    console.log(`Wiping ${wipeIds.size} old test account(s): ${[...wipeIds].join(", ")}`);
+    const ids = [...wipeIds];
+    console.log(`Wiping ${ids.length} old test account(s): ${ids.join(", ")}`);
 
-    for (const sheetName of PER_PLAYER_SHEETS) {
-      const removed = await deleteRowsWhere(sheetName, (r) => wipeIds.has(r.playerId));
-      if (removed > 0) console.log(`  Cleared ${removed} row(s) from ${sheetName}`);
+    for (const table of PER_PLAYER_TABLES) {
+      const { error, count } = await supabase.from(table).delete({ count: "exact" }).in("player_id", ids);
+      if (error) throw new Error(`Failed clearing ${table}: ${error.message}`);
+      if (count) console.log(`  Cleared ${count} row(s) from ${table}`);
     }
 
-    const removedPlayers = await deleteRowsWhere("Players", (r) => wipeIds.has(r.id));
-    console.log(`  Deleted ${removedPlayers} row(s) from Players`);
+    const removed = await deleteRowsWhere(WITHDRAWAL_REQUEST_SHEET, (r) => wipeIds.has(r.playerId));
+    if (removed > 0) console.log(`  Cleared ${removed} row(s) from ${WITHDRAWAL_REQUEST_SHEET} (Sheets)`);
 
-    // deleteRowsWhere() writes straight to the Sheets API and knows nothing
-    // about cache.ts's in-process cache — without this, createPlayer() below
-    // calls getPlayerByEmail(), which reads the now-stale cached Players rows
-    // (still containing the just-deleted account) and throws "Email already
-    // in use" even though the row is already gone on the live sheet.
-    invalidateSheetCache("Players");
+    const { error: playersError, count: playersCount } = await supabase.from("players").delete({ count: "exact" }).in("id", ids);
+    if (playersError) throw new Error(`Failed clearing players: ${playersError.message}`);
+    console.log(`  Deleted ${playersCount ?? 0} row(s) from players`);
   }
 
   // 2. Create a brand new account — same path as /api/auth/register, flagged
@@ -94,30 +103,6 @@ async function main() {
     diamond: UNLIMITED,
     ticket: UNLIMITED,
   });
-
-  invalidateSheetCache("Players"); // clears THIS script process's own cache — see the note below
-
-  // v8 #2: this script runs as its OWN Node process, separate from the running
-  // Next.js server — invalidateSheetCache() above only clears this process's
-  // local cache map (which disappears when the script exits anyway). It can
-  // NEVER reach into the live server's in-memory cache. Tell the real running
-  // server to drop its cache via HTTP instead — if the server isn't running,
-  // this just logs a warning (the sheet data is still correct; the app will
-  // pick it up once its cache TTL naturally expires or it's restarted).
-  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-  try {
-    const res = await fetch(`${baseUrl}/api/internal/invalidate-cache`, {
-      method: "POST",
-      headers: { "x-internal-secret": process.env.NEXTAUTH_SECRET ?? "" },
-    });
-    if (res.ok) {
-      console.log(`  Live server cache invalidated (${baseUrl})`);
-    } else {
-      console.warn(`  Could not invalidate live server cache (HTTP ${res.status}) — it'll pick up the reset once its cache TTL expires.`);
-    }
-  } catch {
-    console.warn(`  Could not reach ${baseUrl} to invalidate its cache (server not running?) — it'll pick up the reset once its cache TTL expires or on restart.`);
-  }
 
   console.log("\n✅ Test account ready");
   console.log(`Email:    ${email}`);

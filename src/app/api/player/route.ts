@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPlayerById, toPublicPlayer } from "@/lib/google/player";
-import { getPlayerCharacters, getPlayerEquipment, getPlayerWeapons } from "@/lib/google/inventory";
+import { getPlayerById, toPublicPlayer } from "@/lib/db/player";
+import { getPlayerCharacters, getPlayerEquipment, getPlayerWeapons } from "@/lib/db/inventory";
 
 export async function GET() {
   const session = await auth();
