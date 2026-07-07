@@ -76,8 +76,15 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, rewards });
   }
 
+  // v17: same "prefer an exact purpose-built Stage row over the modulo-10
+  // template reuse" resolution as start/route.ts — must stay consistent so
+  // this route rewards/completes the SAME stage the run was actually played on.
   const requestedNum = parseStageNumber(stageId);
-  const lookupId = requestedNum ? templateStageId(requestedNum) : stageId;
+  let lookupId = stageId;
+  if (requestedNum) {
+    const exact = await getStageById(stageId);
+    lookupId = exact ? stageId : templateStageId(requestedNum);
+  }
   const stage = await getStageById(lookupId);
   if (!stage) return NextResponse.json({ error: "Stage not found" }, { status: 404 });
 

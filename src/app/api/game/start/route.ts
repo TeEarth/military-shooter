@@ -28,14 +28,36 @@ export async function POST(req: NextRequest) {
     return startBossStage(player.id);
   }
 
-  // Story stages loop every 10 numbers (stage 11 reuses stage 1's map, scaled harder) —
-  // resolve the requested number to its template map before loading spawns/metadata.
+  // Story stages loop every 10 numbers (stage 11 reuses stage 1's map, scaled harder)
+  // ONLY if no purpose-built Stage row exists for that exact number — a later
+  // multiverse's real stage11-20 rows take priority over the modulo reuse.
   // Farm-stage ids (e.g. "farm_01") aren't numeric and skip this resolution entirely.
   const requestedNum = parseStageNumber(stageId);
-  const lookupId = requestedNum ? templateStageId(requestedNum) : stageId;
+  let lookupId = stageId;
+  if (requestedNum) {
+    const exact = await getStageById(stageId);
+    lookupId = exact ? stageId : templateStageId(requestedNum);
+  }
 
   const [stage, spawns, covers] = await Promise.all([getStageById(lookupId), getStageEnemies(lookupId), getStageCovers(lookupId)]);
   if (!stage) return NextResponse.json({ error: "Stage not found" }, { status: 404 });
+
+  // v17: placeholder stages (real content not designed yet) aren't playable —
+  // matches the disabled state in StageSelectClient, enforced server-side too.
+  if (stage.comingSoon) {
+    return NextResponse.json({ error: "This stage hasn't been designed yet." }, { status: 400 });
+  }
+
+  // v17: Multiverse 2+ is gated behind clearing that many bosses — story
+  // progression (currentStage) alone would otherwise let a player walk past
+  // the boss fight straight into the next multiverse, since currentStage
+  // already advances past 10 the moment stage10 is cleared.
+  if (stage.multiverse > 1) {
+    const bossEncounterCount = await getBossEncounterCount(player.id);
+    if (stage.multiverse > 1 + bossEncounterCount) {
+      return NextResponse.json({ error: "Clear the boss stage to unlock this multiverse first." }, { status: 400 });
+    }
+  }
 
   // Story stages are one-and-done — once completed, never playable again. Checked
   // against the actual requested stage number/id, not the reused template.

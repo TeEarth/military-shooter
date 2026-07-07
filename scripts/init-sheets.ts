@@ -208,14 +208,18 @@ async function main() {
     // rewardExp: 10 is exact from the PDF ("เมื่อผ่านแต่ละ wave จะได้ทีละ 10 Exp") — /api/game/complete
     // multiplies this by farmWaveReached, so 10 really is "per wave", not a typo.
     { id: "farm_01", name: "Training Grounds", isRepeatable: true, width: 1280, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 80, rewardExp: 10, playerSpawnX: 636, playerSpawnY: 467 },
-    // v17: Multiverse 2 — unlocked after clearing the boss that follows story
-    // stage 10. Placeholder rows only (comingSoon: true) until real stage
-    // layouts are designed; rock/stone background to match the boss arena's theme.
+    // v17: Multiverse 2 — a continuation of the SAME stage-number sequence
+    // (stage11-20, not a separate id namespace) so progress/completion still
+    // tracks through the one existing system; "multiverse" is purely a
+    // display/theme grouping, and access to it is separately gated behind
+    // clearing the boss that follows stage10 (see start/route.ts). Placeholder
+    // rows only (comingSoon: true) until real stage layouts are designed;
+    // rock/stone background to match the boss arena's theme.
     ...Array.from({ length: 10 }, (_, i) => {
-      const n = i + 1;
+      const n = 11 + i;
       return {
-        id: `mv2_stage${String(n).padStart(2, "0")}`,
-        name: `Multiverse 2 - Stage ${n}`,
+        id: `stage${String(n).padStart(2, "0")}`,
+        name: `Stage ${n}`,
         isRepeatable: false,
         width: 1280,
         height: 720,

@@ -53,10 +53,12 @@ export default function StageSelectClient({ stages, currentStage, completedStage
 
   function renderCard(stage: StageRow) {
     const isCompleted = completedStageIds.includes(stage.id);
-    // v17: only multiverse 1's numbering ties to player.currentStage (the
-    // original story-stage counter) — later multiverses aren't part of that
-    // sequence yet, so they're gated purely by comingSoon for now.
-    const unlocked = stage.isRepeatable || stage.multiverse > 1 || stageNumber(stage.id) <= currentStage;
+    // v17: stage numbering is one continuous sequence across every multiverse
+    // (stage11-20 for Multiverse 2, etc.) — currentStage alone would reach
+    // stage11 the instant stage10 is cleared, before the boss fight, so
+    // Multiverse 2+ needs the EXTRA unlockedMultiverse gate (tied to bosses
+    // actually defeated) on top of the normal currentStage check.
+    const unlocked = stage.isRepeatable || (stageNumber(stage.id) <= currentStage && stage.multiverse <= unlockedMultiverse);
     const playable = unlocked && !isCompleted && !stage.comingSoon;
 
     return (

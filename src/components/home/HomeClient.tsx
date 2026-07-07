@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
 import CurrencyBar from "@/components/ui/CurrencyBar";
 import { sfx } from "@/lib/sfx";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
@@ -80,7 +79,10 @@ export default function HomeClient({ player, characterSprite, characterName, equ
           </div>
 
           <CurrencyBar coin={player.coin} diamond={player.diamond} ticket={player.ticket} greenBanknote={greenBanknoteBalance} />
-          <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-military-steel text-xs hover:text-white flex-shrink-0">LOGOUT</button>
+          {/* v17: plain link to a dedicated cookie-clearing route (not next-auth/react's
+              signOut(), which was producing a raw Vercel 404) — a real navigation so the
+              Set-Cookie deletion response header actually applies. */}
+          <a href="/api/auth/logout" className="text-military-steel text-xs hover:text-white flex-shrink-0">LOGOUT</a>
         </div>
 
         {/* Main content: big equipped character + menu grid */}
