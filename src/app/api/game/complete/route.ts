@@ -82,13 +82,15 @@ export async function POST(req: NextRequest) {
       after(() => setMissionProgressIfHigher(player.id, "farm_wave", farmWaveReached).catch(() => {}));
     }
 
-    // Single combined addCurrency call — computing killCoin and the wave-clear
-    // bonus in two SEPARATE addCurrency calls would race: each one independently
-    // reads the player's current coin balance and writes back its own total, so
-    // whichever call's write lands second would silently discard the other's
-    // contribution (a classic read-then-write lost update).
-    const coin = (clearedWave ? stage.rewardCoin * farmWaveReached : 0) + killCoin;
-    const exp = clearedWave ? stage.rewardExp * farmWaveReached : 0;
+    // v15: farm stage coin comes ONLY from killing enemies (killCoin) — no
+    // separate wave-clear coin bonus anymore, per explicit request.
+    // Exp uses a fixed formula independent of the sheet's rewardExp: clearing
+    // wave N alone is worth (N+1) exp, and since only the final highest wave
+    // reached this run is reported (not each wave as it's cleared), the total
+    // awarded is the sum of every wave's marginal reward up through N:
+    // sum_{i=1}^{N} (i+1) = N*(N+3)/2 — e.g. N=1 -> 2, N=2 -> 2+3=5, N=3 -> 2+3+4=9.
+    const coin = killCoin;
+    const exp = clearedWave ? (farmWaveReached * (farmWaveReached + 3)) / 2 : 0;
     vipExpGain = exp;
     if (coin > 0 || exp > 0) {
       rewards = { coin, exp };

@@ -56,7 +56,7 @@ export class HUDScene extends Phaser.Scene {
   }
 
   create() {
-    const { width } = this.scale;
+    const { width, height } = this.scale;
     this.isMobile = Boolean(this.registry.get("isMobile"));
 
     this.hpBar = this.add.graphics();
@@ -113,9 +113,8 @@ export class HUDScene extends Phaser.Scene {
 
     this.createPauseButton(width);
     this.createRefillButton(width);
-    this.createReloadButton(width);
+    this.createReloadButton(width, height);
 
-    const { height } = this.scale;
     this.farmCountdownText = this.add.text(width / 2, height / 2, "", {
       fontFamily: "Orbitron, monospace", fontSize: "56px", color: "#ffcc00", fontStyle: "bold",
     }).setOrigin(0.5).setDepth(60).setVisible(false);
@@ -187,25 +186,31 @@ export class HUDScene extends Phaser.Scene {
     btn.on("pointerout", () => btn.setColor("#c5a97d"));
   }
 
-  /** v13: on-screen reload button — same effect as the R key, for players who
+  /** v15: on-screen reload button — same effect as the R key, for players who
    *  don't have (or don't notice) the keyboard shortcut, and for mobile where
-   *  there's no keyboard at all. */
-  private createReloadButton(width: number) {
-    const btn = this.add.text(width - 10, 126, "🔄 RELOAD", {
-      fontFamily: "Orbitron, monospace",
-      fontSize: "12px",
-      color: "#c5a97d",
-      backgroundColor: "#1a1a2e",
-      padding: { x: 8, y: 4 },
-    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+   *  there's no keyboard at all. Circular, fixed at the bottom-right corner on
+   *  both desktop and mobile (identical position either way) — bottom-right is
+   *  free real estate now that the mobile aim joystick/fire button are gone
+   *  (v14 replaced them with tap-to-aim-and-fire). */
+  private createReloadButton(width: number, height: number) {
+    const cx = width - 56;
+    const cy = height - 56;
+    const radius = 30;
 
-    btn.on("pointerdown", () => {
+    const circle = this.add.circle(cx, cy, radius, 0x1a1a2e, 0.85)
+      .setStrokeStyle(2, 0xc5a97d)
+      .setDepth(20)
+      .setInteractive({ useHandCursor: true });
+
+    this.add.text(cx, cy, "🔄", { fontSize: "26px" }).setOrigin(0.5).setDepth(21);
+
+    circle.on("pointerdown", () => {
       sfx.play("ui_click");
       const gameScene = this.scene.get("GameScene") as Phaser.Scene & { triggerReload: () => void };
       gameScene.triggerReload();
     });
-    btn.on("pointerover", () => btn.setColor("#f3c98a"));
-    btn.on("pointerout", () => btn.setColor("#c5a97d"));
+    circle.on("pointerover", () => circle.setStrokeStyle(2, 0xf3c98a));
+    circle.on("pointerout", () => circle.setStrokeStyle(2, 0xc5a97d));
   }
 
   private onHudUpdate(data: HudUpdatePayload) {

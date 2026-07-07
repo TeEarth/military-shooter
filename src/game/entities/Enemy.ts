@@ -41,7 +41,13 @@ export class Enemy {
     this.hp = this.data.hp;
     this.maxHp = this.data.hp;
     this.magazine = this.data.weapon.magazineSize;
-    this.preferredRange = 100 + this.data.weapon.accuracy * 3;
+    // v15: was 100 + accuracy*3, which for high-accuracy weapons (sniper 80,
+    // rocket_launcher 100) landed at or above ENEMY_CONFIG.lineOfSightRange
+    // (350) — meaning those enemies were ALWAYS in "shoot" range the instant
+    // they had line of sight and never actually chased, looking completely
+    // static. Capped well under lineOfSightRange so every enemy type has a
+    // real chase band before settling into its shooting range.
+    this.preferredRange = Math.min(200, 60 + this.data.weapon.accuracy * 1.5);
     this.worldWidth = scene.physics.world.bounds.width;
     this.worldHeight = scene.physics.world.bounds.height;
 
@@ -119,7 +125,7 @@ export class Enemy {
 
     switch (this.state) {
       case "chase":
-        this.moveToward(playerX, playerY);
+        this.moveToward(playerX, playerY, ENEMY_CONFIG.chaseSpeed);
         break;
       case "shoot":
         body.setVelocity(0, 0);
@@ -139,8 +145,7 @@ export class Enemy {
     this.updateHpBar();
   }
 
-  private moveToward(tx: number, ty: number) {
-    const speed = 80;
+  private moveToward(tx: number, ty: number, speed: number) {
     const angle = Phaser.Math.Angle.Between(this.sprite.x, this.sprite.y, tx, ty);
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
     body.setVelocity(Math.cos(angle) * speed, Math.sin(angle) * speed);
@@ -150,7 +155,7 @@ export class Enemy {
   private patrol() {
     const dist = Phaser.Math.Distance.Between(this.sprite.x, this.sprite.y, this.patrolTarget.x, this.patrolTarget.y);
     if (dist < 10) this.pickNewPatrolTarget();
-    this.moveToward(this.patrolTarget.x, this.patrolTarget.y);
+    this.moveToward(this.patrolTarget.x, this.patrolTarget.y, ENEMY_CONFIG.patrolSpeed);
   }
 
   private tryShoot(targetX: number, targetY: number) {

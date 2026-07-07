@@ -76,6 +76,13 @@ export async function POST(req: NextRequest) {
     if (!weapon) return NextResponse.json({ error: "Weapon not found" }, { status: 404 });
     if (await ownsWeapon(player.id, itemId)) return NextResponse.json({ error: "Already owned" }, { status: 400 });
 
+    // v15: STAGE-type weapons (e.g. Double Pistol) can only be bought once the
+    // stage requirement is met — enforced server-side too, not just hidden in
+    // the UI, so a direct API call can't skip clearing the stage.
+    if (weapon.unlockType === "STAGE" && player.currentStage < weapon.unlockValue) {
+      return NextResponse.json({ error: `Unlocks after clearing Stage ${weapon.unlockValue}` }, { status: 400 });
+    }
+
     const price = priceFor(currency, weapon);
     if (price <= 0) return NextResponse.json({ error: `Not purchasable with ${currency}` }, { status: 400 });
     if (balanceFor(currency, player) < price) return NextResponse.json({ error: `Not enough ${currency}` }, { status: 400 });

@@ -56,10 +56,6 @@ function isCharacterUnlocked(char: CharacterRow, currentStage: number): boolean 
   return char.unlockType === "FREE" || (char.unlockType === "STAGE" && currentStage >= char.unlockValue);
 }
 
-function isWeaponUnlocked(weapon: WeaponRow, currentStage: number): boolean {
-  return weapon.unlockType === "FREE" || (weapon.unlockType === "STAGE" && currentStage >= weapon.unlockValue);
-}
-
 export default function CharacterHubClient(props: Props) {
   const [tab, setTab] = useState<"character" | "weapon" | "passive">("character");
   const [coin, setCoin] = useState(props.coin);
@@ -195,7 +191,8 @@ export default function CharacterHubClient(props: Props) {
 
   async function buyWeapon(weapon: WeaponRow) {
     if (loading) return;
-    const currency = weapon.unlockType === "PURCHASE" ? "coin" : weapon.unlockType === "DIAMOND" ? "diamond" : "ticket";
+    // v15: STAGE-type weapons are purchased with coin too, once the stage requirement is met.
+    const currency = weapon.unlockType === "PURCHASE" || weapon.unlockType === "STAGE" ? "coin" : weapon.unlockType === "DIAMOND" ? "diamond" : "ticket";
     const price = currency === "coin" ? weapon.priceCoin : currency === "diamond" ? weapon.priceDiamond : weapon.priceTicket;
     const prevOwned = ownedWeaponIds;
     const prevBalance = { coin, diamond, ticket };
@@ -288,7 +285,14 @@ export default function CharacterHubClient(props: Props) {
   const isCharActive = selectedCharacter.id === activeCharacterId;
   const specialOk = selectedCharacter.unlockType !== "SPECIAL" || (props.vipLevel >= selectedCharacter.vipRequirement && props.farmStageMaxWave > selectedCharacter.waveRequirement);
 
-  const isWeaponOwned = ownedWeaponIds.includes(selectedWeapon.id) || isWeaponUnlocked(selectedWeapon, props.currentStage);
+  // v15: STAGE-type weapons (e.g. Double Pistol) are NOT auto-owned just because
+  // the stage requirement is met — clearing the stage only unlocks the right to
+  // BUY it (see meetsWeaponStageRequirement below); it must still be purchased
+  // like PURCHASE/DIAMOND/TICKET weapons before it's actually usable. Treating
+  // stage-met as "owned" here was the Double Pistol bug: the equip button showed
+  // immediately, but the server rejected the equip since it was never granted.
+  const isWeaponOwned = ownedWeaponIds.includes(selectedWeapon.id) || selectedWeapon.unlockType === "FREE";
+  const weaponStageOk = selectedWeapon.unlockType !== "STAGE" || props.currentStage >= selectedWeapon.unlockValue;
   const isWeaponActive = selectedWeapon.id === equippedWeaponId;
 
   return (
@@ -415,7 +419,7 @@ export default function CharacterHubClient(props: Props) {
                 <div>
                   <div className="font-bold">{weapon.name}</div>
                   <div className="text-xs text-military-steel">{weapon.unlockType}</div>
-                  {(ownedWeaponIds.includes(weapon.id) || isWeaponUnlocked(weapon, props.currentStage)) && <div className="text-xs text-green-400">OWNED</div>}
+                  {(ownedWeaponIds.includes(weapon.id) || weapon.unlockType === "FREE") && <div className="text-xs text-green-400">OWNED</div>}
                   {weapon.id === equippedWeaponId && <div className="text-xs text-military-gold">EQUIPPED</div>}
                 </div>
               </button>
@@ -449,13 +453,13 @@ export default function CharacterHubClient(props: Props) {
               ))}
             </div>
 
-            {selectedWeapon.unlockType === "STAGE" && props.currentStage < selectedWeapon.unlockValue && (
+            {selectedWeapon.unlockType === "STAGE" && !weaponStageOk && (
               <p className="text-red-400 text-sm mb-3">Unlocks after clearing Stage {selectedWeapon.unlockValue}</p>
             )}
 
-            {!isWeaponOwned && (selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "DIAMOND" || selectedWeapon.unlockType === "TICKET") && (
+            {!isWeaponOwned && weaponStageOk && (selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "DIAMOND" || selectedWeapon.unlockType === "TICKET" || selectedWeapon.unlockType === "STAGE") && (
               <button onClick={() => buyWeapon(selectedWeapon)} disabled={loading} className="btn-military">
-                {loading ? "..." : `${CURRENCY_ICON[selectedWeapon.unlockType === "PURCHASE" ? "coin" : selectedWeapon.unlockType === "DIAMOND" ? "diamond" : "ticket"]} ${(selectedWeapon.unlockType === "PURCHASE" ? selectedWeapon.priceCoin : selectedWeapon.unlockType === "DIAMOND" ? selectedWeapon.priceDiamond : selectedWeapon.priceTicket).toLocaleString()}`}
+                {loading ? "..." : `${CURRENCY_ICON[selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "STAGE" ? "coin" : selectedWeapon.unlockType === "DIAMOND" ? "diamond" : "ticket"]} ${(selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "STAGE" ? selectedWeapon.priceCoin : selectedWeapon.unlockType === "DIAMOND" ? selectedWeapon.priceDiamond : selectedWeapon.priceTicket).toLocaleString()}`}
               </button>
             )}
             {isWeaponOwned && !isWeaponActive && (
