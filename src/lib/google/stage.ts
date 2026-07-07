@@ -56,7 +56,13 @@ function rowToStage(row: Record<string, string>): StageRow {
     isRepeatable: parseBool(row.isRepeatable),
     playerSpawnX: Number(row.playerSpawnX || 0),
     playerSpawnY: Number(row.playerSpawnY || 0),
-    multiverse: Number(row.multiverse || 1),
+    // v17: fail safe to 1 (not NaN) for a blank OR garbage cell — a stray
+    // non-numeric value here previously produced a broken "Multiverse NaN"
+    // tab in the UI instead of just defaulting sanely.
+    multiverse: (() => {
+      const n = Number(row.multiverse);
+      return Number.isFinite(n) && n > 0 ? n : 1;
+    })(),
     comingSoon: parseBool(row.comingSoon),
   };
 }
