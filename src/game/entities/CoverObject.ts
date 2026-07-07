@@ -145,6 +145,10 @@ export class CoverObject {
     this.sprite = group.create(x, y, key) as Phaser.Physics.Arcade.Image;
     if (hasRealSprite) this.sprite.setDisplaySize(width, height);
     this.sprite.setDepth(8);
+    // v14: lets GameScene's colliders skip trees specifically (trees are
+    // walk-through/shoot-through — a hiding spot, not solid cover — while
+    // every other cover type stays solid).
+    this.sprite.setData("coverType", type);
     this.sprite.refreshBody(); // syncs body to the full display rect first...
 
     // ...then reshape it to the sprite's actual visual footprint. This MUST

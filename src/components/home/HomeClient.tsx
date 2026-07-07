@@ -30,7 +30,7 @@ const MENU_ITEMS = [
   { href: "/character", label: "CHARACTER", icon: "🪖" },
   { href: "/inventory", label: "INVENTORY", icon: "🎒" },
   { href: "/gacha", label: "GACHA", icon: "🏪" },
-  { href: "/shop", label: "SHOP", icon: "💱" },
+  { href: "/shop", label: "TRADE", icon: "💱" },
   { href: "/mission", label: "MISSION", icon: "🎯" },
   { href: "/leaderboard", label: "LEADERBOARD", icon: "🏆" },
   { href: "/mailbox", label: "MAILBOX", icon: "📬" },

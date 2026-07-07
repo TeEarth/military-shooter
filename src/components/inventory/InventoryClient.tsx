@@ -10,6 +10,7 @@ import type { WeaponRow } from "@/lib/google/weapon";
 import type { EquipmentRow, EquipmentSlot, Rarity } from "@/lib/google/inventory";
 import type { FullStatBreakdown } from "@/lib/stats";
 import { sfx } from "@/lib/sfx";
+import { useT } from "@/lib/i18n";
 import { getEquipmentSprite, getWeaponSprite } from "@/lib/spriteHelpers";
 import { DUPE_UPGRADE_BONUS } from "../../../config/equipment";
 import CurrencyBar from "@/components/ui/CurrencyBar";
@@ -56,17 +57,17 @@ const RARITY_TEXT: Record<Rarity, string> = {
   legendary: "text-military-gold",
 };
 
-const STAT_ROWS: { key: Exclude<keyof FullStatBreakdown, "shieldMax">; label: string; suffix?: string; decimals?: number }[] = [
-  { key: "hp", label: "พลังชีวิต (HP)" },
-  { key: "damage", label: "พลังโจมตี (ATK)", decimals: 1 },
-  { key: "moveSpeed", label: "ความเร็ว" },
-  { key: "accuracy", label: "ความแม่นยำ", suffix: "%" },
-  { key: "armorPercent", label: "เกราะ", suffix: "%" },
-  { key: "critChance", label: "อัตราคริติคอล", suffix: "%" },
-  { key: "critDamage", label: "ดาเมจคริติคอล", suffix: "%" },
-  { key: "reloadTime", label: "เวลารีโหลด", suffix: "s", decimals: 2 },
-  { key: "fireRate", label: "อัตรายิง", suffix: "/s", decimals: 2 },
-  { key: "dailyAmmo", label: "กระสุนรายวัน" },
+const STAT_ROWS: { key: Exclude<keyof FullStatBreakdown, "shieldMax">; label: { en: string; th: string }; suffix?: string; decimals?: number }[] = [
+  { key: "hp", label: { en: "HP", th: "พลังชีวิต (HP)" } },
+  { key: "damage", label: { en: "Damage (ATK)", th: "พลังโจมตี (ATK)" }, decimals: 1 },
+  { key: "moveSpeed", label: { en: "Move Speed", th: "ความเร็ว" } },
+  { key: "accuracy", label: { en: "Accuracy", th: "ความแม่นยำ" }, suffix: "%" },
+  { key: "armorPercent", label: { en: "Armor", th: "เกราะ" }, suffix: "%" },
+  { key: "critChance", label: { en: "Crit Chance", th: "อัตราคริติคอล" }, suffix: "%" },
+  { key: "critDamage", label: { en: "Crit Damage", th: "ดาเมจคริติคอล" }, suffix: "%" },
+  { key: "reloadTime", label: { en: "Reload Time", th: "เวลารีโหลด" }, suffix: "s", decimals: 2 },
+  { key: "fireRate", label: { en: "Fire Rate", th: "อัตรายิง" }, suffix: "/s", decimals: 2 },
+  { key: "dailyAmmo", label: { en: "Daily Ammo", th: "กระสุนรายวัน" } },
 ];
 
 /** upgradeLevel stars — rendered as repeated star_upgrade.svg icons, or "★ x N" past 5 to avoid a long row. */
@@ -161,6 +162,7 @@ function CornerSlot({ position, target, icon, label, itemSprite, itemName, onCli
 }
 
 export default function InventoryClient({ characterSprite, characterName, ownedWeapons, equippedWeaponId: initialEquippedWeaponId, ownedEquipment: initialEquipment, coin, diamond, ticket, exp, greenBanknote }: Props) {
+  const t = useT();
   const [equippedWeaponId, setEquippedWeaponId] = useState(initialEquippedWeaponId);
   const [equipment, setEquipment] = useState(initialEquipment);
   const [message, setMessage] = useState("");
@@ -313,19 +315,19 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
           <div className="flex-1 w-full lg:max-w-md space-y-4">
             {stats && (
               <div className="card-military">
-                <h2 className="text-military-tan text-sm uppercase tracking-wider mb-2">สรุปค่าสถานะรวม</h2>
+                <h2 className="text-military-tan text-sm uppercase tracking-wider mb-2">{t({ en: "Total Stats", th: "สรุปค่าสถานะรวม" })}</h2>
                 <div className="space-y-1.5">
                   {STAT_ROWS.map(({ key, label, suffix = "", decimals = 0 }) => {
                     const line = stats[key];
                     const round = (n: number) => (decimals > 0 ? n.toFixed(decimals) : Math.round(n).toString());
                     return (
                       <div key={key} className="flex justify-between items-baseline text-sm">
-                        <span className="text-military-steel">{label}</span>
+                        <span className="text-military-steel">{t(label)}</span>
                         <span className="text-white text-right">
                           {round(line.base)}{suffix}
                           {/* v13: equipment/passive bonuses shown as separate tags instead of one merged %, per request */}
                           {line.equipmentBonusPercent !== 0 && (
-                            <span className="text-blue-400"> (อุปกรณ์ {line.equipmentBonusPercent >= 0 ? "+" : ""}{line.equipmentBonusPercent.toFixed(1)}%)</span>
+                            <span className="text-blue-400"> ({t({ en: "equipment", th: "อุปกรณ์" })} {line.equipmentBonusPercent >= 0 ? "+" : ""}{line.equipmentBonusPercent.toFixed(1)}%)</span>
                           )}
                           {line.passiveBonusPercent !== 0 && (
                             <span className="text-purple-400"> (passive {line.passiveBonusPercent >= 0 ? "+" : ""}{line.passiveBonusPercent.toFixed(1)}%)</span>
@@ -336,7 +338,7 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
                     );
                   })}
                   <div className="flex justify-between text-sm pt-1 border-t border-military-steel mt-2">
-                    <span className="text-military-steel">โล่รวม (Shield)</span>
+                    <span className="text-military-steel">{t({ en: "Total Shield", th: "โล่รวม (Shield)" })}</span>
                     <span className="font-bold text-gray-300">{Math.round(stats.shieldMax)}</span>
                   </div>
                 </div>
@@ -344,14 +346,14 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
             )}
 
             <div className="card-military">
-              <h2 className="text-military-tan text-sm uppercase tracking-wider mb-3">โบนัสจากอุปกรณ์ที่ใส่อยู่</h2>
+              <h2 className="text-military-tan text-sm uppercase tracking-wider mb-3">{t({ en: "Equipped Bonuses", th: "โบนัสจากอุปกรณ์ที่ใส่อยู่" })}</h2>
               <div className="grid grid-cols-1 gap-3">
                 {(["helmet", "vest", "boots"] as EquipmentSlot[]).map((slot) => {
                   const item = equippedByslot[slot];
                   if (!item) {
                     return (
                       <div key={slot} className="border border-military-steel border-dashed p-2 text-xs text-military-steel">
-                        {SLOT_LABEL[slot]}: ยังไม่ได้ใส่
+                        {SLOT_LABEL[slot]}: {t({ en: "not equipped", th: "ยังไม่ได้ใส่" })}
                       </div>
                     );
                   }
@@ -374,7 +376,7 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
                             <span key={key}>
                               {label} +{bonus.base[key]}%
                               {bonus.upgrade[key] > 0 && (
-                                <span className="text-green-400"> (+{bonus.upgrade[key]}% จาก ★{item.upgradeLevel})</span>
+                                <span className="text-green-400"> (+{bonus.upgrade[key]}% {t({ en: "from", th: "จาก" })} ★{item.upgradeLevel})</span>
                               )}
                               {" = "}<span className="font-bold text-white">+{bonus[key]}%</span>
                             </span>
@@ -450,7 +452,7 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
               </div>
 
               <div className="text-sm space-y-1 mb-3">
-                <p className="text-military-steel text-xs uppercase tracking-wider mb-1">ค่าสถานะฐาน ({detailEquipment.rarity})</p>
+                <p className="text-military-steel text-xs uppercase tracking-wider mb-1">{t({ en: "Base Stats", th: "ค่าสถานะฐาน" })} ({detailEquipment.rarity})</p>
                 <p>HP: <span className="text-white font-bold">+{detailEquipment.hpPercent}%</span></p>
                 <p>ATK: <span className="text-white font-bold">+{detailEquipment.damagePercent}%</span></p>
                 <p>Crit%: <span className="text-white font-bold">+{detailEquipment.critChancePercent}%</span></p>
@@ -459,9 +461,12 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
               </div>
 
               <div className="border-t border-military-steel pt-2 mb-3">
-                <p className="text-sm">ระดับอัปเกรดปัจจุบัน: <span className="text-military-gold font-bold">★ {detailEquipment.upgradeLevel}</span></p>
+                <p className="text-sm">{t({ en: "Current upgrade level", th: "ระดับอัปเกรดปัจจุบัน" })}: <span className="text-military-gold font-bold">★ {detailEquipment.upgradeLevel}</span></p>
                 <p className="text-xs text-military-steel mt-1">
-                  ทุกครั้งที่กาชาออกไอเทมนี้ซ้ำ (ชิ้นเดียวกัน+rarity เดียวกัน) จะอัปเกรด +1 ระดับทันทีโดยอัตโนมัติ — ไม่ต้องทำอะไรเพิ่ม แค่กาชาต่อไป
+                  {t({
+                    en: "Every time Gacha pulls a duplicate of this item (same piece + same rarity), it automatically upgrades +1 level — no extra steps needed, just keep pulling.",
+                    th: "ทุกครั้งที่กาชาออกไอเทมนี้ซ้ำ (ชิ้นเดียวกัน+rarity เดียวกัน) จะอัปเกรด +1 ระดับทันทีโดยอัตโนมัติ — ไม่ต้องทำอะไรเพิ่ม แค่กาชาต่อไป",
+                  })}
                 </p>
               </div>
 
@@ -499,9 +504,15 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
         {/* Categorized inventory tabs — weapon / helmet / vest / boots, not one mixed grid */}
         <div className="mt-8 max-w-5xl mx-auto">
           <div className="flex gap-2 mb-3">
-            {(["weapon", "helmet", "vest", "boots"] as const).map((t) => (
-              <button key={t} onClick={() => setTab(t)} className={`btn-military text-xs ${tab === t ? "" : "opacity-50"}`}>
-                {t === "weapon" ? "อาวุธ" : t === "helmet" ? "หมวก" : t === "vest" ? "เกราะ" : "รองเท้า"}
+            {(["weapon", "helmet", "vest", "boots"] as const).map((tabKey) => (
+              <button key={tabKey} onClick={() => setTab(tabKey)} className={`btn-military text-xs ${tab === tabKey ? "" : "opacity-50"}`}>
+                {tabKey === "weapon"
+                  ? t({ en: "Weapon", th: "อาวุธ" })
+                  : tabKey === "helmet"
+                    ? t({ en: "Helmet", th: "หมวก" })
+                    : tabKey === "vest"
+                      ? t({ en: "Vest", th: "เกราะ" })
+                      : t({ en: "Boots", th: "รองเท้า" })}
               </button>
             ))}
           </div>

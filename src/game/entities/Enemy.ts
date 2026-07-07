@@ -87,8 +87,22 @@ export class Enemy {
     this.patrolTarget.set(x, y);
   }
 
-  update(playerX: number, playerY: number) {
+  update(playerX: number, playerY: number, playerHidden = false) {
     if (this.isDead) return;
+
+    // v14: tree stealth — a hidden player is invisible to enemy AI entirely,
+    // regardless of distance/line-of-sight. Falls back to whatever the enemy
+    // was doing before (patrol/wander), same as never having spotted the
+    // player at all.
+    if (playerHidden) {
+      this.state = "patrol";
+      this.patrol();
+      const margin = UNIT_DISPLAY_SIZE / 2;
+      this.sprite.x = Phaser.Math.Clamp(this.sprite.x, margin, this.worldWidth - margin);
+      this.sprite.y = Phaser.Math.Clamp(this.sprite.y, margin, this.worldHeight - margin);
+      this.updateHpBar();
+      return;
+    }
 
     const dist = Phaser.Math.Distance.Between(this.sprite.x, this.sprite.y, playerX, playerY);
     const hasLOS = dist < ENEMY_CONFIG.lineOfSightRange;

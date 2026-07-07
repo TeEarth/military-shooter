@@ -1,10 +1,13 @@
 /**
- * Procedural sound-effect engine using the Web Audio API.
+ * Sound-effect engine using the Web Audio API.
  *
- * No audio asset files are used here — every sound is synthesized at
- * runtime with oscillators + noise buffers. This keeps the bundle tiny
- * and means there is nothing to record/license. Drop this file in as-is
- * and call `sfx.play(...)` from game/UI code (see wiring notes at bottom).
+ * v14: gunshot/hit/footstep sounds now play real generated WAV samples
+ * (public/assets/audio/sfx/*.wav — synthesized offline for realism, not
+ * recorded) instead of the old toy oscillator "blip". UI chimes/explosion/
+ * reload stay procedural since those already sounded fine and don't need a
+ * sample. If a sample hasn't finished loading yet (e.g. the very first shot
+ * fired before its fetch completes), falls back to the old procedural blip
+ * so there's never a missing sound.
  */
 
 type SfxName =
@@ -26,11 +29,32 @@ type SfxName =
   | "defeat"
   | "miss";
 
+/** Sample-backed sfx names → their WAV file + a per-sample playback gain
+ *  (footstep is deliberately quiet per the user's request; gunshots/hits are
+ *  already normalized to a sane level in the generator itself). */
+const SAMPLE_FILES: Partial<Record<SfxName, { url: string; gain: number }>> = {
+  shoot_pistol: { url: "/assets/audio/sfx/gunshot_pistol.wav", gain: 0.8 },
+  shoot_rifle: { url: "/assets/audio/sfx/gunshot_rifle.wav", gain: 0.8 },
+  shoot_shotgun: { url: "/assets/audio/sfx/gunshot_shotgun.wav", gain: 0.8 },
+  shoot_sniper: { url: "/assets/audio/sfx/gunshot_sniper.wav", gain: 0.85 },
+  shoot_heavy: { url: "/assets/audio/sfx/gunshot_heavy.wav", gain: 0.75 },
+  hit_enemy: { url: "/assets/audio/sfx/hit_enemy.wav", gain: 0.7 },
+  hurt_player: { url: "/assets/audio/sfx/hurt_player.wav", gain: 0.8 },
+  footstep: { url: "/assets/audio/sfx/footstep.wav", gain: 0.35 },
+};
+
+const MUSIC_LOOP_URL = "/assets/audio/music/battle_loop.wav";
+
 class SfxEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private muted = false;
   private volume = 0.6;
+  private sampleBuffers = new Map<string, AudioBuffer>();
+  private samplePromises = new Map<string, Promise<AudioBuffer>>();
+  private musicSource: AudioBufferSourceNode | null = null;
+  private musicGain: GainNode | null = null;
+  private musicWanted = false;
 
   private getCtx(): AudioContext {
     if (!this.ctx) {
@@ -39,10 +63,49 @@ class SfxEngine {
       this.masterGain = this.ctx.createGain();
       this.masterGain.gain.value = this.volume;
       this.masterGain.connect(this.ctx.destination);
+      this.preloadSamples(this.ctx);
     }
     // Browsers suspend AudioContext until a user gesture; resume opportunistically.
     if (this.ctx.state === "suspended") void this.ctx.resume();
     return this.ctx;
+  }
+
+  /** Kicks off every sample fetch+decode up front so the first shot/footstep
+   *  of a session doesn't fall back to the procedural blip unnecessarily. */
+  private preloadSamples(ctx: AudioContext) {
+    const urls = new Set<string>([...Object.values(SAMPLE_FILES).map((s) => s.url), MUSIC_LOOP_URL]);
+    for (const url of urls) this.loadSample(ctx, url);
+  }
+
+  private loadSample(ctx: AudioContext, url: string): Promise<AudioBuffer> {
+    const cached = this.samplePromises.get(url);
+    if (cached) return cached;
+    const promise = fetch(url)
+      .then((res) => res.arrayBuffer())
+      .then((data) => ctx.decodeAudioData(data))
+      .then((buffer) => {
+        this.sampleBuffers.set(url, buffer);
+        return buffer;
+      });
+    this.samplePromises.set(url, promise);
+    return promise;
+  }
+
+  /** Plays an already-decoded sample immediately; returns false if not loaded yet
+   *  (caller should fall back to the procedural version in that case). */
+  private playSampleIfReady(name: SfxName): boolean {
+    const spec = SAMPLE_FILES[name];
+    if (!spec) return false;
+    const buffer = this.sampleBuffers.get(spec.url);
+    if (!buffer) return false;
+    const ctx = this.getCtx();
+    const src = ctx.createBufferSource();
+    src.buffer = buffer;
+    const gain = ctx.createGain();
+    gain.gain.value = spec.gain;
+    src.connect(gain).connect(this.masterGain!);
+    src.start();
+    return true;
   }
 
   setVolume(v: number) {
@@ -52,12 +115,47 @@ class SfxEngine {
 
   setMuted(m: boolean) {
     this.muted = m;
+    // The music loop's source node keeps running through mute (only one-shot
+    // `play()` calls check `this.muted`), so mute/unmute it explicitly here.
+    if (this.musicGain) this.musicGain.gain.value = m ? 0 : 1;
+  }
+
+  /** Quiet background battle music, started on entering a combat stage and
+   *  stopped on leaving it (see GameScene.ts). Loops seamlessly — idempotent,
+   *  calling it while already playing does nothing. */
+  startMusicLoop() {
+    this.musicWanted = true;
+    if (this.musicSource) return;
+    const ctx = this.getCtx();
+    this.loadSample(ctx, MUSIC_LOOP_URL).then((buffer) => {
+      if (!this.musicWanted) return; // stopMusicLoop() was called while loading
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+      const gain = ctx.createGain();
+      gain.gain.value = this.muted ? 0 : 1;
+      src.connect(gain).connect(this.masterGain!);
+      src.start();
+      this.musicSource = src;
+      this.musicGain = gain;
+    });
+  }
+
+  stopMusicLoop() {
+    this.musicWanted = false;
+    if (this.musicSource) {
+      try { this.musicSource.stop(); } catch { /* already stopped */ }
+      this.musicSource = null;
+      this.musicGain = null;
+    }
   }
 
   /** Public entry point used everywhere in the game/UI. */
   play(name: SfxName) {
     if (this.muted) return;
     try {
+      if (name in SAMPLE_FILES && this.playSampleIfReady(name)) return;
+
       const ctx = this.getCtx();
       const out = this.masterGain!;
       switch (name) {
@@ -246,4 +344,6 @@ export const sfx = new SfxEngine();
  * - GachaClient.tsx reveal animation → sfx.play("gacha_reveal")
  * - GameOverScene.ts → sfx.play("victory") or sfx.play("defeat") depending on result
  * - Respect a mute toggle in Settings: call sfx.setMuted(...) / sfx.setVolume(...)
+ * - Combat stage start/end → sfx.startMusicLoop() / sfx.stopMusicLoop() for the
+ *   quiet background battle music (see GameScene.ts create()/shutdown()).
  */

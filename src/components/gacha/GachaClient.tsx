@@ -38,6 +38,28 @@ function capsuleSpriteForCurrency(currency: string): string {
   return currency === "ticket" ? "/assets/sprites/ui/gacha_capsule_ticket.svg" : "/assets/sprites/ui/shop_gacha_capsule.svg";
 }
 
+/** v14: decorative equipment/currency icons scattered around the page edges,
+ *  purely visual (pointer-events disabled), fixed positions so they don't
+ *  shift on re-render. */
+const DECOR_EQUIPMENT: { id: string; top: string; left: string; size: number; rotate: number; opacity: number }[] = [
+  { id: "helmet_legendary", top: "6%", left: "3%", size: 90, rotate: -12, opacity: 0.16 },
+  { id: "vest_epic", top: "68%", left: "5%", size: 100, rotate: 10, opacity: 0.14 },
+  { id: "boots_rare", top: "82%", left: "14%", size: 70, rotate: -6, opacity: 0.14 },
+  { id: "helmet_epic", top: "12%", left: "90%", size: 85, rotate: 14, opacity: 0.15 },
+  { id: "vest_legendary", top: "60%", left: "92%", size: 100, rotate: -10, opacity: 0.16 },
+  { id: "boots_common", top: "85%", left: "82%", size: 65, rotate: 8, opacity: 0.13 },
+  { id: "helmet_rare", top: "40%", left: "1%", size: 60, rotate: 20, opacity: 0.12 },
+  { id: "vest_common", top: "30%", left: "95%", size: 60, rotate: -18, opacity: 0.12 },
+];
+const DECOR_CURRENCY: { icon: string; top: string; left: string; size: string; opacity: number }[] = [
+  { icon: "💎", top: "20%", left: "8%", size: "text-4xl", opacity: 0.2 },
+  { icon: "🪙", top: "48%", left: "3%", size: "text-3xl", opacity: 0.18 },
+  { icon: "🎟️", top: "75%", left: "8%", size: "text-3xl", opacity: 0.18 },
+  { icon: "💎", top: "35%", left: "88%", size: "text-3xl", opacity: 0.18 },
+  { icon: "🪙", top: "78%", left: "92%", size: "text-4xl", opacity: 0.2 },
+  { icon: "🎟️", top: "15%", left: "80%", size: "text-3xl", opacity: 0.16 },
+];
+
 export default function GachaClient({ pools, coin, diamond: initialDiamond, ticket: initialTicket, exp, greenBanknote }: { pools: PoolGroup[]; coin: number; diamond: number; ticket: number; exp: number; greenBanknote: number }) {
   const [diamond, setDiamond] = useState(initialDiamond);
   const [ticket, setTicket] = useState(initialTicket);
@@ -47,6 +69,9 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
   const [multiResults, setMultiResults] = useState<GachaPullResult[] | null>(null);
   const [phase, setPhase] = useState<AnimPhase>("idle");
   const [activeCurrency, setActiveCurrency] = useState<string>("diamond");
+  // v14: tracked separately from multiResults (which is null until the reveal
+  // beat) so the capsule/pop phases know to render 10 capsules, not 1.
+  const [pullMode, setPullMode] = useState<"single" | "multi">("single");
 
   async function pull(poolId: string, currency: string) {
     if (loading) return;
@@ -54,6 +79,7 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
     setLoading(true);
     setLastResult(null);
     setMultiResults(null);
+    setPullMode("single");
     setActiveCurrency(currency);
     setPhase("capsule");
     try {
@@ -85,16 +111,16 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
     }
   }
 
-  /** Same capsule->pop->reveal beats as a single pull, but reveal shows all 10
-   *  results at once in a grid (staggered via CSS nth-child delay, see
-   *  .gacha-anim-item's animation-delay rule) instead of one item at a time —
-   *  keeps the "อลังการ" capsule spectacle without a 10x-long sequence. */
+  /** v14: x10 now shows all 10 capsules spinning/popping together (not one
+   *  shared capsule sprite), so the "อลังการ" spectacle scales with the pull
+   *  count instead of looking like a single pull with a bigger result grid. */
   async function pullMulti(poolId: string, currency: string) {
     if (loading) return;
     sfx.play("ui_click");
     setLoading(true);
     setLastResult(null);
     setMultiResults(null);
+    setPullMode("multi");
     setActiveCurrency(currency);
     setPhase("capsule");
     try {
@@ -181,116 +207,156 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
 
   const isLegendaryReveal = lastResult?.rewardType === "equipment" && lastResult.rarity === "legendary";
   const hasLegendaryInMulti = (multiResults ?? []).some((r) => r.rewardType === "equipment" && r.rarity === "legendary");
+  const capsuleCount = pullMode === "multi" ? MULTI_PULL_COUNT : 1;
 
   return (
-    <div className="min-h-screen page-bg-themed p-6">
-      <div className="flex items-center gap-4 mb-6">
-        <Link href="/home" className="text-military-steel hover:text-white text-sm">← BACK</Link>
-        <div className="flex items-center gap-2">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/assets/sprites/ui/shop_gacha_capsule.svg" alt="" className="w-8 h-8" />
-          <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">Gacha</h1>
-        </div>
-        <div className="ml-auto">
-          <CurrencyBar coin={coin} diamond={diamond} ticket={ticket} exp={exp} greenBanknote={greenBanknote} />
-        </div>
+    <div className="min-h-screen page-bg-themed p-6 relative overflow-hidden">
+      {/* v14: full-screen decorative backdrop — equipment + currency icons
+       *  scattered around the edges, purely visual. */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        {DECOR_EQUIPMENT.map((d, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={i}
+            src={getEquipmentSprite(d.id)}
+            alt=""
+            style={{ position: "absolute", top: d.top, left: d.left, width: d.size, height: d.size, opacity: d.opacity, transform: `rotate(${d.rotate}deg)` }}
+          />
+        ))}
+        {DECOR_CURRENCY.map((d, i) => (
+          <span key={i} className={d.size} style={{ position: "absolute", top: d.top, left: d.left, opacity: d.opacity }}>{d.icon}</span>
+        ))}
       </div>
 
-      {message && <div className="max-w-3xl mx-auto mb-4 text-red-400 text-sm">{message}</div>}
-
-      {phase !== "idle" && (
-        <div className="max-w-3xl mx-auto mb-6 card-military text-center py-10 relative overflow-hidden" style={{ minHeight: 220 }}>
-          {phase === "capsule" && (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={capsuleSpriteForCurrency(activeCurrency)} alt="" className="w-20 h-20 mx-auto gacha-anim-capsule" />
-          )}
-
-          {phase === "pop" && (
-            <>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={capsuleSpriteForCurrency(activeCurrency)} alt="" className="w-20 h-20 mx-auto gacha-anim-pop" />
-              {Array.from({ length: 8 }).map((_, i) => {
-                const angle = (i / 8) * Math.PI * 2;
-                return (
-                  <span
-                    key={i}
-                    className="gacha-anim-particle absolute left-1/2 top-1/2 w-2 h-2 rounded-full bg-military-gold"
-                    style={{ "--px": `${Math.cos(angle) * 70}px`, "--py": `${Math.sin(angle) * 70}px` } as React.CSSProperties}
-                  />
-                );
-              })}
-            </>
-          )}
-
-          {phase === "reveal" && (
-            <>
-              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src="/assets/sprites/ui/gacha_burst.svg"
-                  alt=""
-                  className={`w-64 h-64 ${isLegendaryReveal || hasLegendaryInMulti ? "gacha-anim-burst-legendary" : "gacha-anim-burst"}`}
-                />
-              </div>
-              <div className="relative">
-                {multiResults ? (
-                  <div className="grid grid-cols-5 gap-2 max-w-md mx-auto">
-                    {multiResults.map((r, i) => renderCompactResult(r, i))}
-                  </div>
-                ) : (
-                  lastResult && renderResultContent(lastResult)
-                )}
-              </div>
-            </>
-          )}
+      <div className="relative z-10">
+        <div className="flex items-center gap-4 mb-6">
+          <Link href="/home" className="text-military-steel hover:text-white text-sm">← BACK</Link>
+          <div className="flex items-center gap-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/sprites/ui/shop_gacha_capsule.svg" alt="" className="w-8 h-8" />
+            <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">Gacha</h1>
+          </div>
+          <div className="ml-auto">
+            <CurrencyBar coin={coin} diamond={diamond} ticket={ticket} exp={exp} greenBanknote={greenBanknote} />
+          </div>
         </div>
-      )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
-        {pools.map((pool) => {
-          const cost = pool.entries[0]?.cost ?? 0;
-          const currency = pool.entries[0]?.currency ?? "diamond";
-          const balance = currency === "diamond" ? diamond : ticket;
-          const multiCost = Math.round(cost * MULTI_PULL_COUNT * (1 - MULTI_PULL_DISCOUNT));
+        {message && <div className="max-w-4xl mx-auto mb-4 text-red-400 text-sm">{message}</div>}
 
-          return (
-            <div key={pool.poolId} className="card-military text-center">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={capsuleSpriteForCurrency(currency)} alt="" className="w-16 h-16 mx-auto mb-3" />
-              <h2 className="font-bold text-lg mb-3 capitalize">{pool.poolId.replace(/_/g, " ")}</h2>
-
-              <div className="text-xs text-military-steel space-y-1 mb-4 text-left">
-                {pool.entries.map((e, i) => (
-                  <div key={i} className="flex justify-between">
-                    <span className={e.rewardType === "equipment" ? RARITY_COLOR[e.rarity] : ""}>
-                      {e.rewardType === "equipment" ? e.rarity.toUpperCase() : `${e.rewardCurrency} +${e.rewardAmount}`}
-                    </span>
-                    <span>{Math.round(e.dropRate * 100)}%</span>
-                  </div>
+        {phase !== "idle" && (
+          <div className="max-w-4xl mx-auto mb-6 card-military text-center py-10 relative overflow-hidden" style={{ minHeight: 260 }}>
+            {phase === "capsule" && (
+              <div className={capsuleCount > 1 ? "grid grid-cols-5 gap-4 max-w-lg mx-auto place-items-center" : ""}>
+                {Array.from({ length: capsuleCount }).map((_, i) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={i}
+                    src={capsuleSpriteForCurrency(activeCurrency)}
+                    alt=""
+                    className={`${capsuleCount > 1 ? "w-14 h-14" : "w-20 h-20 mx-auto"} gacha-anim-capsule`}
+                    style={{ animationDelay: `${i * 30}ms` }}
+                  />
                 ))}
               </div>
+            )}
 
-              <div className="flex gap-2">
-                <button
-                  onClick={() => pull(pool.poolId, currency)}
-                  disabled={loading || balance < cost}
-                  className="btn-gold flex-1 py-2"
-                >
-                  {loading ? "..." : `Pull — ${currency === "diamond" ? "💎" : "🎟️"} ${cost}`}
-                </button>
-                <button
-                  onClick={() => pullMulti(pool.poolId, currency)}
-                  disabled={loading || balance < multiCost}
-                  className="btn-gold flex-1 py-2"
-                  title="10 independent pulls, 5% cheaper than 10x the single price"
-                >
-                  {loading ? "..." : `x10 — ${currency === "diamond" ? "💎" : "🎟️"} ${multiCost}`}
-                </button>
+            {phase === "pop" && (
+              <>
+                <div className={capsuleCount > 1 ? "grid grid-cols-5 gap-4 max-w-lg mx-auto place-items-center relative" : "relative"}>
+                  {Array.from({ length: capsuleCount }).map((_, i) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={i}
+                      src={capsuleSpriteForCurrency(activeCurrency)}
+                      alt=""
+                      className={`${capsuleCount > 1 ? "w-14 h-14" : "w-20 h-20 mx-auto"} gacha-anim-pop`}
+                      style={{ animationDelay: `${i * 30}ms` }}
+                    />
+                  ))}
+                </div>
+                {Array.from({ length: 8 }).map((_, i) => {
+                  const angle = (i / 8) * Math.PI * 2;
+                  return (
+                    <span
+                      key={i}
+                      className="gacha-anim-particle absolute left-1/2 top-1/2 w-2 h-2 rounded-full bg-military-gold"
+                      style={{ "--px": `${Math.cos(angle) * 90}px`, "--py": `${Math.sin(angle) * 90}px` } as React.CSSProperties}
+                    />
+                  );
+                })}
+              </>
+            )}
+
+            {phase === "reveal" && (
+              <>
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src="/assets/sprites/ui/gacha_burst.svg"
+                    alt=""
+                    className={`w-64 h-64 ${isLegendaryReveal || hasLegendaryInMulti ? "gacha-anim-burst-legendary" : "gacha-anim-burst"}`}
+                  />
+                </div>
+                <div className="relative">
+                  {multiResults ? (
+                    <div className="grid grid-cols-5 gap-2 max-w-md mx-auto">
+                      {multiResults.map((r, i) => renderCompactResult(r, i))}
+                    </div>
+                  ) : (
+                    lastResult && renderResultContent(lastResult)
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {pools.map((pool) => {
+            const cost = pool.entries[0]?.cost ?? 0;
+            const currency = pool.entries[0]?.currency ?? "diamond";
+            const balance = currency === "diamond" ? diamond : ticket;
+            const multiCost = Math.round(cost * MULTI_PULL_COUNT * (1 - MULTI_PULL_DISCOUNT));
+
+            return (
+              <div key={pool.poolId} className="card-military text-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={capsuleSpriteForCurrency(currency)} alt="" className="w-16 h-16 mx-auto mb-3" />
+                <h2 className="font-bold text-lg mb-3 capitalize">{pool.poolId.replace(/_/g, " ")}</h2>
+
+                <div className="text-xs text-military-steel space-y-1 mb-4 text-left">
+                  {pool.entries.map((e, i) => (
+                    <div key={i} className="flex justify-between">
+                      <span className={e.rewardType === "equipment" ? RARITY_COLOR[e.rarity] : ""}>
+                        {e.rewardType === "equipment" ? e.rarity.toUpperCase() : `${e.rewardCurrency} +${e.rewardAmount}`}
+                      </span>
+                      <span>{Math.round(e.dropRate * 100)}%</span>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => pull(pool.poolId, currency)}
+                    disabled={loading || balance < cost}
+                    className="btn-gold flex-1 py-2"
+                  >
+                    {loading ? "..." : `Pull — ${currency === "diamond" ? "💎" : "🎟️"} ${cost}`}
+                  </button>
+                  <button
+                    onClick={() => pullMulti(pool.poolId, currency)}
+                    disabled={loading || balance < multiCost}
+                    className="btn-gold flex-1 py-2"
+                    title="10 independent pulls, 5% cheaper than 10x the single price"
+                  >
+                    {loading ? "..." : `x10 — ${currency === "diamond" ? "💎" : "🎟️"} ${multiCost}`}
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
-        {pools.length === 0 && <p className="text-military-steel text-sm col-span-2 text-center py-12">No gacha pools configured yet.</p>}
+            );
+          })}
+          {pools.length === 0 && <p className="text-military-steel text-sm col-span-2 text-center py-12">No gacha pools configured yet.</p>}
+        </div>
       </div>
     </div>
   );

@@ -247,7 +247,6 @@ export class Player {
     this.lastFireTime = now;
 
     const shootSfx = shootSfxForWeapon(this.loadout.weaponId);
-    if (shootSfx) sfx.play(shootSfx);
 
     const key = this.scene.textures.exists("bullet_sprite") ? "bullet_sprite" : "bullet_tex";
     if (!this.scene.textures.exists(key)) {
@@ -268,6 +267,9 @@ export class Player {
       targetY: target.y,
       isPlayerBullet: true,
       ignoreCover: this.loadout.fireMode === "lob",
+      // v14: called once per actual round fired (not once per trigger pull),
+      // so a 3-round burst weapon like M16A4 plays 3 consecutive gunshots.
+      onShotFired: shootSfx ? () => sfx.play(shootSfx) : undefined,
       stats: {
         damage: this.loadout.damage,
         fireMode: this.loadout.fireMode,

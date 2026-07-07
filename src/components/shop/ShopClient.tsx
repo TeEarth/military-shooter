@@ -94,7 +94,7 @@ export default function ShopClient({ rates, coin: initialCoin, diamond: initialD
     <div className="min-h-screen page-bg-themed p-6">
       <div className="flex items-center gap-4 mb-6">
         <Link href="/home" className="text-military-steel hover:text-white text-sm">← BACK</Link>
-        <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">Shop</h1>
+        <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">Trade</h1>
         <div className="ml-auto">
           <CurrencyBar coin={coin} diamond={diamond} ticket={ticket} exp={exp} greenBanknote={greenBanknote} />
         </div>

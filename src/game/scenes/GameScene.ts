@@ -54,9 +54,19 @@ export class GameScene extends Phaser.Scene {
   /** v13: set by the HUD's on-screen RELOAD button, consumed (and reset) by update(). */
   private reloadRequested = false;
   private mobileControls?: MobileControls;
-  /** Last non-null aim direction from the mobile aim stick — kept so the
-   *  character keeps facing/firing that way after the stick is released. */
-  private lastMobileAimDir: { x: number; y: number } | null = null;
+
+  // v14: tree stealth mechanic — standing still, not attacking, and not being
+  // attacked inside a tree's zone for HIDE_DURATION_MS makes the player
+  // undetectable by enemy AI (Enemy.update() forced to "patrol" regardless of
+  // distance). Any of those conditions breaking resets the timer to 0.
+  private treeCovers: CoverObject[] = [];
+  private hideTimer = 0;
+  private isHidden = false;
+  private playerHitThisFrame = false;
+  private static readonly HIDE_DURATION_MS = 3000;
+  /** Generous "in the bush" radius — bigger than the tiny bullet-pass-through
+   *  hitbox, since this is a gameplay zone, not a pixel-precise collision. */
+  private static readonly TREE_STEALTH_RADIUS = COVER_SIZES.tree.width * 0.7;
 
   constructor() {
     super({ key: "GameScene" });
@@ -72,6 +82,10 @@ export class GameScene extends Phaser.Scene {
     this.isFarmStage = this.stageData.isRepeatable;
     this.startTime = Date.now();
     this.stageEnded = false;
+
+    // v14: quiet background battle music for the duration of the stage.
+    sfx.startMusicLoop();
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => sfx.stopMusicLoop());
 
     const { width: worldWidth, height: worldHeight } = this.stageData;
 
@@ -122,11 +136,17 @@ export class GameScene extends Phaser.Scene {
     }
 
     // --- Collisions ---
-    this.physics.add.collider(this.player.sprite, this.covers);
-    this.physics.add.collider(this.enemyGroup, this.covers);
+    // v14: trees are walk-through/shoot-through (a hiding spot, not solid
+    // cover) — every collider against `this.covers` skips anything tagged
+    // coverType "tree" via its process callback.
+    const notTree = (coverObj: unknown) => (coverObj as Phaser.Physics.Arcade.Image).getData("coverType") !== "tree";
+
+    this.physics.add.collider(this.player.sprite, this.covers, undefined, notTree, this);
+    this.physics.add.collider(this.enemyGroup, this.covers, undefined, notTree, this);
 
     // Bullets vanish on hitting a wall — except "lob" (grenade) bullets, which fly over cover.
-    const skipIgnoreCover = (bulletObj: unknown) => !(bulletObj as Phaser.Physics.Arcade.Image).getData("ignoreCover");
+    const skipIgnoreCover = (bulletObj: unknown, coverObj: unknown) =>
+      !(bulletObj as Phaser.Physics.Arcade.Image).getData("ignoreCover") && notTree(coverObj);
 
     this.physics.add.collider(this.bullets, this.covers, (bulletObj) => {
       this.detonateBullet(bulletObj as Phaser.Physics.Arcade.Image, true);
@@ -183,7 +203,8 @@ export class GameScene extends Phaser.Scene {
         const type = c.coverType as CoverType;
         if (!(type in COVER_SIZES)) continue;
         const { width, height } = COVER_SIZES[type];
-        new CoverObject(this, c.x, c.y, width, height, type, this.covers, this.failedAssetKeys);
+        const cover = new CoverObject(this, c.x, c.y, width, height, type, this.covers, this.failedAssetKeys);
+        if (type === "tree") this.treeCovers.push(cover);
       }
       return;
     }
@@ -199,7 +220,8 @@ export class GameScene extends Phaser.Scene {
       const y = Phaser.Math.Between(120, worldHeight - 120);
       const type = Phaser.Utils.Array.GetRandom(types);
       const { width, height } = COVER_SIZES[type];
-      new CoverObject(this, x, y, width, height, type, this.covers, this.failedAssetKeys);
+      const cover = new CoverObject(this, x, y, width, height, type, this.covers, this.failedAssetKeys);
+      if (type === "tree") this.treeCovers.push(cover);
     }
   }
 
@@ -225,6 +247,39 @@ export class GameScene extends Phaser.Scene {
 
     // v13: "which wave is coming up" on-screen banner, every wave transition.
     this.events.emit("farm-wave-start", wave);
+
+    // v14: EVERY wave (not just the first) freezes the newly-spawned enemies
+    // for a beat so the player isn't ambushed the instant a wave starts —
+    // spawnWave() is the single choke point for all farm-stage wave starts,
+    // so setting freeze here covers wave 1 (via updateFarmPhase's countdown
+    // transition) and every later wave (via checkWinCondition's delayed call)
+    // uniformly.
+    this.farmPhase = "freeze";
+    this.farmPhaseElapsed = 0;
+    this.startFreezeBlink();
+  }
+
+  /** v14: frozen enemies blink (alpha yoyo) for the whole freeze window, so
+   *  it's visually obvious they can't be hit/can't hit back right now. */
+  private startFreezeBlink() {
+    for (const enemy of this.enemies) {
+      if (enemy.isDead) continue;
+      this.tweens.add({
+        targets: enemy.sprite,
+        alpha: 0.3,
+        duration: 200,
+        yoyo: true,
+        repeat: -1,
+      });
+    }
+  }
+
+  private stopFreezeBlink() {
+    for (const enemy of this.enemies) {
+      if (enemy.isDead) continue;
+      this.tweens.killTweensOf(enemy.sprite);
+      enemy.sprite.setAlpha(1);
+    }
   }
 
   /** v13: drives the farm stage's opening sequence — 5s with no enemies, then
@@ -239,13 +294,12 @@ export class GameScene extends Phaser.Scene {
       const remainingMs = Math.max(0, GameScene.FARM_COUNTDOWN_MS - this.farmPhaseElapsed);
       this.events.emit("farm-countdown", Math.ceil(remainingMs / 1000));
       if (this.farmPhaseElapsed >= GameScene.FARM_COUNTDOWN_MS) {
-        this.farmPhase = "freeze";
-        this.farmPhaseElapsed = 0;
         this.events.emit("farm-countdown", 0);
-        this.spawnWave(this.currentWave);
+        this.spawnWave(this.currentWave); // also sets farmPhase="freeze" + starts the blink
       }
     } else if (this.farmPhase === "freeze" && this.farmPhaseElapsed >= GameScene.FARM_FREEZE_MS) {
       this.farmPhase = "active";
+      this.stopFreezeBlink();
     }
   }
 
@@ -290,6 +344,7 @@ export class GameScene extends Phaser.Scene {
       if (dist <= radius) {
         const appliedDamage = dist <= GameScene.DIRECT_HIT_EPSILON ? damage : Math.round(damage * GameScene.SPLASH_DAMAGE_FRACTION);
         this.player.takeAoeDamage(appliedDamage);
+        this.playerHitThisFrame = true; // v14: breaks tree stealth timer
         if (this.player.isDead) {
           this.deaths++;
           this.handlePlayerDeath();
@@ -379,6 +434,7 @@ export class GameScene extends Phaser.Scene {
 
     sfx.play("hurt_player");
     this.player.takeDamage(damage);
+    this.playerHitThisFrame = true; // v14: breaks tree stealth timer
     this.showFloatingText(this.player.sprite.x, this.player.sprite.y - 20, `-${Math.round(damage)}`, "#ff4444");
 
     if (this.player.isDead) {
@@ -443,17 +499,14 @@ export class GameScene extends Phaser.Scene {
       moveUp = move.y < -DEAD_ZONE;
       moveDown = move.y > DEAD_ZONE;
 
-      // Fire button (not the mouse pointer or aim-stick drag) is the sole
-      // firing trigger on mobile — a held press fires continuously.
-      isShooting = this.mobileControls.isFiring();
-
-      const aim = this.mobileControls.getAimVector();
-      if (aim) this.lastMobileAimDir = aim;
-      if (this.lastMobileAimDir) {
-        worldPointer = new Phaser.Math.Vector2(
-          this.player.sprite.x + this.lastMobileAimDir.x * 1000,
-          this.player.sprite.y + this.lastMobileAimDir.y * 1000
-        );
+      // v14: tap-and-hold anywhere on the right half aims AND fires at that
+      // exact screen point (converted to world space, same as the desktop
+      // mouse pointer) — no separate aim-stick/fire-button pair. This is what
+      // makes the Grenade Launcher's lob land exactly where you tapped.
+      const aimPoint = this.mobileControls.getAimScreenPoint();
+      isShooting = aimPoint !== null;
+      if (aimPoint) {
+        worldPointer = this.cameras.main.getWorldPoint(aimPoint.x, aimPoint.y);
       }
     }
 
@@ -462,13 +515,18 @@ export class GameScene extends Phaser.Scene {
 
     this.player.update(moveLeft, moveRight, moveUp, moveDown, isShooting, isReloading, worldPointer, delta, this.covers);
 
+    const isMoving = moveLeft || moveRight || moveUp || moveDown;
+    this.updateStealth(isMoving, isShooting, delta);
+
     // v13: during the post-spawn freeze window, enemies don't move/shoot at
     // all — combined with the no-damage guards in the hit handlers below,
     // this is what makes freeze a true "both sides harmless" pause, not just
     // a visual one.
     if (!frozen) {
       for (const enemy of this.enemies) {
-        if (!enemy.isDead) enemy.update(this.player.sprite.x, this.player.sprite.y);
+        // v14: while hidden in a tree, enemies have no idea where the player
+        // is — forced to "patrol" regardless of distance/line-of-sight.
+        if (!enemy.isDead) enemy.update(this.player.sprite.x, this.player.sprite.y, this.isHidden);
       }
     }
 
@@ -494,7 +552,35 @@ export class GameScene extends Phaser.Scene {
       enemyPositions: this.enemies.filter((e) => !e.isDead).map((e) => ({ x: e.sprite.x, y: e.sprite.y })),
       stageWidth: this.stageData.width,
       stageHeight: this.stageData.height,
+      hideProgress: Math.min(1, this.hideTimer / GameScene.HIDE_DURATION_MS),
+      isHidden: this.isHidden,
     });
+
+    // Consumed above (as "hit this frame") — reset for the next physics step.
+    this.playerHitThisFrame = false;
+  }
+
+  /** v14: tree stealth — 3s stationary + non-combat inside a tree's zone makes
+   *  the player undetectable; moving, shooting, entering/leaving the zone, or
+   *  being hit all reset the timer to 0. */
+  private updateStealth(isMoving: boolean, isShooting: boolean, delta: number) {
+    const inTreeZone = this.treeCovers.some(
+      (t) => Phaser.Math.Distance.Between(this.player.sprite.x, this.player.sprite.y, t.sprite.x, t.sprite.y) <= GameScene.TREE_STEALTH_RADIUS
+    );
+
+    const canProgress = inTreeZone && !isMoving && !isShooting && !this.playerHitThisFrame && !this.player.isDead;
+
+    if (canProgress) {
+      this.hideTimer += delta;
+      if (this.hideTimer >= GameScene.HIDE_DURATION_MS) {
+        this.isHidden = true;
+      }
+    } else {
+      this.hideTimer = 0;
+      this.isHidden = false;
+    }
+
+    this.player.sprite.setAlpha(this.isHidden ? 0.35 : 1);
   }
 
   private checkWinCondition() {

@@ -22,6 +22,10 @@ interface HudUpdatePayload {
   enemyPositions: { x: number; y: number }[];
   stageWidth: number;
   stageHeight: number;
+  /** v14: tree stealth — 0-1 fill progress toward the 3s hide threshold. */
+  hideProgress: number;
+  /** v14: true once fully hidden (enemies can't detect the player). */
+  isHidden: boolean;
 }
 
 export class HUDScene extends Phaser.Scene {
@@ -43,6 +47,9 @@ export class HUDScene extends Phaser.Scene {
   /** v13: farm stage's 5s "get ready" countdown + per-wave banner. */
   private farmCountdownText!: Phaser.GameObjects.Text;
   private farmWaveBannerText!: Phaser.GameObjects.Text;
+  /** v14: tree stealth hide-progress bar + "HIDDEN" label. */
+  private hideBar!: Phaser.GameObjects.Graphics;
+  private hideText!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: "HUDScene" });
@@ -116,6 +123,11 @@ export class HUDScene extends Phaser.Scene {
     this.farmWaveBannerText = this.add.text(width / 2, height / 2 - 70, "", {
       fontFamily: "Orbitron, monospace", fontSize: "26px", color: "#4ade80", fontStyle: "bold",
     }).setOrigin(0.5).setDepth(60).setVisible(false);
+
+    this.hideBar = this.add.graphics().setDepth(40);
+    this.hideText = this.add.text(width / 2, height - 46, "", {
+      fontFamily: "Orbitron, monospace", fontSize: "13px", color: "#7dd3fc", fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(40).setVisible(false);
 
     const gameScene = this.scene.get("GameScene");
     gameScene.events.on("hud-update", this.onHudUpdate, this);
@@ -233,6 +245,31 @@ export class HUDScene extends Phaser.Scene {
       this.reloadBar.fillStyle(0xc0392b, 1);
       this.reloadBar.fillRect(x, 78, barWidth * data.reloadProgress, 8);
     }
+
+    this.updateHideBar(data);
+  }
+
+  /** v14: shown only while inside a tree's stealth radius and progressing
+   *  (or fully) hidden — hidden entirely otherwise so it doesn't clutter the
+   *  HUD during normal combat. */
+  private updateHideBar(data: HudUpdatePayload) {
+    this.hideBar.clear();
+    if (data.hideProgress <= 0) {
+      this.hideText.setVisible(false);
+      return;
+    }
+
+    const { width, height } = this.scale;
+    const barWidth = 160;
+    const x = width / 2 - barWidth / 2;
+    const y = height - 60;
+
+    this.hideBar.fillStyle(0x1a1a2e, 0.8);
+    this.hideBar.fillRect(x, y, barWidth, 8);
+    this.hideBar.fillStyle(data.isHidden ? 0x38bdf8 : 0x7dd3fc, 1);
+    this.hideBar.fillRect(x, y, barWidth * data.hideProgress, 8);
+
+    this.hideText.setText(data.isHidden ? "HIDDEN" : "HIDING...").setVisible(true);
   }
 
   /** Simple dot-based minimap, top-left corner — throttled to ~120ms since it doesn't

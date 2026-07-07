@@ -32,6 +32,10 @@ interface FireParams {
   ignoreCover?: boolean;
   /** Which side fired this shot — needed so the lob-arrival AoE event knows who to damage. */
   isPlayerBullet: boolean;
+  /** v14: called once per actual shot fired (not once per trigger pull) — lets
+   *  burst/spread/aoe weapons play their gunshot sfx once per round, timed
+   *  with each staggered bullet spawn (e.g. M16A4's 3-round burst → 3 gunshots). */
+  onShotFired?: () => void;
 }
 
 function rollDamage(stats: FireStats, isHit: boolean): number {
@@ -51,12 +55,13 @@ function rollDamage(stats: FireStats, isHit: boolean): number {
  * weapon in the Weapons sheet.
  */
 export function fireShots(params: FireParams): number {
-  const { scene, group, textureKey, x, y, targetX, targetY, stats, ignoreCover, isPlayerBullet } = params;
+  const { scene, group, textureKey, x, y, targetX, targetY, stats, ignoreCover, isPlayerBullet, onShotFired } = params;
   const baseAngle = Phaser.Math.Angle.Between(x, y, targetX, targetY);
   const halfArcRad = Phaser.Math.DegToRad(stats.spreadDegrees) / 2;
 
   const spawnBullet = (angleOffset: number, isAoe: boolean, isLob: boolean, delayMs: number) => {
     scene.time.delayedCall(delayMs, () => {
+      onShotFired?.();
       const bullet = group.get(x, y, textureKey) as Phaser.Physics.Arcade.Image | null;
       if (!bullet) return;
       bullet.setActive(true).setVisible(true);
@@ -123,6 +128,7 @@ export function fireShots(params: FireParams): number {
       const dist = Phaser.Math.Distance.Between(x, y, targetX, targetY);
       const travelMs = Math.max(50, (dist / stats.bulletSpeed) * 1000);
 
+      onShotFired?.();
       const bullet = group.get(x, y, textureKey) as Phaser.Physics.Arcade.Image | null;
       if (!bullet) return 1;
       bullet.setActive(true).setVisible(true);
