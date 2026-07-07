@@ -1,4 +1,5 @@
-import { getCachedSheet } from "./cache";
+import { getConfigRows } from "../db/configCache";
+import { parseBool } from "./sheet";
 
 const SHEET = "Enemies";
 
@@ -12,6 +13,8 @@ export interface EnemyRow {
   hp: number;
   coinReward: number;
   sprite: string;
+  /** v16: turret-style enemy (e.g. enemy_turret) — never patrols or chases. */
+  immobile: boolean;
 }
 
 function rowToEnemy(row: Record<string, string>): EnemyRow {
@@ -21,11 +24,12 @@ function rowToEnemy(row: Record<string, string>): EnemyRow {
     hp: Number(row.hp || 100),
     coinReward: Number(row.coinReward || 1),
     sprite: row.sprite || "",
+    immobile: parseBool(row.immobile),
   };
 }
 
 export async function getAllEnemies(): Promise<EnemyRow[]> {
-  const { rows } = await getCachedSheet(SHEET);
+  const rows = await getConfigRows(SHEET);
   return rows.map(rowToEnemy);
 }
 

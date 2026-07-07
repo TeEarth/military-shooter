@@ -1,4 +1,4 @@
-import { getCachedSheet } from "./cache";
+import { getConfigRows } from "../db/configCache";
 import { addCurrency } from "../db/player";
 
 const SHEET = "TicketTopUp";
@@ -18,7 +18,7 @@ function rowToTopUp(row: Record<string, string>): TicketTopUpRow {
 }
 
 export async function getAllTopUpPackages(): Promise<TicketTopUpRow[]> {
-  const { rows } = await getCachedSheet(SHEET);
+  const rows = await getConfigRows(SHEET);
   return rows.map(rowToTopUp).sort((a, b) => a.priceBaht - b.priceBaht);
 }
 

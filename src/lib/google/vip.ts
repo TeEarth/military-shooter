@@ -1,4 +1,4 @@
-import { getCachedSheet } from "./cache";
+import { getConfigRows } from "../db/configCache";
 
 const SHEET = "VipConfig";
 
@@ -17,7 +17,7 @@ function rowToVipConfig(row: Record<string, string>): VipConfigRow {
 }
 
 export async function getVipConfig(): Promise<VipConfigRow[]> {
-  const { rows } = await getCachedSheet(SHEET);
+  const rows = await getConfigRows(SHEET);
   return rows.map(rowToVipConfig).sort((a, b) => a.level - b.level);
 }
 

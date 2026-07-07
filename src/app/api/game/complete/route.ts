@@ -9,6 +9,7 @@ import { incrementMissionProgress, setMissionProgressIfHigher } from "@/lib/db/m
 import { parseStageNumber, templateStageId } from "@/lib/stageTemplate";
 import { incrementBossEncounterCount } from "@/lib/db/bossStage";
 import { addGreenBanknotes } from "@/lib/db/income";
+import { recordWeeklyFarmWave } from "@/lib/db/leaderboard";
 
 const MILESTONE_INTERVAL = 5;
 const MILESTONE_DIAMOND_REWARD = 10;
@@ -79,6 +80,8 @@ export async function POST(req: NextRequest) {
     const clearedWave = typeof farmWaveReached === "number" && farmWaveReached > 0;
     if (clearedWave) {
       tasks.push(recordFarmWave(player.id, farmWaveReached));
+      // v16: leaderboard's own weekly-reset counter, separate from the permanent record above.
+      tasks.push(recordWeeklyFarmWave(player.id, farmWaveReached));
       // v10 #2: farm-wave milestone missions are a high-water mark, not additive —
       // this is the personal-best wave reached THIS run, not a delta to sum.
       after(() => setMissionProgressIfHigher(player.id, "farm_wave", farmWaveReached).catch(() => {}));

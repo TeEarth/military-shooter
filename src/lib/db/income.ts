@@ -1,7 +1,17 @@
 import { getSupabaseClient } from "../supabase/client";
 // WithdrawalRequest is NOT in the migrated table list (admin-processed,
 // stays editable via Google Sheets) — only PlayerIncome's balance moves here.
-import { appendRow, findRows } from "../google/sheet";
+import { appendRow, findRows, findRow, updateRow, readSheetRaw } from "../google/sheet";
+import { getPlayerById, updatePlayer } from "./player";
+
+/** v16: 100 THB/day withdrawal cap — same lazy reset-on-read pattern this
+ *  project already uses for daily ammo/mission resets (compare stored date
+ *  to today, reset the counter if stale). */
+const DAILY_WITHDRAWAL_CAP_BAHT = 100;
+
+function todayUtc(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 const TABLE = "player_income";
 const WITHDRAWAL_REQUEST_SHEET = "WithdrawalRequest";
@@ -41,6 +51,8 @@ export interface WithdrawalRequestRow {
   id: string;
   playerId: string;
   amount: number;
+  /** v16: TrueMoney wallet number to pay out to. */
+  phone: string;
   status: string;
   requestedAt: string;
 }
@@ -54,9 +66,24 @@ function genId(prefix: string) {
  * double-spent across requests) and logs a "pending" request row for the
  * admin to process manually — this codebase does NOT connect to a real
  * payment/payout provider. See the v4 request doc's cash-out warning.
+ *
+ * v16: requires the TrueMoney phone number to pay out to, and enforces a
+ * 100 THB/day cap per player (lazy reset-on-read, same pattern as this
+ * project's daily ammo/mission resets — requires
+ * scripts/sql/003_v16_schema.sql's daily_withdrawn_baht/date columns).
  */
-export async function requestWithdrawal(playerId: string, amount: number): Promise<WithdrawalRequestRow> {
+export async function requestWithdrawal(playerId: string, amount: number, phone: string): Promise<WithdrawalRequestRow> {
   if (!Number.isFinite(amount) || amount <= 0) throw new Error("Invalid withdrawal amount");
+  if (!phone || phone.trim().length < 9) throw new Error("Enter a valid TrueMoney phone number");
+
+  const player = await getPlayerById(playerId);
+  if (!player) throw new Error("Player not found");
+
+  const today = todayUtc();
+  const withdrawnToday = player.dailyWithdrawnDate === today ? player.dailyWithdrawnBaht : 0;
+  if (withdrawnToday + amount > DAILY_WITHDRAWAL_CAP_BAHT) {
+    throw new Error(`Daily withdrawal limit is ${DAILY_WITHDRAWAL_CAP_BAHT} baht (${DAILY_WITHDRAWAL_CAP_BAHT - withdrawnToday} baht left today)`);
+  }
 
   const income = await getPlayerIncome(playerId);
   if (amount > income.greenBanknoteBalance) throw new Error("Insufficient green banknote balance");
@@ -65,14 +92,31 @@ export async function requestWithdrawal(playerId: string, amount: number): Promi
   const { error } = await supabase.from(TABLE).upsert({ player_id: playerId, green_banknote_balance: income.greenBanknoteBalance - amount, total_withdrawn: income.totalWithdrawn });
   if (error) throw new Error(`requestWithdrawal: ${error.message}`);
 
-  const request: WithdrawalRequestRow = { id: genId("wd"), playerId, amount, status: "pending", requestedAt: new Date().toISOString() };
+  await updatePlayer(playerId, { dailyWithdrawnBaht: withdrawnToday + amount, dailyWithdrawnDate: today });
+
+  const request: WithdrawalRequestRow = { id: genId("wd"), playerId, amount, phone: phone.trim(), status: "pending", requestedAt: new Date().toISOString() };
   await appendRow(WITHDRAWAL_REQUEST_SHEET, request as unknown as Record<string, string | number | boolean>);
   return request;
 }
 
+function rowToWithdrawal(r: Record<string, string>): WithdrawalRequestRow {
+  return { id: r.id, playerId: r.playerId, amount: Number(r.amount || 0), phone: r.phone || "", status: r.status || "pending", requestedAt: r.requestedAt || "" };
+}
+
 export async function getWithdrawalRequests(playerId: string): Promise<WithdrawalRequestRow[]> {
   const rows = await findRows(WITHDRAWAL_REQUEST_SHEET, (r) => r.playerId === playerId);
-  return rows
-    .map((r) => ({ id: r.id, playerId: r.playerId, amount: Number(r.amount || 0), status: r.status || "pending", requestedAt: r.requestedAt || "" }))
-    .sort((a, b) => (a.requestedAt < b.requestedAt ? 1 : -1));
+  return rows.map(rowToWithdrawal).sort((a, b) => (a.requestedAt < b.requestedAt ? 1 : -1));
+}
+
+/** Admin-only: every withdrawal request across every player, newest first. */
+export async function getAllWithdrawalRequests(): Promise<WithdrawalRequestRow[]> {
+  const { rows } = await readSheetRaw(WITHDRAWAL_REQUEST_SHEET);
+  return rows.map(rowToWithdrawal).sort((a, b) => (a.requestedAt < b.requestedAt ? 1 : -1));
+}
+
+/** Admin marks a withdrawal as paid out (after manually sending the TrueMoney transfer). */
+export async function markWithdrawalProcessed(requestId: string): Promise<void> {
+  const found = await findRow(WITHDRAWAL_REQUEST_SHEET, (r) => r.id === requestId);
+  if (!found) throw new Error("Withdrawal request not found");
+  await updateRow(WITHDRAWAL_REQUEST_SHEET, found.rowIndex, { status: "processed" });
 }

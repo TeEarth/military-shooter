@@ -1,4 +1,4 @@
-import { getCachedSheet } from "./cache";
+import { getConfigRows } from "../db/configCache";
 import { parseBool } from "./sheet";
 
 const STAGE_SHEET = "Stage";
@@ -52,7 +52,7 @@ function rowToStage(row: Record<string, string>): StageRow {
 }
 
 export async function getAllStages(): Promise<StageRow[]> {
-  const { rows } = await getCachedSheet(STAGE_SHEET);
+  const rows = await getConfigRows(STAGE_SHEET);
   return rows.map(rowToStage).sort((a, b) => {
     if (a.isRepeatable !== b.isRepeatable) return a.isRepeatable ? 1 : -1;
     return Number(a.id.replace(/\D/g, "")) - Number(b.id.replace(/\D/g, ""));
@@ -65,7 +65,7 @@ export async function getStageById(id: string): Promise<StageRow | null> {
 }
 
 export async function getStageEnemies(stageId: string): Promise<StageEnemySpawn[]> {
-  const { rows } = await getCachedSheet(STAGE_ENEMY_SHEET);
+  const rows = await getConfigRows(STAGE_ENEMY_SHEET);
   return rows
     .filter((r) => r.stageId === stageId)
     .map((r) => ({ stageId: r.stageId, enemyId: r.enemyId, spawnX: Number(r.spawnX || 0), spawnY: Number(r.spawnY || 0) }));
@@ -75,7 +75,7 @@ export async function getStageEnemies(stageId: string): Promise<StageEnemySpawn[
  *  empty for any stage that hasn't been designed yet, letting GameScene fall
  *  back to its random scatter for those. */
 export async function getStageCovers(stageId: string): Promise<StageCoverSpawn[]> {
-  const { rows } = await getCachedSheet(STAGE_COVER_SHEET);
+  const rows = await getConfigRows(STAGE_COVER_SHEET);
   return rows
     .filter((r) => r.stageId === stageId)
     .map((r) => ({ stageId: r.stageId, coverType: r.coverType, x: Number(r.x || 0), y: Number(r.y || 0) }));

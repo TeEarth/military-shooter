@@ -1,4 +1,4 @@
-import { getCachedSheet } from "./cache";
+import { getConfigRows } from "../db/configCache";
 
 const SHEET = "Characters";
 
@@ -47,7 +47,7 @@ function rowToCharacter(row: Record<string, string>): CharacterRow {
 }
 
 export async function getAllCharacters(options?: { force?: boolean }): Promise<CharacterRow[]> {
-  const { rows } = await getCachedSheet(SHEET, options);
+  const rows = await getConfigRows(SHEET, options);
   return rows.map(rowToCharacter);
 }
 

@@ -6,10 +6,10 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { amount } = await req.json();
+  const { amount, phone } = await req.json();
 
   try {
-    const request = await requestWithdrawal(session.user.id, Number(amount));
+    const request = await requestWithdrawal(session.user.id, Number(amount), String(phone ?? ""));
     return NextResponse.json({ success: true, request, message: "Withdrawal request submitted — an admin will process it manually." });
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 400 });

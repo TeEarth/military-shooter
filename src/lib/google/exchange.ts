@@ -1,4 +1,4 @@
-import { getCachedSheet } from "./cache";
+import { getConfigRows } from "../db/configCache";
 import { getPlayerById, updatePlayer } from "../db/player";
 
 const SHEET = "CurrencyExchangeConfig";
@@ -24,7 +24,7 @@ function rowToExchange(row: Record<string, string>): CurrencyExchangeRow {
 }
 
 export async function getAllExchangeRates(): Promise<CurrencyExchangeRow[]> {
-  const { rows } = await getCachedSheet(SHEET);
+  const rows = await getConfigRows(SHEET);
   return rows.map(rowToExchange);
 }
 

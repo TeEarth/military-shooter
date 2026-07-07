@@ -1,4 +1,4 @@
-import { getCachedSheet } from "./cache";
+import { getConfigRows } from "../db/configCache";
 import { addCurrency, getPlayerById } from "../db/player";
 import {
   getAllEquipment,
@@ -41,7 +41,7 @@ function rowToConfig(row: Record<string, string>): GachaConfigRow {
 }
 
 export async function getGachaPools(): Promise<GachaConfigRow[]> {
-  const { rows } = await getCachedSheet(SHEET);
+  const rows = await getConfigRows(SHEET);
   return rows.map(rowToConfig);
 }
 

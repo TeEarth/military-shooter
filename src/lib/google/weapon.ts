@@ -1,4 +1,4 @@
-import { getCachedSheet } from "./cache";
+import { getConfigRows } from "../db/configCache";
 import { PLAYER_CONFIG } from "../../../config/player";
 
 const SHEET = "Weapons";
@@ -60,7 +60,7 @@ function rowToWeapon(row: Record<string, string>): WeaponRow {
 }
 
 export async function getAllWeapons(options?: { force?: boolean }): Promise<WeaponRow[]> {
-  const { rows } = await getCachedSheet(SHEET, options);
+  const rows = await getConfigRows(SHEET, options);
   return rows.map(rowToWeapon);
 }
 

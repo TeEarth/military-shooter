@@ -1,9 +1,14 @@
-import { getCachedSheet, invalidateSheetCache } from "./cache";
-import { appendRow, findRow, findRows, updateRow, parseBool } from "./sheet";
-import { addCurrency, getPlayerById } from "./player";
+import { getConfigRows } from "../db/configCache";
 
 const MISSION_SHEET = "Mission";
-const PLAYER_MISSION_SHEET = "PlayerMission";
+
+// v16: this file used to also contain PlayerMission progress read/write
+// functions backed directly by Google Sheets — those were fully superseded
+// by the Supabase-backed versions in src/lib/db/mission.ts during the v12
+// migration and had been dead code (zero imports) ever since. Removed as
+// part of the v16 cleanup; this file now only holds the Mission CONFIG
+// catalog (static list + the farm-wave milestone formula), which is still
+// legitimately read from Sheets/generated in code, not per-player data.
 
 export type MissionType = "daily" | "personal";
 
@@ -36,7 +41,7 @@ function rowToMission(row: Record<string, string>): MissionRow {
 }
 
 export async function getAllMissions(): Promise<MissionRow[]> {
-  const { rows } = await getCachedSheet(MISSION_SHEET);
+  const rows = await getConfigRows(MISSION_SHEET);
   return rows.map(rowToMission);
 }
 
@@ -71,132 +76,4 @@ export function generateFarmWaveMissions(maxWaveReached: number): MissionRow[] {
     });
   }
   return missions;
-}
-
-/** Static sheet missions + this player's currently-visible farm-wave milestones, merged. */
-export async function getAllMissionsForPlayer(playerId: string, farmWaveHint?: number): Promise<MissionRow[]> {
-  const staticMissions = await getAllMissions();
-  let maxWave = farmWaveHint ?? 0;
-  if (farmWaveHint === undefined) {
-    const player = await getPlayerById(playerId);
-    maxWave = player?.farmStageMaxWave ?? 0;
-  }
-  return [...staticMissions, ...generateFarmWaveMissions(maxWave)];
-}
-
-export interface PlayerMissionRow {
-  playerId: string;
-  missionId: string;
-  progress: number;
-  claimed: boolean;
-  /** Only meaningful for "daily" missions — the YYYY-MM-DD (UTC) this row's progress was last reset. */
-  resetDate: string;
-}
-
-function todayUtc(): string {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function rowToPlayerMission(r: Record<string, string>): PlayerMissionRow {
-  return {
-    playerId: r.playerId,
-    missionId: r.missionId,
-    progress: Number(r.progress || 0),
-    claimed: parseBool(r.claimed),
-    resetDate: r.resetDate || "",
-  };
-}
-
-export async function getPlayerMissionProgress(playerId: string): Promise<PlayerMissionRow[]> {
-  const missions = await getAllMissionsForPlayer(playerId);
-  const rows = await findRows(PLAYER_MISSION_SHEET, (r) => r.playerId === playerId);
-  const today = todayUtc();
-
-  return rows.map((r) => {
-    const parsed = rowToPlayerMission(r);
-    const mission = missions.find((m) => m.id === parsed.missionId);
-    // Daily missions that were last reset on an earlier date display as fresh
-    // (progress 0, unclaimed) even though the sheet row hasn't been rewritten
-    // yet — the actual reset write happens lazily on the next progress/claim call.
-    if (mission?.type === "daily" && parsed.resetDate !== today) {
-      return { ...parsed, progress: 0, claimed: false };
-    }
-    return parsed;
-  });
-}
-
-/** Ensures a player's progress row for `mission` reflects "today" if it's a daily mission, resetting it in the sheet if stale. Returns the up-to-date row. */
-async function getOrCreateProgressRow(playerId: string, mission: MissionRow) {
-  const found = await findRow(PLAYER_MISSION_SHEET, (r) => r.playerId === playerId && r.missionId === mission.id);
-
-  if (!found) {
-    await appendRow(PLAYER_MISSION_SHEET, { playerId, missionId: mission.id, progress: 0, claimed: false, resetDate: todayUtc() });
-    invalidateSheetCache(PLAYER_MISSION_SHEET);
-    return findRow(PLAYER_MISSION_SHEET, (r) => r.playerId === playerId && r.missionId === mission.id);
-  }
-
-  if (mission.type === "daily" && found.row.resetDate !== todayUtc()) {
-    await updateRow(PLAYER_MISSION_SHEET, found.rowIndex, { progress: 0, claimed: false, resetDate: todayUtc() });
-    invalidateSheetCache(PLAYER_MISSION_SHEET);
-    return findRow(PLAYER_MISSION_SHEET, (r) => r.playerId === playerId && r.missionId === mission.id);
-  }
-
-  return found;
-}
-
-/** Bumps progress on every mission matching a given metric (e.g. "kills"). Called from game/complete. Additive — use for counters that only ever go up by the event's amount (never a "reached X" high-water value). */
-export async function incrementMissionProgress(playerId: string, metric: string, amount: number, allMissions?: MissionRow[]): Promise<void> {
-  if (amount <= 0) return;
-  const missions = allMissions ?? await getAllMissionsForPlayer(playerId);
-  const matching = missions.filter((m) => m.metric === metric);
-
-  for (const mission of matching) {
-    const found = await getOrCreateProgressRow(playerId, mission);
-    if (!found || parseBool(found.row.claimed)) continue;
-    const newProgress = Math.min(mission.targetValue, Number(found.row.progress || 0) + amount);
-    await updateRow(PLAYER_MISSION_SHEET, found.rowIndex, { progress: newProgress });
-  }
-  invalidateSheetCache(PLAYER_MISSION_SHEET);
-}
-
-/** Sets progress to max(current, value) (capped at each mission's targetValue) for
- *  every mission matching `metric` — for "reached wave/stage X" style milestones,
- *  where `value` is the new personal-best, not a delta to add. */
-export async function setMissionProgressIfHigher(playerId: string, metric: string, value: number, allMissions?: MissionRow[]): Promise<void> {
-  if (value <= 0) return;
-  const missions = allMissions ?? await getAllMissionsForPlayer(playerId, value);
-  const matching = missions.filter((m) => m.metric === metric);
-
-  for (const mission of matching) {
-    const found = await getOrCreateProgressRow(playerId, mission);
-    if (!found || parseBool(found.row.claimed)) continue;
-    const current = Number(found.row.progress || 0);
-    const next = Math.min(mission.targetValue, Math.max(current, value));
-    if (next !== current) await updateRow(PLAYER_MISSION_SHEET, found.rowIndex, { progress: next });
-  }
-  invalidateSheetCache(PLAYER_MISSION_SHEET);
-}
-
-export async function claimMission(playerId: string, missionId: string): Promise<{ rewardCoin: number; rewardExp: number; rewardDiamond: number }> {
-  const missions = await getAllMissionsForPlayer(playerId);
-  const mission = missions.find((m) => m.id === missionId);
-  if (!mission) throw new Error("Mission not found");
-
-  const found = await getOrCreateProgressRow(playerId, mission);
-  const progress = found ? Number(found.row.progress || 0) : 0;
-  const claimed = found ? parseBool(found.row.claimed) : false;
-
-  if (claimed) throw new Error("Already claimed");
-  if (progress < mission.targetValue) throw new Error("Mission not complete yet");
-
-  await addCurrency(playerId, { coin: mission.rewardCoin, exp: mission.rewardExp, diamond: mission.rewardDiamond });
-
-  if (found) {
-    await updateRow(PLAYER_MISSION_SHEET, found.rowIndex, { claimed: true });
-  } else {
-    await appendRow(PLAYER_MISSION_SHEET, { playerId, missionId, progress: mission.targetValue, claimed: true, resetDate: todayUtc() });
-  }
-  invalidateSheetCache(PLAYER_MISSION_SHEET);
-
-  return { rewardCoin: mission.rewardCoin, rewardExp: mission.rewardExp, rewardDiamond: mission.rewardDiamond };
 }
