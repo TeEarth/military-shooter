@@ -43,6 +43,7 @@ export default async function AdminPlayerDetailPage({ params }: { params: Promis
       ownedWeaponIds={weapons.filter((w) => w.owned).map((w) => w.weaponId)}
       greenBanknoteBalance={income.greenBanknoteBalance}
       withdrawals={withdrawals}
+      isOwnAccount={player.id === session.user.id}
     />
   );
 }

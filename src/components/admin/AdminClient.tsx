@@ -18,6 +18,9 @@ interface PlayerSummary {
 
 interface Props {
   players: PlayerSummary[];
+  /** The logged-in admin's own player id — Ban/Delete are hidden for this
+   *  row so an admin can't lock themselves out or delete their own account. */
+  currentAdminId: string;
 }
 
 const GIFT_TYPES = [
@@ -28,7 +31,7 @@ const GIFT_TYPES = [
   { value: "banknote", label: "💵 Green Banknote" },
 ];
 
-export default function AdminClient({ players: initialPlayers }: Props) {
+export default function AdminClient({ players: initialPlayers, currentAdminId }: Props) {
   const [players, setPlayers] = useState(initialPlayers);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
@@ -203,14 +206,18 @@ export default function AdminClient({ players: initialPlayers }: Props) {
                       <Link href={`/admin/players/${p.id}`} className="text-blue-400 hover:underline">View</Link>
                     </td>
                     <td className="p-1">
-                      <button onClick={() => toggleBan(p.id, !p.isBanned)} className={p.isBanned ? "text-green-400" : "text-red-400"}>
-                        {p.isBanned ? "Unban" : "Ban"}
-                      </button>
+                      {p.id !== currentAdminId && (
+                        <button onClick={() => toggleBan(p.id, !p.isBanned)} className={p.isBanned ? "text-green-400" : "text-red-400"}>
+                          {p.isBanned ? "Unban" : "Ban"}
+                        </button>
+                      )}
                     </td>
                     <td className="p-1">
-                      <button onClick={() => deleteAccount(p.id, p.username)} className="text-red-500 font-bold">
-                        Delete
-                      </button>
+                      {p.id !== currentAdminId && (
+                        <button onClick={() => deleteAccount(p.id, p.username)} className="text-red-500 font-bold">
+                          Delete
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

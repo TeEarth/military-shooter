@@ -9,6 +9,12 @@ export async function POST(req: NextRequest) {
   const { playerId, banned } = (await req.json()) as { playerId: string; banned: boolean };
   if (!playerId) return NextResponse.json({ error: "playerId required" }, { status: 400 });
 
+  // An admin banning themselves would lock them out immediately (login
+  // checks isBanned) with no one left to undo it.
+  if (playerId === session.user.id) {
+    return NextResponse.json({ error: "Cannot ban your own admin account" }, { status: 400 });
+  }
+
   await updatePlayer(playerId, { isBanned: Boolean(banned) });
   return NextResponse.json({ success: true });
 }

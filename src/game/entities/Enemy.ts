@@ -5,7 +5,7 @@ import { fireShots } from "./WeaponFire";
 import { UNIT_DISPLAY_SIZE } from "../../../config/player";
 import { bulletSpeedForWeapon } from "../../../config/game";
 
-type AIState = "patrol" | "chase" | "shoot";
+type AIState = "patrol" | "chase" | "shoot" | "approach";
 
 /**
  * Enemy behavior is entirely driven by the Weapon it's carrying (data.weapon) —
@@ -112,25 +112,29 @@ export class Enemy {
       return;
     }
 
-    // v18: shooting is capped at 2x detectionRange (600px) — was uncapped
-    // ("any range"), which meant an enemy could open fire on the player the
-    // instant it spawned, from clear across the map, before the player could
-    // possibly know it was there. detectionRange still gates chasing; beyond
-    // the shoot cap the enemy just patrols instead of sniping from afar.
-    // A stationary turret (immobile) never chases regardless of distance.
+    // v18: three concentric bands (four for immobile turrets, which never
+    // chase/approach at all):
+    //  - dist <= preferredRange: comfortable range, stand still and unload.
+    //  - preferredRange < dist <= detectionRange: spotted and closing in fast
+    //    (full chaseSpeed), no shooting yet.
+    //  - detectionRange < dist <= shootRange (300-450px): still shoots from
+    //    here, but no longer frozen in place — creeps closer at a slower,
+    //    deliberate approachSpeed while firing, instead of standing rooted.
+    //  - dist > shootRange: out of range entirely, just patrols.
     const dist = Phaser.Math.Distance.Between(this.sprite.x, this.sprite.y, playerX, playerY);
-    const shootRange = ENEMY_CONFIG.detectionRange * 2;
-    const shouldChase = !this.data.immobile && dist < ENEMY_CONFIG.detectionRange && dist > this.preferredRange;
+    const body = this.sprite.body as Phaser.Physics.Arcade.Body;
 
-    if (shouldChase) {
-      this.state = "chase";
-    } else if (dist <= shootRange) {
+    if (this.data.immobile) {
+      this.state = dist <= ENEMY_CONFIG.shootRange ? "shoot" : "patrol";
+    } else if (dist <= this.preferredRange) {
       this.state = "shoot";
+    } else if (dist <= ENEMY_CONFIG.detectionRange) {
+      this.state = "chase";
+    } else if (dist <= ENEMY_CONFIG.shootRange) {
+      this.state = "approach";
     } else {
       this.state = "patrol";
     }
-
-    const body = this.sprite.body as Phaser.Physics.Arcade.Body;
 
     switch (this.state) {
       case "chase":
@@ -138,6 +142,10 @@ export class Enemy {
         break;
       case "shoot":
         body.setVelocity(0, 0);
+        this.tryShoot(playerX, playerY);
+        break;
+      case "approach":
+        this.moveToward(playerX, playerY, ENEMY_CONFIG.approachSpeed);
         this.tryShoot(playerX, playerY);
         break;
       case "patrol":

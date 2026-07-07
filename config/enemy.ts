@@ -6,6 +6,11 @@ export const ENEMY_CONFIG = {
   // nothing, matching "enemy can attack at long range same as before, just
   // doesn't come after you until you're within its detection radius."
   detectionRange: 300,
+  // v18: was 2x detectionRange (600) — a shot fired from that far away felt
+  // like it came out of nowhere. Fixed at 450, and the 300-450 band no longer
+  // stands frozen while sniping — it now slowly closes the distance too (see
+  // approachSpeed), rather than either standing still or full-speed chasing.
+  shootRange: 450,
   coverWaitTime: 3000, // ms to wait behind cover
   alertDuration: 5000,
   // v15: enemies felt passive/idle once they spotted the player — chase speed
@@ -15,6 +20,10 @@ export const ENEMY_CONFIG = {
   // the player is actually detected.
   patrolSpeed: 70,
   chaseSpeed: 150,
+  // v18: deliberate, cautious advance used while sniping from the 300-450
+  // band — slower than a full chase (this isn't "spotted and charging"), but
+  // still closing the gap instead of standing rooted in place.
+  approachSpeed: 50,
   // v4: every stat scales +10% compounding per 10-stage tier (tier = floor((stageNumber-1)/10)),
   // and enemy count grows by extraEnemiesPerTier per tier. See src/lib/stageTemplate.ts.
   difficultyScaling: {

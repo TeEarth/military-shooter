@@ -34,6 +34,9 @@ interface Props {
   ownedWeaponIds: string[];
   greenBanknoteBalance: number;
   withdrawals: WithdrawalRequest[];
+  /** Viewing your own admin account — Ban/Delete are hidden here so you
+   *  can't lock yourself out or delete your own account. */
+  isOwnAccount: boolean;
 }
 
 const GIFT_TYPES = [
@@ -44,7 +47,7 @@ const GIFT_TYPES = [
   { value: "banknote", label: "💵 Green Banknote" },
 ];
 
-export default function AdminPlayerDetailClient({ player: initialPlayer, ownedCharacterIds, ownedWeaponIds, greenBanknoteBalance, withdrawals }: Props) {
+export default function AdminPlayerDetailClient({ player: initialPlayer, ownedCharacterIds, ownedWeaponIds, greenBanknoteBalance, withdrawals, isOwnAccount }: Props) {
   const router = useRouter();
   const [player, setPlayer] = useState(initialPlayer);
   const [title, setTitle] = useState("");
@@ -143,14 +146,18 @@ export default function AdminPlayerDetailClient({ player: initialPlayer, ownedCh
             <div><span className="text-military-steel">Joined</span><p>{player.createdAt ? new Date(player.createdAt).toLocaleDateString() : "—"}</p></div>
             <div><span className="text-military-steel">Last Login</span><p>{player.lastLogin ? new Date(player.lastLogin).toLocaleDateString() : "—"}</p></div>
           </div>
-          <div className="flex gap-2 mt-4">
-            <button onClick={toggleBan} className={`btn-military text-xs ${player.isBanned ? "" : "border-red-400 text-red-400"}`}>
-              {player.isBanned ? "Unban Player" : "Ban Player"}
-            </button>
-            <button onClick={deleteAccount} disabled={deleting} className="btn-military text-xs border-red-600 text-red-600 font-bold">
-              {deleting ? "Deleting..." : "Delete Account"}
-            </button>
-          </div>
+          {isOwnAccount ? (
+            <p className="text-xs text-military-steel mt-4">This is your own admin account — ban/delete are disabled here.</p>
+          ) : (
+            <div className="flex gap-2 mt-4">
+              <button onClick={toggleBan} className={`btn-military text-xs ${player.isBanned ? "" : "border-red-400 text-red-400"}`}>
+                {player.isBanned ? "Unban Player" : "Ban Player"}
+              </button>
+              <button onClick={deleteAccount} disabled={deleting} className="btn-military text-xs border-red-600 text-red-600 font-bold">
+                {deleting ? "Deleting..." : "Delete Account"}
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="card-military">

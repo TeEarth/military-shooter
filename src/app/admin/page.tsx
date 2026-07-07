@@ -23,5 +23,5 @@ export default async function AdminPage() {
     isBanned: p.isBanned,
   }));
 
-  return <AdminClient players={playerSummaries} />;
+  return <AdminClient players={playerSummaries} currentAdminId={session.user.id} />;
 }
