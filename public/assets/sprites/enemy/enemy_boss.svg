@@ -1,0 +1,15 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="64" cy="102" rx="40" ry="11" fill="#000" opacity="0.3"/>
+  <ellipse cx="64" cy="78" rx="26" ry="21" fill="#1c0d0d"/>
+  <circle cx="64" cy="64" r="38" fill="#3a1414" stroke="#0c0303" stroke-width="3"/>
+  <circle cx="64" cy="44" r="22" fill="#4a1a1a" stroke="#0c0303" stroke-width="3"/>
+  <!-- gold crest marking this as the boss -->
+  <path d="M48 30 L56 18 L64 28 L72 18 L80 30 L72 26 L64 34 L56 26 Z" fill="#d4af37" stroke="#8a6a1a" stroke-width="1"/>
+  <ellipse cx="64" cy="46" rx="10" ry="4.5" fill="#100404" opacity="0.7"/>
+  <!-- glowing eyes -->
+  <circle cx="56" cy="44" r="2.5" fill="#ff3b3b"/>
+  <circle cx="72" cy="44" r="2.5" fill="#ff3b3b"/>
+  <rect x="59" y="96" width="10" height="24" rx="2" fill="#1a1a1a"/>
+  <circle cx="30" cy="66" r="11" fill="#2e0f0f"/>
+  <circle cx="98" cy="66" r="11" fill="#2e0f0f"/>
+</svg>

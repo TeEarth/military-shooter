@@ -93,6 +93,27 @@ export default function AdminClient({ players: initialPlayers }: Props) {
     });
   }
 
+  /** Permanent — deletes the account and every per-player table row (cascade). */
+  async function deleteAccount(playerId: string, username: string) {
+    if (!confirm(`Permanently delete "${username}"? This cannot be undone.`)) return;
+    const res = await fetch("/api/admin/delete-player", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId }),
+    });
+    const data = await res.json();
+    if (data.success) {
+      setPlayers((prev) => prev.filter((p) => p.id !== playerId));
+      setSelected((prev) => {
+        const next = new Set(prev);
+        next.delete(playerId);
+        return next;
+      });
+    } else {
+      setStatus(data.error);
+    }
+  }
+
   return (
     <div className="min-h-screen page-bg-themed p-6">
       <div className="flex items-center gap-4 mb-6">
@@ -161,6 +182,7 @@ export default function AdminClient({ players: initialPlayers }: Props) {
                   <th className="p-1">Farm Wave</th>
                   <th className="p-1"></th>
                   <th className="p-1"></th>
+                  <th className="p-1"></th>
                 </tr>
               </thead>
               <tbody>
@@ -183,6 +205,11 @@ export default function AdminClient({ players: initialPlayers }: Props) {
                     <td className="p-1">
                       <button onClick={() => toggleBan(p.id, !p.isBanned)} className={p.isBanned ? "text-green-400" : "text-red-400"}>
                         {p.isBanned ? "Unban" : "Ban"}
+                      </button>
+                    </td>
+                    <td className="p-1">
+                      <button onClick={() => deleteAccount(p.id, p.username)} className="text-red-500 font-bold">
+                        Delete
                       </button>
                     </td>
                   </tr>

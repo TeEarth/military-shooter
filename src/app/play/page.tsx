@@ -21,6 +21,9 @@ export default async function PlayPage() {
   // BossStage sheet may not exist yet on an un-migrated environment — degrade
   // gracefully to "no boss available" rather than breaking the whole page.
   let boss = { available: false, encounterNumber: 1, hp: 0 };
+  // v17: each boss cleared (bossEncounterCount) unlocks the next multiverse —
+  // multiverse 1 is always unlocked, so this starts at 1 with zero clears.
+  let unlockedMultiverse = 1;
   try {
     const [bossConfig, bossEncounterCount] = await Promise.all([
       getBossStageConfig(),
@@ -33,6 +36,7 @@ export default async function PlayPage() {
       encounterNumber: bossEncounterNumber,
       hp: scaledBossHp(bossConfig, bossEncounterNumber),
     };
+    unlockedMultiverse = 1 + bossEncounterCount;
   } catch {
     // BossStage sheet not seeded yet — leave default (unavailable).
   }
@@ -43,6 +47,7 @@ export default async function PlayPage() {
       currentStage={player.currentStage}
       completedStageIds={completedStageIds}
       boss={boss}
+      unlockedMultiverse={unlockedMultiverse}
     />
   );
 }

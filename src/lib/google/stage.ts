@@ -18,6 +18,14 @@ export interface StageRow {
    *  designed yet", so GameScene falls back to its old hardcoded default. */
   playerSpawnX: number;
   playerSpawnY: number;
+  /** v17: which "multiverse" (world) this stage belongs to — 1 for the
+   *  original 10 story stages, 2+ unlocked one at a time by clearing that
+   *  multiverse's boss. Existing rows default to 1 (blank cell). */
+  multiverse: number;
+  /** v17: placeholder stage seeded ahead of its real content being designed —
+   *  shown in the stage list (so the multiverse feels populated once
+   *  unlocked) but not clickable/playable yet. */
+  comingSoon: boolean;
 }
 
 export interface StageEnemySpawn {
@@ -48,6 +56,8 @@ function rowToStage(row: Record<string, string>): StageRow {
     isRepeatable: parseBool(row.isRepeatable),
     playerSpawnX: Number(row.playerSpawnX || 0),
     playerSpawnY: Number(row.playerSpawnY || 0),
+    multiverse: Number(row.multiverse || 1),
+    comingSoon: parseBool(row.comingSoon),
   };
 }
 

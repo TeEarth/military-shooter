@@ -165,17 +165,14 @@ async function startBossStage(playerId: string) {
   const width = 1280;
   const height = 720;
 
-  // Instant-kill design: the boss's rockets deal absurdly high damage and hit via
-  // the existing AoE-splash path (takeAoeDamage), which already bypasses armor%
-  // entirely — so "one hit = dead" falls straight out of the existing damage
-  // pipeline instead of needing a brand-new instant-kill flag/mechanic.
+  // v17: boss re-armed with Double Pistol — its real Weapons-sheet stats are
+  // used directly (no more instant-kill damage override), just scaled by
+  // encounter number the same way every other repeat-encounter stat scales
+  // (compounding +growthPercent% per encounter, same formula as scaledBossHp).
+  const encounterScale = Math.pow(1 + config.growthPercent / 100, encounterNumber - 1);
   const bossWeapon = {
     ...bossWeaponBase,
-    damage: 999999,
-    projectileCount: config.rocketCount,
-    magazineSize: config.rocketCount,
-    fireMode: "aoe" as const,
-    accuracy: 100,
+    damage: Math.round(bossWeaponBase.damage * encounterScale),
   };
 
   const bossEnemy = {
@@ -183,11 +180,18 @@ async function startBossStage(playerId: string) {
     weaponId: config.weaponId,
     hp: scaledBossHp(config, encounterNumber),
     coinReward: 0,
-    sprite: "/assets/sprites/enemy/enemy_rocket.svg",
+    sprite: "/assets/sprites/enemy/enemy_boss.svg",
+    immobile: false,
     weapon: bossWeapon,
     spawnX: width * 0.75,
     spawnY: height / 2,
   };
+
+  // v17: the boss calls in a fresh pistol-wielding minion once a minute (see
+  // GameScene.ts's spawnBossMinion) — enemyRoster[0] is that minion's template.
+  const minionTemplate = await getEnemyById("enemy_pistol");
+  const minionWeapon = minionTemplate ? await getWeaponById(minionTemplate.weaponId) : null;
+  const enemyRoster = minionTemplate && minionWeapon ? [{ ...minionTemplate, weapon: minionWeapon }] : [];
 
   const loadout = statsToLoadout(character, weapon, stats, remainingAmmo);
 
@@ -196,7 +200,9 @@ async function startBossStage(playerId: string) {
     stageData: {
       id: `boss_${encounterNumber}`,
       name: `Boss Encounter #${encounterNumber}`,
-      background: "/assets/sprites/background/battlefield_ground.svg",
+      // v17: boss arena is a bare rock/stone map — no cover anywhere (see
+      // GameScene.ts's createCovers() short-circuit for isBossStage).
+      background: "/assets/sprites/background/rock_terrain.svg",
       width,
       height,
       rewardCoin: 0,
@@ -204,7 +210,7 @@ async function startBossStage(playerId: string) {
       isRepeatable: false,
     },
     enemies: [bossEnemy],
-    enemyRoster: [],
+    enemyRoster,
     covers: [],
     character: loadout,
     weaponId,

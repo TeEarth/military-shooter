@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface PlayerDetail {
   id: string;
@@ -44,6 +45,7 @@ const GIFT_TYPES = [
 ];
 
 export default function AdminPlayerDetailClient({ player: initialPlayer, ownedCharacterIds, ownedWeaponIds, greenBanknoteBalance, withdrawals }: Props) {
+  const router = useRouter();
   const [player, setPlayer] = useState(initialPlayer);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -51,6 +53,7 @@ export default function AdminPlayerDetailClient({ player: initialPlayer, ownedCh
   const [giftAmount, setGiftAmount] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   async function toggleBan() {
     const next = !player.isBanned;
@@ -60,6 +63,28 @@ export default function AdminPlayerDetailClient({ player: initialPlayer, ownedCh
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ playerId: player.id, banned: next }),
     });
+  }
+
+  /** Permanent — deletes the account and every per-player table row (cascade). */
+  async function deleteAccount() {
+    if (!confirm(`Permanently delete "${player.username}"? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/admin/delete-player", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId: player.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        router.push("/admin");
+      } else {
+        setStatus(data.error);
+        setDeleting(false);
+      }
+    } catch {
+      setDeleting(false);
+    }
   }
 
   async function sendMessage() {
@@ -118,9 +143,14 @@ export default function AdminPlayerDetailClient({ player: initialPlayer, ownedCh
             <div><span className="text-military-steel">Joined</span><p>{player.createdAt ? new Date(player.createdAt).toLocaleDateString() : "—"}</p></div>
             <div><span className="text-military-steel">Last Login</span><p>{player.lastLogin ? new Date(player.lastLogin).toLocaleDateString() : "—"}</p></div>
           </div>
-          <button onClick={toggleBan} className={`btn-military text-xs mt-4 ${player.isBanned ? "" : "border-red-400 text-red-400"}`}>
-            {player.isBanned ? "Unban Player" : "Ban Player"}
-          </button>
+          <div className="flex gap-2 mt-4">
+            <button onClick={toggleBan} className={`btn-military text-xs ${player.isBanned ? "" : "border-red-400 text-red-400"}`}>
+              {player.isBanned ? "Unban Player" : "Ban Player"}
+            </button>
+            <button onClick={deleteAccount} disabled={deleting} className="btn-military text-xs border-red-600 text-red-600 font-bold">
+              {deleting ? "Deleting..." : "Delete Account"}
+            </button>
+          </div>
         </div>
 
         <div className="card-military">

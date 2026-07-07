@@ -235,6 +235,23 @@ export async function updatePlayer(id: string, updates: Partial<Record<keyof Pla
   if (error) throw new Error(`updatePlayer: ${error.message}`);
 }
 
+/**
+ * Permanently deletes a player account. Every player-scoped Supabase table
+ * (player_weapon, player_character, player_equipment, player_equipment_level,
+ * player_passive, player_weapon_ammo, player_stage_progress, player_mission,
+ * player_income, player_boss_progress) references players(id) with
+ * `on delete cascade` (see scripts/sql/001_runtime_schema.sql), so deleting
+ * the players row alone cleans up everything there. Mail/WithdrawalRequest
+ * rows (Google Sheets, not Supabase) are left behind, orphaned but harmless —
+ * nobody can read them again since they're keyed by a playerId that no
+ * longer resolves to any account.
+ */
+export async function deletePlayer(id: string): Promise<void> {
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from(TABLE).delete().eq("id", id);
+  if (error) throw new Error(`deletePlayer: ${error.message}`);
+}
+
 /** Records a new personal-best farm wave — also used to gate Azzure's SPECIAL unlock. */
 export async function recordFarmWave(playerId: string, waveReached: number): Promise<void> {
   const player = await getPlayerById(playerId);

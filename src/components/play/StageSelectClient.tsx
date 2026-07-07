@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { sfx } from "@/lib/sfx";
@@ -13,6 +14,8 @@ interface StageRow {
   rewardCoin: number;
   rewardExp: number;
   isRepeatable: boolean;
+  multiverse: number;
+  comingSoon: boolean;
 }
 
 interface BossStatus {
@@ -26,17 +29,22 @@ interface Props {
   currentStage: number;
   completedStageIds: string[];
   boss: BossStatus;
+  /** v17: highest multiverse unlocked so far — 1 + bosses defeated. */
+  unlockedMultiverse: number;
 }
 
 function stageNumber(stageId: string): number {
   return Number(stageId.replace(/\D/g, "")) || 0;
 }
 
-export default function StageSelectClient({ stages, currentStage, completedStageIds, boss }: Props) {
+export default function StageSelectClient({ stages, currentStage, completedStageIds, boss, unlockedMultiverse }: Props) {
   const router = useRouter();
+  const multiverseNumbers = Array.from(new Set(stages.map((s) => s.multiverse))).sort((a, b) => a - b);
+  const [selectedMultiverse, setSelectedMultiverse] = useState(1);
 
-  const storyStages = stages.filter((s) => !s.isRepeatable);
-  const farmStages = stages.filter((s) => s.isRepeatable);
+  const inThisMultiverse = stages.filter((s) => s.multiverse === selectedMultiverse);
+  const storyStages = inThisMultiverse.filter((s) => !s.isRepeatable);
+  const farmStages = inThisMultiverse.filter((s) => s.isRepeatable);
 
   function handlePlay(stageId: string) {
     sfx.play("ui_click");
@@ -45,8 +53,11 @@ export default function StageSelectClient({ stages, currentStage, completedStage
 
   function renderCard(stage: StageRow) {
     const isCompleted = completedStageIds.includes(stage.id);
-    const unlocked = stage.isRepeatable || stageNumber(stage.id) <= currentStage;
-    const playable = unlocked && !isCompleted;
+    // v17: only multiverse 1's numbering ties to player.currentStage (the
+    // original story-stage counter) — later multiverses aren't part of that
+    // sequence yet, so they're gated purely by comingSoon for now.
+    const unlocked = stage.isRepeatable || stage.multiverse > 1 || stageNumber(stage.id) <= currentStage;
+    const playable = unlocked && !isCompleted && !stage.comingSoon;
 
     return (
       <div
@@ -59,8 +70,9 @@ export default function StageSelectClient({ stages, currentStage, completedStage
         <div className="flex items-start justify-between mb-2">
           <span className="text-military-steel text-xs">{stage.isRepeatable ? "Repeatable" : `Stage ${stageNumber(stage.id)}`}</span>
           {stage.isRepeatable && <span className="text-green-400 text-xs font-bold">FARM</span>}
+          {stage.comingSoon && <span className="text-military-gold text-xs font-bold">COMING SOON</span>}
           {isCompleted && <span className="text-military-gold text-xs font-bold">✓ CLEARED</span>}
-          {!unlocked && !isCompleted && <span className="text-military-steel text-xs">🔒</span>}
+          {!unlocked && !isCompleted && !stage.comingSoon && <span className="text-military-steel text-xs">🔒</span>}
         </div>
         <h3 className="font-bold text-white mb-1">{stage.name}</h3>
         <div className="flex gap-3 text-xs text-military-steel">
@@ -68,8 +80,9 @@ export default function StageSelectClient({ stages, currentStage, completedStage
           <span>🎖 {stage.rewardCoin} coins</span>
           <span>⭐ {stage.rewardExp} exp</span>
         </div>
+        {stage.comingSoon && <p className="text-military-steel text-xs mt-1">Stage layout not designed yet — check back soon.</p>}
         {isCompleted && <p className="text-military-steel text-xs mt-1">This mission has been cleared and cannot be replayed.</p>}
-        {!stage.isRepeatable && !isCompleted && <p className="text-red-400 text-xs mt-1">Eliminate every enemy to clear — one attempt, no replays after clearing.</p>}
+        {!stage.isRepeatable && !isCompleted && !stage.comingSoon && <p className="text-red-400 text-xs mt-1">Eliminate every enemy to clear — one attempt, no replays after clearing.</p>}
       </div>
     );
   }
@@ -81,7 +94,27 @@ export default function StageSelectClient({ stages, currentStage, completedStage
         <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">Select Mission</h1>
       </div>
 
-      {boss.available && (
+      {multiverseNumbers.length > 1 && (
+        <div className="flex gap-2 mb-6 max-w-4xl mx-auto">
+          {multiverseNumbers.map((mv) => {
+            const unlocked = mv <= unlockedMultiverse;
+            const isNew = unlocked && mv === unlockedMultiverse && mv > 1;
+            return (
+              <button
+                key={mv}
+                onClick={() => unlocked && setSelectedMultiverse(mv)}
+                disabled={!unlocked}
+                className={`btn-military text-xs relative ${selectedMultiverse === mv ? "" : "opacity-50"} ${!unlocked ? "cursor-not-allowed" : ""}`}
+              >
+                {unlocked ? `Multiverse ${mv}` : `🔒 Multiverse ${mv}`}
+                {isNew && <span className="absolute -top-2 -right-2 bg-military-gold text-military-darker text-[9px] font-bold px-1 rounded">NEW</span>}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {boss.available && selectedMultiverse === 1 && (
         <div className="max-w-4xl mx-auto mb-6">
           <div
             className="card-military border-red-600 cursor-pointer hover:border-red-400 transition-all duration-200"
@@ -91,7 +124,10 @@ export default function StageSelectClient({ stages, currentStage, completedStage
               <span className="text-red-400 text-xs font-bold">⚠ BOSS STAGE UNLOCKED</span>
             </div>
             <h3 className="font-bold text-white mb-1">Boss Encounter #{boss.encounterNumber}</h3>
-            <p className="text-xs text-military-steel">HP: {boss.hp} — one rocket hit is instant death. Reward: 1 green banknote (Income tab).</p>
+            <p className="text-xs text-military-steel">
+              HP: {boss.hp} — dual-wields Double Pistol and calls in a fresh pistol reinforcement every minute. No cover on this map.
+              Reward: 500 coin, 50 diamond, 10 ticket, 1 green banknote. Clearing it unlocks the next Multiverse.
+            </p>
           </div>
         </div>
       )}

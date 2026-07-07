@@ -41,7 +41,7 @@ const SHEETS: Record<string, string[]> = {
   PassiveConfig: ["passiveId", "tier", "cost", "currency", "bonusPercent"],
   // playerSpawnX/playerSpawnY appended at the end (v11 #2) — 0 means "not
   // designed yet", GameScene falls back to its old hardcoded default.
-  Stage: ["id", "name", "isRepeatable", "width", "height", "background", "rewardCoin", "rewardExp", "playerSpawnX", "playerSpawnY"],
+  Stage: ["id", "name", "isRepeatable", "width", "height", "background", "rewardCoin", "rewardExp", "playerSpawnX", "playerSpawnY", "multiverse", "comingSoon"],
   StageEnemy: ["stageId", "enemyId", "spawnX", "spawnY"],
   // v11 #2: real cover layout traced from the stage-layout PDF — empty for any
   // stage not yet designed, which keeps GameScene's random cover scatter.
@@ -208,6 +208,26 @@ async function main() {
     // rewardExp: 10 is exact from the PDF ("เมื่อผ่านแต่ละ wave จะได้ทีละ 10 Exp") — /api/game/complete
     // multiplies this by farmWaveReached, so 10 really is "per wave", not a typo.
     { id: "farm_01", name: "Training Grounds", isRepeatable: true, width: 1280, height: 900, background: "/assets/sprites/background/battlefield_ground.svg", rewardCoin: 80, rewardExp: 10, playerSpawnX: 636, playerSpawnY: 467 },
+    // v17: Multiverse 2 — unlocked after clearing the boss that follows story
+    // stage 10. Placeholder rows only (comingSoon: true) until real stage
+    // layouts are designed; rock/stone background to match the boss arena's theme.
+    ...Array.from({ length: 10 }, (_, i) => {
+      const n = i + 1;
+      return {
+        id: `mv2_stage${String(n).padStart(2, "0")}`,
+        name: `Multiverse 2 - Stage ${n}`,
+        isRepeatable: false,
+        width: 1280,
+        height: 720,
+        background: "/assets/sprites/background/rock_terrain.svg",
+        rewardCoin: 100,
+        rewardExp: 150,
+        playerSpawnX: 0,
+        playerSpawnY: 0,
+        multiverse: 2,
+        comingSoon: true,
+      };
+    }),
   ]);
 
   // ---------- StageEnemy (story stages only — farm generates waves procedurally) ----------
@@ -577,8 +597,12 @@ async function main() {
   ]);
 
   // ---------- v4: BossStage (bonus map every 10 story stages) ----------
+  // v17: boss re-armed with Double Pistol (was Rocket Launcher's instant-kill
+  // hack) and buffed to 4000 base HP — see startBossStage() in
+  // src/app/api/game/start/route.ts. rocketCount is vestigial now (no longer
+  // read anywhere) but left in the sheet schema to avoid churn.
   await seedIfEmpty("BossStage", [
-    { bossId: "boss_01", hp: 2000, weaponId: "rocket_launcher", rocketCount: 5, growthPercent: 10, occursEveryNStages: 10 },
+    { bossId: "boss_01", hp: 4000, weaponId: "double_pistol", rocketCount: 5, growthPercent: 10, occursEveryNStages: 10 },
   ]);
 
   // ---------- v9 #2: VipConfig (incremental exp per level, NOT cumulative — see src/lib/google/vip.ts) ----------

@@ -22,6 +22,11 @@ export class GameScene extends Phaser.Scene {
 
   private stageData!: StageData;
   private isFarmStage = false;
+  /** v17: boss arena — no cover at all, and the boss periodically calls in
+   *  reinforcements (see spawnBossMinion()). The stage ends the instant the
+   *  boss itself dies, regardless of any minions still alive. */
+  private isBossStage = false;
+  private bossEnemy: Enemy | null = null;
   private enemyRoster: EnemyData[] = [];
   private currentWave = 1;
   private highestWaveCleared = 0;
@@ -80,6 +85,7 @@ export class GameScene extends Phaser.Scene {
     this.failedAssetKeys = (this.registry.get("failedAssetKeys") as Set<string>) ?? new Set();
 
     this.isFarmStage = this.stageData.isRepeatable;
+    this.isBossStage = this.stageData.id.startsWith("boss_");
     this.startTime = Date.now();
     this.stageEnded = false;
 
@@ -139,7 +145,16 @@ export class GameScene extends Phaser.Scene {
       this.farmPhaseElapsed = 0;
     } else {
       for (const spawn of enemySpawns) {
-        this.enemies.push(new Enemy(this, spawn.spawnX, spawn.spawnY, spawn, this.enemyBullets, this.enemyGroup, 1, 1, this.failedAssetKeys));
+        const enemy = new Enemy(this, spawn.spawnX, spawn.spawnY, spawn, this.enemyBullets, this.enemyGroup, 1, 1, this.failedAssetKeys);
+        this.enemies.push(enemy);
+        if (this.isBossStage && spawn.id === "boss") this.bossEnemy = enemy;
+      }
+
+      // v17: boss calls in a fresh pistol-wielding minion once a minute —
+      // enemyRoster[0] is the pistol template the start route attaches for
+      // boss stages specifically (see startBossStage() in game/start/route.ts).
+      if (this.isBossStage) {
+        this.time.addEvent({ delay: 60000, loop: true, callback: () => this.spawnBossMinion(), callbackScope: this });
       }
     }
 
@@ -202,6 +217,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createCovers(worldWidth: number, worldHeight: number) {
+    // v17: the boss arena has zero cover, full stop — no fallback scatter
+    // (unlike a normal stage with no StageCover row, which falls through to
+    // the random scatter below since "no row" there just means "not yet
+    // designed", not "intentionally empty").
+    if (this.isBossStage) return;
+
     // v11 #2: stages designed from the stage-layout PDF ship a fixed cover
     // list (registry "stageCovers", from StageCover sheet via /api/game/start)
     // — any stage without one (not yet designed) keeps the old random scatter.
@@ -239,6 +260,16 @@ export class GameScene extends Phaser.Scene {
       x: Phaser.Math.Between(width * 0.3, width - 80),
       y: Phaser.Math.Between(80, height - 80),
     };
+  }
+
+  /** v17: called once a minute for the whole boss fight (see the addEvent in
+   *  create()) — reinforces the boss with one more pistol-wielding minion. */
+  private spawnBossMinion() {
+    if (this.stageEnded || this.enemyRoster.length === 0) return;
+    const template = this.enemyRoster[0];
+    const { x, y } = this.randomSpawnPoint();
+    const spawn: EnemySpawn = { ...template, spawnX: x, spawnY: y };
+    this.enemies.push(new Enemy(this, x, y, spawn, this.enemyBullets, this.enemyGroup, 1, 1, this.failedAssetKeys));
   }
 
   private spawnWave(wave: number) {
@@ -607,6 +638,13 @@ export class GameScene extends Phaser.Scene {
   }
 
   private checkWinCondition() {
+    // v17: the boss fight ends the instant the boss itself dies — any
+    // still-living minions it summoned don't need to be cleared too.
+    if (this.isBossStage) {
+      if (this.bossEnemy?.isDead) this.endStage(true);
+      return;
+    }
+
     const anyAlive = this.enemies.some((e) => !e.isDead);
     if (anyAlive) return;
     if (this.enemies.length === 0) return; // nothing spawned yet

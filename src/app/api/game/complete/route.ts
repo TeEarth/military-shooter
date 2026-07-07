@@ -49,15 +49,28 @@ export async function POST(req: NextRequest) {
   }
 
   if (typeof stageId === "string" && stageId.startsWith("boss_")) {
-    let rewards: { coin?: number; greenBanknote?: number } = {};
-    if (killCoin > 0) {
-      rewards = { ...rewards, coin: killCoin };
-      tasks.push(addCurrency(player.id, { coin: killCoin }));
+    // v17: flat victory package on top of whatever coin was earned from
+    // killing the boss/its summoned minions along the way — killCoin and the
+    // fixed reward are additive, not either/or.
+    const BOSS_VICTORY_COIN = 500;
+    const BOSS_VICTORY_DIAMOND = 50;
+    const BOSS_VICTORY_TICKET = 10;
+    const BOSS_VICTORY_BANKNOTE = 1;
+
+    const coin = killCoin + (completed ? BOSS_VICTORY_COIN : 0);
+    const rewards: { coin?: number; diamond?: number; ticket?: number; greenBanknote?: number } = {};
+
+    if (coin > 0) {
+      rewards.coin = coin;
+      tasks.push(addCurrency(player.id, { coin }));
     }
     if (completed) {
+      rewards.diamond = BOSS_VICTORY_DIAMOND;
+      rewards.ticket = BOSS_VICTORY_TICKET;
+      rewards.greenBanknote = BOSS_VICTORY_BANKNOTE;
+      tasks.push(addCurrency(player.id, { diamond: BOSS_VICTORY_DIAMOND, ticket: BOSS_VICTORY_TICKET }));
       tasks.push(incrementBossEncounterCount(player.id));
-      tasks.push(addGreenBanknotes(player.id, 1));
-      rewards = { ...rewards, greenBanknote: 1 };
+      tasks.push(addGreenBanknotes(player.id, BOSS_VICTORY_BANKNOTE));
     }
     await Promise.all(tasks);
     return NextResponse.json({ success: true, rewards });

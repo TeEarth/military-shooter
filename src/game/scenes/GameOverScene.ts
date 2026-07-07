@@ -37,6 +37,17 @@ export class GameOverScene extends Phaser.Scene {
       }).setOrigin(0.5);
     });
 
+    // v17: boss victories unlock the next Multiverse — call that out here
+    // since the actual "go there" button lives back on the Play menu, not
+    // this screen.
+    if (data.completed && data.stageId.startsWith("boss_")) {
+      this.add.text(width / 2, height / 2 + 50, "A new Multiverse has unlocked — check the Play menu!", {
+        fontFamily: "Orbitron, monospace",
+        fontSize: "13px",
+        color: "#f3c98a",
+      }).setOrigin(0.5);
+    }
+
     // Retry only makes sense after a LOSS — a cleared story/boss stage can never be
     // replayed (see /api/game/start's isStageCompleted check), so offering Retry
     // after a win would let the client re-run a stage the server would reject
