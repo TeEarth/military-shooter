@@ -1,0 +1,26 @@
+<svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="64" cy="100" rx="36" ry="10" fill="#000" opacity="0.3"/>
+  <!-- fixed base plate -->
+  <rect x="30" y="86" width="68" height="16" rx="4" fill="#3a3d40" stroke="#1c1e20" stroke-width="2"/>
+  <circle cx="40" cy="94" r="5" fill="#232527"/>
+  <circle cx="88" cy="94" r="5" fill="#232527"/>
+  <!-- armored turret body -->
+  <circle cx="64" cy="64" r="32" fill="#6d7276" stroke="#2a2c2e" stroke-width="3"/>
+  <circle cx="64" cy="64" r="32" fill="none" stroke="#8b9094" stroke-width="1.5" opacity="0.6"/>
+  <!-- armor plating lines -->
+  <path d="M40 46 L88 46" stroke="#4a4e52" stroke-width="3" opacity="0.7"/>
+  <path d="M36 64 L92 64" stroke="#4a4e52" stroke-width="3" opacity="0.7"/>
+  <path d="M40 82 L88 82" stroke="#4a4e52" stroke-width="3" opacity="0.7"/>
+  <!-- cupola / sensor dome -->
+  <circle cx="64" cy="64" r="14" fill="#54585c" stroke="#232527" stroke-width="2"/>
+  <circle cx="64" cy="64" r="5" fill="#c0392b"/>
+  <!-- gatling gun cluster, forward-facing (barrels point up in this default pose) -->
+  <rect x="56" y="16" width="16" height="34" rx="2" fill="#2b2d2f"/>
+  <circle cx="59" cy="18" r="2.4" fill="#111213"/>
+  <circle cx="64" cy="16" r="2.4" fill="#111213"/>
+  <circle cx="69" cy="18" r="2.4" fill="#111213"/>
+  <rect x="52" y="46" width="24" height="12" rx="3" fill="#3a3d40" stroke="#1c1e20" stroke-width="1.5"/>
+  <!-- side ammo boxes -->
+  <rect x="30" y="56" width="12" height="16" rx="2" fill="#4a4e52" stroke="#232527" stroke-width="1.5"/>
+  <rect x="86" y="56" width="12" height="16" rx="2" fill="#4a4e52" stroke="#232527" stroke-width="1.5"/>
+</svg>

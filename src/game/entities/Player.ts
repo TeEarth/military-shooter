@@ -212,6 +212,10 @@ export class Player {
         let blocked = false;
         covers.children.iterate((coverObj) => {
           const img = coverObj as Phaser.Physics.Arcade.Image;
+          // Trees are walk-through/shoot-through cover (see GameScene's `notTree`
+          // collider filter) — the laser sight must pass through them the same
+          // way bullets do, instead of stopping dead at the first tree it crosses.
+          if (img.getData("coverType") === "tree") return true;
           if (Phaser.Geom.Rectangle.Contains(img.getBounds(), px, py)) {
             blocked = true;
             return false;
@@ -349,5 +353,16 @@ export class Player {
     this.isDead = true;
     this.sprite.setAlpha(0.3);
     (this.sprite.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+  }
+
+  /** Ticket-funded mid-run revive (see GameScene's reviveUsedThisGame gate) —
+   *  comes back at half max HP, full shield, and a fresh invincibility window
+   *  so the player isn't shot dead again the instant they reappear. */
+  revive() {
+    this.isDead = false;
+    this.hp = Math.ceil(this.maxHp * 0.5);
+    this.shield = this.shieldMax;
+    this.sprite.setAlpha(1);
+    this.setInvincible();
   }
 }

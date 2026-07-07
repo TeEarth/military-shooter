@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { claimMail, getMailForPlayer } from "@/lib/google/reward";
+import { claimMail, getMailForPlayer, approveWithdrawalMail } from "@/lib/google/reward";
 
 export async function GET() {
   const session = await auth();
@@ -19,6 +19,16 @@ export async function POST(req: NextRequest) {
   if (action === "claim") {
     try {
       const result = await claimMail(session.user.id, index);
+      return NextResponse.json({ success: true, result });
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 400 });
+    }
+  }
+
+  if (action === "approve_withdrawal") {
+    if (!session.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    try {
+      const result = await approveWithdrawalMail(session.user.id, index);
       return NextResponse.json({ success: true, result });
     } catch (e) {
       return NextResponse.json({ error: (e as Error).message }, { status: 400 });

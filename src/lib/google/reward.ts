@@ -3,7 +3,7 @@ import { appendRow, readSheetRaw, updateRow, parseBool } from "./sheet";
 import { addCurrency } from "../db/player";
 import { getStageById } from "./stage";
 import { grantEquipmentToPlayer, unlockCharacterForPlayer } from "../db/inventory";
-import { addGreenBanknotes } from "../db/income";
+import { addGreenBanknotes, markWithdrawalProcessed, getWithdrawalRequestById } from "../db/income";
 
 const MAIL_SHEET = "Mail";
 
@@ -73,4 +73,36 @@ export async function claimMail(playerId: string, index: number): Promise<{ coin
   await updateRow(MAIL_SHEET, index, { claimed: true });
   invalidateSheetCache(MAIL_SHEET);
   return result;
+}
+
+/**
+ * Admin-only counterpart to claimMail() for "withdrawal:<requestId>" mail —
+ * ticking this off means the admin already sent the real TrueMoney transfer
+ * by hand. Marks the request processed, checks this admin-mailbox entry off,
+ * and mails the original requester a confirmation.
+ */
+export async function approveWithdrawalMail(adminId: string, index: number): Promise<{ playerId: string; amount: number }> {
+  const { rows } = await readSheetRaw(MAIL_SHEET);
+  const row = rows[index];
+  if (!row || row.playerId !== adminId) throw new Error("Mail not found");
+  if (parseBool(row.claimed)) throw new Error("Already handled");
+
+  const [type, requestId] = row.reward.split(":");
+  if (type !== "withdrawal") throw new Error("Not a withdrawal request");
+
+  const request = await getWithdrawalRequestById(requestId);
+  if (!request) throw new Error("Withdrawal request not found");
+
+  await markWithdrawalProcessed(requestId);
+  await updateRow(MAIL_SHEET, index, { claimed: true });
+  invalidateSheetCache(MAIL_SHEET);
+
+  await sendMail(
+    request.playerId,
+    "Withdrawal Complete",
+    `Your withdrawal of ฿${request.amount} to ${request.phone} has been sent — check your TrueMoney wallet.`,
+    ""
+  );
+
+  return { playerId: request.playerId, amount: request.amount };
 }

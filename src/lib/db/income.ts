@@ -114,9 +114,15 @@ export async function getAllWithdrawalRequests(): Promise<WithdrawalRequestRow[]
   return rows.map(rowToWithdrawal).sort((a, b) => (a.requestedAt < b.requestedAt ? 1 : -1));
 }
 
+export async function getWithdrawalRequestById(requestId: string): Promise<WithdrawalRequestRow | null> {
+  const found = await findRow(WITHDRAWAL_REQUEST_SHEET, (r) => r.id === requestId);
+  return found ? rowToWithdrawal(found.row) : null;
+}
+
 /** Admin marks a withdrawal as paid out (after manually sending the TrueMoney transfer). */
 export async function markWithdrawalProcessed(requestId: string): Promise<void> {
   const found = await findRow(WITHDRAWAL_REQUEST_SHEET, (r) => r.id === requestId);
   if (!found) throw new Error("Withdrawal request not found");
+  if (found.row.status === "processed") throw new Error("Withdrawal request already processed");
   await updateRow(WITHDRAWAL_REQUEST_SHEET, found.rowIndex, { status: "processed" });
 }

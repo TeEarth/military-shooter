@@ -12,6 +12,18 @@ import { sfx } from "@/lib/sfx";
 const FARM_BASE_ENEMY_COUNT = 3;
 const FARM_SCALING_PER_WAVE = 1.1;
 
+// Farm stage progressively unlocks tougher enemy types as waves climb, instead
+// of throwing the full roster at wave 1 — each id here is only eligible to
+// spawn once the current wave reaches its listed number.
+const FARM_ENEMY_UNLOCK_WAVE: Record<string, number> = {
+  enemy_pistol: 1,
+  enemy_ak47: 1,
+  enemy_shotgun: 2,
+  enemy_sniper: 3,
+  enemy_rocket: 4,
+  enemy_turret: 5,
+};
+
 export class GameScene extends Phaser.Scene {
   private player!: Player;
   private enemies: Enemy[] = [];
@@ -41,6 +53,11 @@ export class GameScene extends Phaser.Scene {
   private static readonly FARM_COUNTDOWN_MS = 5000;
   private static readonly FARM_FREEZE_MS = 3000;
 
+  // v19: one ticket-funded revive per game — see handlePlayerDeath()/showRevivePrompt().
+  private reviveUsedThisGame = false;
+  private awaitingRevive = false;
+  private reviveUI: Phaser.GameObjects.GameObject[] = [];
+
   private kills = 0;
   private deaths = 0;
   private startTime = 0;
@@ -68,7 +85,7 @@ export class GameScene extends Phaser.Scene {
   private hideTimer = 0;
   private isHidden = false;
   private playerHitThisFrame = false;
-  private static readonly HIDE_DURATION_MS = 3000;
+  private static readonly HIDE_DURATION_MS = 1500;
   /** Generous "in the bush" radius — bigger than the tiny bullet-pass-through
    *  hitbox, since this is a gameplay zone, not a pixel-precise collision. */
   private static readonly TREE_STEALTH_RADIUS = COVER_SIZES.tree.width * 0.7;
@@ -277,8 +294,14 @@ export class GameScene extends Phaser.Scene {
     const enemyCount = FARM_BASE_ENEMY_COUNT + Math.floor((wave - 1) / 3);
     const multiplier = Math.pow(FARM_SCALING_PER_WAVE, wave - 1);
 
+    // Only enemy types already "unlocked" at this wave are eligible — unknown
+    // ids (not in the table) are allowed by default so a roster addition never
+    // silently vanishes just for missing an entry here.
+    const unlockedRoster = this.enemyRoster.filter((e) => (FARM_ENEMY_UNLOCK_WAVE[e.id] ?? 1) <= wave);
+    const pool = unlockedRoster.length > 0 ? unlockedRoster : this.enemyRoster;
+
     for (let i = 0; i < enemyCount; i++) {
-      const template = Phaser.Utils.Array.GetRandom(this.enemyRoster);
+      const template = Phaser.Utils.Array.GetRandom(pool);
       const { x, y } = this.randomSpawnPoint();
       const spawn: EnemySpawn = { ...template, spawnX: x, spawnY: y };
       this.enemies.push(new Enemy(this, x, y, spawn, this.enemyBullets, this.enemyGroup, multiplier, multiplier, this.failedAssetKeys));
@@ -482,11 +505,64 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  /** v8 #7: permadeath applies to EVERY mode, farm included — dying ends the run
-   *  immediately (GAME OVER, showing the wave reached for farm), no mid-wave/
-   *  mid-stage respawn anywhere. Only "Play Again" (retry) starts a fresh attempt. */
+  /** v8 #7: permadeath applies to EVERY mode, farm included — dying ends the run,
+   *  EXCEPT for the one ticket-funded revive offered below (once per game).
+   *  Declining, running out of tickets, or having already used the revive all
+   *  fall through to the normal GAME OVER. */
   private handlePlayerDeath() {
-    this.time.delayedCall(1500, () => this.endStage(false));
+    if (!this.reviveUsedThisGame) {
+      this.awaitingRevive = true;
+      this.time.delayedCall(600, () => this.showRevivePrompt());
+    } else {
+      this.time.delayedCall(1500, () => this.endStage(false));
+    }
+  }
+
+  /** v19: single-use "spend 30 tickets to get back up" prompt — fixed to the
+   *  camera (scrollFactor 0) since the world keeps its scroll position under it.
+   *  update() is short-circuited by awaitingRevive, so the whole scene is
+   *  effectively paused (enemies included) while this is on screen. */
+  private showRevivePrompt() {
+    const { width, height } = this.cameras.main;
+    const textStyle = { fontFamily: "Orbitron, monospace" };
+
+    const bg = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.75).setScrollFactor(0).setDepth(100);
+    const title = this.add.text(width / 2, height / 2 - 60, "YOU DIED", { ...textStyle, fontSize: "28px", color: "#c0392b", fontStyle: "bold" }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+    const sub = this.add.text(width / 2, height / 2 - 20, "Revive now for 30 🎟️ tickets?", { ...textStyle, fontSize: "14px", color: "#f3c98a" }).setOrigin(0.5).setScrollFactor(0).setDepth(101);
+    const reviveBtn = this.add.text(width / 2 - 90, height / 2 + 30, "[ REVIVE ]", { ...textStyle, fontSize: "18px", color: "#2d5a27" })
+      .setOrigin(0.5).setScrollFactor(0).setDepth(101).setInteractive({ useHandCursor: true });
+    const declineBtn = this.add.text(width / 2 + 90, height / 2 + 30, "[ GIVE UP ]", { ...textStyle, fontSize: "18px", color: "#4a4e69" })
+      .setOrigin(0.5).setScrollFactor(0).setDepth(101).setInteractive({ useHandCursor: true });
+
+    this.reviveUI = [bg, title, sub, reviveBtn, declineBtn];
+    const cleanup = () => { this.reviveUI.forEach((o) => o.destroy()); this.reviveUI = []; };
+
+    reviveBtn.on("pointerdown", async () => {
+      reviveBtn.disableInteractive();
+      declineBtn.disableInteractive();
+      sub.setText("Processing...");
+      try {
+        const res = await fetch("/api/game/revive", { method: "POST" });
+        const data = await res.json();
+        if (data.success) {
+          this.reviveUsedThisGame = true;
+          this.player.revive();
+          this.awaitingRevive = false;
+          cleanup();
+        } else {
+          sub.setText(data.error ?? "Not enough tickets");
+          this.time.delayedCall(1200, () => { cleanup(); this.endStage(false); });
+        }
+      } catch {
+        sub.setText("Network error");
+        this.time.delayedCall(1200, () => { cleanup(); this.endStage(false); });
+      }
+    });
+
+    declineBtn.on("pointerdown", () => {
+      cleanup();
+      this.endStage(false);
+    });
   }
 
   private showFloatingText(x: number, y: number, text: string, color: string) {
@@ -515,7 +591,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   update(_time: number, delta: number) {
-    if (this.stageEnded) return;
+    if (this.stageEnded || this.awaitingRevive) return;
 
     let moveLeft = this.cursors.left.isDown || this.wasd.A.isDown;
     let moveRight = this.cursors.right.isDown || this.wasd.D.isDown;
@@ -679,7 +755,16 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.scene.stop("HUDScene");
-    this.scene.start("GameOverScene", { completed, kills: this.kills, deaths: this.deaths, score: this.score, stageId: this.registry.get("stageId") });
+    this.scene.start("GameOverScene", {
+      completed,
+      kills: this.kills,
+      deaths: this.deaths,
+      score: this.score,
+      stageId: this.registry.get("stageId"),
+      isFarmStage: this.isFarmStage,
+      farmWaveReached: this.isFarmStage ? this.highestWaveCleared : undefined,
+      killCoin: this.killCoin,
+    });
   }
 
   pauseGame() {

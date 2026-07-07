@@ -149,7 +149,10 @@ export class Enemy {
         this.tryShoot(playerX, playerY);
         break;
       case "patrol":
-        this.patrol();
+        // A turret-style immobile enemy never patrols — out of shoot range just
+        // means it stands idle, not that it starts walking around.
+        if (this.data.immobile) body.setVelocity(0, 0);
+        else this.patrol();
         break;
     }
 

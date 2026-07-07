@@ -6,7 +6,7 @@ export class GameOverScene extends Phaser.Scene {
     super({ key: "GameOverScene" });
   }
 
-  create(data: { completed: boolean; kills: number; deaths: number; score: number; stageId: string }) {
+  create(data: { completed: boolean; kills: number; deaths: number; score: number; stageId: string; isFarmStage?: boolean; farmWaveReached?: number; killCoin?: number }) {
     const { width, height } = this.scale;
 
     sfx.play(data.completed ? "victory" : "defeat");
@@ -23,11 +23,20 @@ export class GameOverScene extends Phaser.Scene {
       fontStyle: "bold",
     }).setOrigin(0.5);
 
-    const stats = [
-      `KILLS: ${data.kills}`,
-      `DEATHS: ${data.deaths}`,
-      `SCORE: ${data.score}`,
-    ];
+    // Farm stage results are about run progress (wave reached, coins pocketed
+    // from kills this run), not the story-stage coin/exp reward summary — a
+    // fresh farm attempt always starts back at wave 1, so "score" would just
+    // be a meaningless one-off number here.
+    const stats = data.isFarmStage
+      ? [
+          `HIGHEST WAVE: ${data.farmWaveReached ?? 0}`,
+          `COINS EARNED: ${data.killCoin ?? 0}`,
+        ]
+      : [
+          `KILLS: ${data.kills}`,
+          `DEATHS: ${data.deaths}`,
+          `SCORE: ${data.score}`,
+        ];
 
     stats.forEach((stat, i) => {
       this.add.text(width / 2, height / 2 - 40 + i * 30, stat, {

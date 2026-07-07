@@ -4,6 +4,7 @@ import { getPlayerById, toPublicPlayer } from "@/lib/db/player";
 import { getCharacterById } from "@/lib/google/character";
 import { computeVipProgress } from "@/lib/google/vip";
 import { getPlayerIncome } from "@/lib/db/income";
+import { getMailForPlayer } from "@/lib/google/reward";
 import HomeClient from "@/components/home/HomeClient";
 
 export default async function HomePage() {
@@ -13,11 +14,14 @@ export default async function HomePage() {
   const player = await getPlayerById(session.user.id);
   if (!player) redirect("/api/auth/force-logout");
 
-  const [character, vipProgress, income] = await Promise.all([
+  const [character, vipProgress, income, mail] = await Promise.all([
     getCharacterById(player.currentCharacter),
     computeVipProgress(player.vipExp),
     getPlayerIncome(player.id),
+    getMailForPlayer(player.id),
   ]);
+
+  const unreadMailCount = mail.filter((m) => !m.claimed).length;
 
   return (
     <HomeClient
@@ -27,6 +31,7 @@ export default async function HomePage() {
       equippedWeaponId={player.currentWeapon}
       vipProgress={vipProgress}
       greenBanknoteBalance={income.greenBanknoteBalance}
+      unreadMailCount={unreadMailCount}
     />
   );
 }

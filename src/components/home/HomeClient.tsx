@@ -36,7 +36,7 @@ const MENU_ITEMS = [
   { href: "/settings", label: "SETTINGS", icon: "⚙️" },
 ];
 
-export default function HomeClient({ player, characterSprite, characterName, equippedWeaponId, vipProgress, greenBanknoteBalance }: { player: Player; characterSprite: string; characterName: string; equippedWeaponId: string; vipProgress: VipProgress; greenBanknoteBalance: number }) {
+export default function HomeClient({ player, characterSprite, characterName, equippedWeaponId, vipProgress, greenBanknoteBalance, unreadMailCount }: { player: Player; characterSprite: string; characterName: string; equippedWeaponId: string; vipProgress: VipProgress; greenBanknoteBalance: number; unreadMailCount: number }) {
   // Warm the server-side sheet cache for the screens the player is most likely to
   // open next, so /play and /character render instantly off a warm cache instead
   // of triggering a fresh Google Sheets read on click.
@@ -124,12 +124,17 @@ export default function HomeClient({ player, characterSprite, characterName, equ
                 key={item.href}
                 href={item.href}
                 onClick={() => sfx.play("ui_click")}
-                className={`card-military card-themed-glow flex flex-col items-center justify-center transition-all duration-200 ${
+                className={`relative card-military card-themed-glow flex flex-col items-center justify-center transition-all duration-200 ${
                   item.primary
                     ? "col-span-3 bg-military-green border-military-tan hover:bg-military-olive text-xl py-6"
                     : "p-4"
                 }`}
               >
+                {item.href === "/mailbox" && unreadMailCount > 0 && (
+                  <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                    {unreadMailCount > 99 ? "99+" : unreadMailCount}
+                  </span>
+                )}
                 <span className="text-2xl mb-1">{item.icon}</span>
                 <span className="text-xs tracking-wider">{item.label}</span>
               </Link>

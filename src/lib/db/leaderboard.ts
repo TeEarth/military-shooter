@@ -43,7 +43,7 @@ async function setState(weekStart: string, lastRewardedWeek: string): Promise<vo
 async function finalizeWeeklyRewards(players: Player[], endedWeek: string): Promise<void> {
   const ranked = players
     .filter((p) => !p.isBanned && p.weeklyFarmMaxWave > 0)
-    .sort((a, b) => b.weeklyFarmMaxWave - a.weeklyFarmMaxWave)
+    .sort((a, b) => b.weeklyFarmMaxWave - a.weeklyFarmMaxWave || b.coin - a.coin)
     .slice(0, 3);
 
   for (let i = 0; i < ranked.length; i++) {
@@ -66,6 +66,7 @@ async function resetAllWeeklyWaves(): Promise<void> {
 export interface LeaderboardEntry {
   username: string;
   wave: number;
+  coin: number;
 }
 
 /** Ranks players by highest farm-stage wave reached THIS leaderboard week.
@@ -89,8 +90,9 @@ export async function getLeaderboard(): Promise<{ entries: LeaderboardEntry[]; w
   const players = await getAllPlayers();
   const entries = players
     .filter((p) => !p.isBanned && p.weeklyFarmMaxWave > 0)
-    .map((p) => ({ username: p.username, wave: p.weeklyFarmMaxWave }))
-    .sort((a, b) => b.wave - a.wave)
+    .map((p) => ({ username: p.username, wave: p.weeklyFarmMaxWave, coin: p.coin }))
+    // Ties on wave are broken by coin balance — whoever has more coin ranks higher.
+    .sort((a, b) => b.wave - a.wave || b.coin - a.coin)
     .slice(0, 50);
 
   return { entries, weekStart: thisWeek };
