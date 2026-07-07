@@ -112,16 +112,23 @@ export class Enemy {
       return;
     }
 
-    // v16: enemies can shoot at ANY range now — no more line-of-sight cap
-    // gating whether they're allowed to fire at all. detectionRange only
-    // decides whether they actively CLOSE the distance (chase); outside it,
-    // they stand their ground and keep sniping from afar instead of going
-    // idle, matching "still attacks at long range same as before, just
-    // doesn't come after you until you're within its detection radius."
+    // v18: shooting is capped at 2x detectionRange (600px) — was uncapped
+    // ("any range"), which meant an enemy could open fire on the player the
+    // instant it spawned, from clear across the map, before the player could
+    // possibly know it was there. detectionRange still gates chasing; beyond
+    // the shoot cap the enemy just patrols instead of sniping from afar.
     // A stationary turret (immobile) never chases regardless of distance.
     const dist = Phaser.Math.Distance.Between(this.sprite.x, this.sprite.y, playerX, playerY);
+    const shootRange = ENEMY_CONFIG.detectionRange * 2;
     const shouldChase = !this.data.immobile && dist < ENEMY_CONFIG.detectionRange && dist > this.preferredRange;
-    this.state = shouldChase ? "chase" : "shoot";
+
+    if (shouldChase) {
+      this.state = "chase";
+    } else if (dist <= shootRange) {
+      this.state = "shoot";
+    } else {
+      this.state = "patrol";
+    }
 
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
 
@@ -132,6 +139,9 @@ export class Enemy {
       case "shoot":
         body.setVelocity(0, 0);
         this.tryShoot(playerX, playerY);
+        break;
+      case "patrol":
+        this.patrol();
         break;
     }
 
