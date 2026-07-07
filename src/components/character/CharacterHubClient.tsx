@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { CharacterRow } from "@/lib/google/character";
 import type { WeaponRow } from "@/lib/google/weapon";
-import type { PassiveConfigRow, PlayerPassiveRow, PassiveId } from "@/lib/google/passive";
+import type { PassiveConfigRow, PassiveId } from "@/lib/google/passive";
+import type { PlayerPassiveRow } from "@/lib/db/passive";
 import { showRewardedAd } from "@/lib/ads-service";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
 import CurrencyBar from "@/components/ui/CurrencyBar";
@@ -301,7 +302,7 @@ export default function CharacterHubClient(props: Props) {
         <Link href="/home" className="text-military-steel hover:text-white text-sm">← BACK</Link>
         <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">Character / Weapon</h1>
         <div className="ml-auto">
-          <CurrencyBar coin={coin} diamond={diamond} ticket={ticket} exp={props.exp} greenBanknote={props.greenBanknote} />
+          <CurrencyBar coin={coin} diamond={diamond} ticket={ticket} greenBanknote={props.greenBanknote} />
         </div>
       </div>
 

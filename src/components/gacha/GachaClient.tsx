@@ -237,7 +237,7 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
             <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">Gacha</h1>
           </div>
           <div className="ml-auto">
-            <CurrencyBar coin={coin} diamond={diamond} ticket={ticket} exp={exp} greenBanknote={greenBanknote} />
+            <CurrencyBar coin={coin} diamond={diamond} ticket={ticket} greenBanknote={greenBanknote} />
           </div>
         </div>
 

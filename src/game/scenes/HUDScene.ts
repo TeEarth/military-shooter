@@ -191,7 +191,10 @@ export class HUDScene extends Phaser.Scene {
    *  there's no keyboard at all. Circular, fixed at the bottom-right corner on
    *  both desktop and mobile (identical position either way) — bottom-right is
    *  free real estate now that the mobile aim joystick/fire button are gone
-   *  (v14 replaced them with tap-to-aim-and-fire). */
+   *  (v14 replaced them with tap-to-aim-and-fire).
+   *  v16: desktop also has right-click-to-reload now (see GameScene.ts), so
+   *  this button is mainly for mobile — plain "Reload" text instead of an
+   *  emoji icon, per request. */
   private createReloadButton(width: number, height: number) {
     const cx = width - 56;
     const cy = height - 56;
@@ -202,7 +205,9 @@ export class HUDScene extends Phaser.Scene {
       .setDepth(20)
       .setInteractive({ useHandCursor: true });
 
-    this.add.text(cx, cy, "🔄", { fontSize: "26px" }).setOrigin(0.5).setDepth(21);
+    this.add.text(cx, cy, "Reload", {
+      fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#c5a97d", fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(21);
 
     circle.on("pointerdown", () => {
       sfx.play("ui_click");

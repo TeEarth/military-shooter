@@ -9,7 +9,6 @@ import { incrementMissionProgress, setMissionProgressIfHigher } from "@/lib/db/m
 import { parseStageNumber, templateStageId } from "@/lib/stageTemplate";
 import { incrementBossEncounterCount } from "@/lib/db/bossStage";
 import { addGreenBanknotes } from "@/lib/db/income";
-import { computeVipProgress } from "@/lib/google/vip";
 
 const MILESTONE_INTERVAL = 5;
 const MILESTONE_DIAMOND_REWARD = 10;
@@ -71,7 +70,10 @@ export async function POST(req: NextRequest) {
   let rewards: { coin: number; exp: number; milestoneDiamond?: number; greenBanknote?: number; vipLevel?: number } | null = null;
   // v9 #2: VIP exp is fed ONLY by Stage.rewardExp (story or farm clears) — not
   // character exp/level, not kills, not milestone/passive bonuses.
-  let vipExpGain = 0;
+  // v16: addCurrency() itself now writes vipExp/vipLevel whenever `exp` is
+  // passed (see db/player.ts) — this flag just remembers whether THIS
+  // request granted any, so we know whether to re-check for a level-up below.
+  let grantedExp = false;
 
   if (stage.isRepeatable) {
     const clearedWave = typeof farmWaveReached === "number" && farmWaveReached > 0;
@@ -91,7 +93,7 @@ export async function POST(req: NextRequest) {
     // sum_{i=1}^{N} (i+1) = N*(N+3)/2 — e.g. N=1 -> 2, N=2 -> 2+3=5, N=3 -> 2+3+4=9.
     const coin = killCoin;
     const exp = clearedWave ? (farmWaveReached * (farmWaveReached + 3)) / 2 : 0;
-    vipExpGain = exp;
+    grantedExp = exp > 0;
     if (coin > 0 || exp > 0) {
       rewards = { coin, exp };
       tasks.push(addCurrency(player.id, { coin, exp }));
@@ -99,7 +101,7 @@ export async function POST(req: NextRequest) {
   } else {
     const coin = (completed ? stage.rewardCoin : 0) + killCoin;
     const exp = completed ? stage.rewardExp : 0;
-    vipExpGain = exp;
+    grantedExp = exp > 0;
     if (coin > 0 || exp > 0) {
       rewards = { coin, exp };
       tasks.push(addCurrency(player.id, { coin, exp }));
@@ -123,20 +125,21 @@ export async function POST(req: NextRequest) {
 
   await Promise.all(tasks);
 
-  if (vipExpGain > 0) {
-    const newVipExp = player.vipExp + vipExpGain;
-    const newProgress = await computeVipProgress(newVipExp);
+  // v16: addCurrency() already wrote the new vipExp/vipLevel (it was one of
+  // `tasks` above) — just re-read the player to see whether that pushed them
+  // to a new VIP level, instead of recomputing it a second time here.
+  if (grantedExp) {
+    const updated = await getPlayerById(player.id);
     const oldLevel = player.vipLevel;
 
-    await updatePlayer(player.id, { vipExp: newVipExp, vipLevel: newProgress.level });
-    if (newProgress.level !== oldLevel) {
-      rewards = { ...(rewards ?? { coin: 0, exp: 0 }), vipLevel: newProgress.level };
+    if (updated && updated.vipLevel !== oldLevel) {
+      rewards = { ...(rewards ?? { coin: 0, exp: 0 }), vipLevel: updated.vipLevel };
     }
 
     // v9 #2: one-time VIP10 reward — 100 green banknotes, only the first time
     // the account crosses the threshold (oldLevel < 10 guards against re-granting
     // on every subsequent stage clear once already at VIP10).
-    if (oldLevel < 10 && newProgress.level >= 10) {
+    if (updated && oldLevel < 10 && updated.vipLevel >= 10) {
       await addGreenBanknotes(player.id, VIP10_GREEN_BANKNOTE_REWARD);
       rewards = { ...(rewards ?? { coin: 0, exp: 0 }), greenBanknote: (rewards?.greenBanknote ?? 0) + VIP10_GREEN_BANKNOTE_REWARD };
     }

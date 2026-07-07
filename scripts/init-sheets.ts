@@ -37,7 +37,7 @@ const SHEETS: Record<string, string[]> = {
     "critChance", "critDamage", "dailyAmmo", "spreadDegrees", "sprite", "explosionRadius",
   ],
   Equipment: ["id", "name", "slot", "rarity", "hpPercent", "damagePercent", "critChancePercent", "critDamagePercent", "sprite", "shieldValue"],
-  Enemies: ["id", "weaponId", "hp", "coinReward", "sprite"],
+  Enemies: ["id", "weaponId", "hp", "coinReward", "sprite", "immobile"],
   PassiveConfig: ["passiveId", "tier", "cost", "currency", "bonusPercent"],
   // playerSpawnX/playerSpawnY appended at the end (v11 #2) — 0 means "not
   // designed yet", GameScene falls back to its old hardcoded default.
@@ -64,7 +64,7 @@ const SHEETS: Record<string, string[]> = {
   TicketTopUp: ["id", "priceBaht", "ticketAmount"],
   BossStage: ["bossId", "hp", "weaponId", "rocketCount", "growthPercent", "occursEveryNStages"],
   PlayerIncome: ["playerId", "greenBanknoteBalance", "totalWithdrawn"],
-  WithdrawalRequest: ["id", "playerId", "amount", "status", "requestedAt"],
+  WithdrawalRequest: ["id", "playerId", "amount", "phone", "status", "requestedAt"],
   PlayerBossProgress: ["playerId", "bossEncounterCount"],
   // ---------- v9 ----------
   VipConfig: ["level", "expRequired"],
@@ -155,11 +155,13 @@ async function main() {
 
   // ---------- Enemies (5) — damage/fireRate/etc all come from the referenced weapon ----------
   await seedIfEmpty("Enemies", [
-    { id: "enemy_pistol", weaponId: "pistol", hp: 100, coinReward: 1, sprite: "/assets/sprites/enemy/enemy_pistol.svg" },
-    { id: "enemy_ak47", weaponId: "ak47", hp: 150, coinReward: 2, sprite: "/assets/sprites/enemy/enemy_ak47.svg" },
-    { id: "enemy_sniper", weaponId: "sniper", hp: 180, coinReward: 3, sprite: "/assets/sprites/enemy/enemy_sniper.svg" },
-    { id: "enemy_shotgun", weaponId: "shotgun", hp: 300, coinReward: 5, sprite: "/assets/sprites/enemy/enemy_shotgun.svg" },
-    { id: "enemy_rocket", weaponId: "rocket_launcher", hp: 250, coinReward: 5, sprite: "/assets/sprites/enemy/enemy_rocket.svg" },
+    { id: "enemy_pistol", weaponId: "pistol", hp: 100, coinReward: 1, sprite: "/assets/sprites/enemy/enemy_pistol.svg", immobile: false },
+    { id: "enemy_ak47", weaponId: "ak47", hp: 150, coinReward: 2, sprite: "/assets/sprites/enemy/enemy_ak47.svg", immobile: false },
+    { id: "enemy_sniper", weaponId: "sniper", hp: 180, coinReward: 3, sprite: "/assets/sprites/enemy/enemy_sniper.svg", immobile: false },
+    { id: "enemy_shotgun", weaponId: "shotgun", hp: 300, coinReward: 5, sprite: "/assets/sprites/enemy/enemy_shotgun.svg", immobile: false },
+    { id: "enemy_rocket", weaponId: "rocket_launcher", hp: 250, coinReward: 5, sprite: "/assets/sprites/enemy/enemy_rocket.svg", immobile: false },
+    // v16: stationary gatling turret — can't move/chase, but keeps suppressing at any range.
+    { id: "enemy_turret", weaponId: "gatling", hp: 500, coinReward: 8, sprite: "/assets/sprites/enemy/enemy_turret.svg", immobile: true },
   ]);
 
   // ---------- PassiveConfig (8 passives x 10 tiers) ----------

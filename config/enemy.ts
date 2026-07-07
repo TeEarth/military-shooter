@@ -1,6 +1,11 @@
 export const ENEMY_CONFIG = {
+  // v16: enemies can shoot at ANY range now (no more lineOfSightRange cap) —
+  // detectionRange is the only gate left, and it now controls just one thing:
+  // whether the enemy actively CHASES to close the gap. Outside detection
+  // range they stand their ground and snipe from a distance instead of doing
+  // nothing, matching "enemy can attack at long range same as before, just
+  // doesn't come after you until you're within its detection radius."
   detectionRange: 300,
-  lineOfSightRange: 350,
   coverWaitTime: 3000, // ms to wait behind cover
   alertDuration: 5000,
   // v15: enemies felt passive/idle once they spotted the player — chase speed

@@ -2,6 +2,7 @@ import bcrypt from "bcryptjs";
 import { getSupabaseClient } from "../supabase/client";
 import { ECONOMY_CONFIG } from "../../../config/economy";
 import { grantWeaponToPlayer, setWeaponEquipped } from "./inventory";
+import { computeVipProgress } from "../google/vip";
 
 const TABLE = "players";
 
@@ -29,6 +30,16 @@ export interface Player {
   personalMilestoneTier: number;
   personalMilestoneGreenTier: number;
   isTestAccount: boolean;
+  /** v16: requires scripts/sql/003_v16_schema.sql — held back until confirmed run. */
+  isAdmin: boolean;
+  /** v16: leaderboard's OWN wave counter, reset weekly — separate from the
+   *  permanent farmStageMaxWave (which gates Azzure + farm_wave missions
+   *  forever and must never be reset). */
+  weeklyFarmMaxWave: number;
+  /** v16: daily TrueMoney withdrawal cap tracking (100 baht/day), reset lazily
+   *  like this project's other daily counters (ammo, missions). */
+  dailyWithdrawnBaht: number;
+  dailyWithdrawnDate: string;
 }
 
 /** DB row (snake_case) -> app-facing Player (camelCase) — same shape callers
@@ -60,6 +71,10 @@ function rowToPlayer(row: any): Player {
     personalMilestoneTier: Number(row.personal_milestone_tier ?? 0),
     personalMilestoneGreenTier: Number(row.personal_milestone_green_tier ?? 0),
     isTestAccount: Boolean(row.is_test_account),
+    isAdmin: Boolean(row.is_admin),
+    weeklyFarmMaxWave: Number(row.weekly_farm_max_wave ?? 0),
+    dailyWithdrawnBaht: Number(row.daily_withdrawn_baht ?? 0),
+    dailyWithdrawnDate: row.daily_withdrawn_date ?? "",
   };
 }
 
@@ -119,6 +134,14 @@ export async function createPlayer(params: { email: string; username: string; pa
     personalMilestoneTier: 0,
     personalMilestoneGreenTier: 0,
     isTestAccount: params.isTestAccount ?? false,
+    // v16: NOT included in the .insert() call below — these columns have
+    // their own defaults at the DB level (see 003_v16_schema.sql), so the
+    // insert works identically whether or not that migration has been run
+    // yet. This object's values are just for the in-memory return below.
+    isAdmin: false,
+    weeklyFarmMaxWave: 0,
+    dailyWithdrawnBaht: 0,
+    dailyWithdrawnDate: "",
   };
 
   const supabase = getSupabaseClient();
@@ -180,6 +203,10 @@ const CAMEL_TO_SNAKE: Record<string, string> = {
   personalMilestoneGreenTier: "personal_milestone_green_tier",
   isTestAccount: "is_test_account",
   passwordHash: "password_hash",
+  isAdmin: "is_admin",
+  weeklyFarmMaxWave: "weekly_farm_max_wave",
+  dailyWithdrawnBaht: "daily_withdrawn_baht",
+  dailyWithdrawnDate: "daily_withdrawn_date",
 };
 
 function toSnakeUpdates(updates: Record<string, string | number | boolean>): Record<string, string | number | boolean> {
@@ -217,24 +244,30 @@ export async function recordFarmWave(playerId: string, waveReached: number): Pro
   }
 }
 
+/**
+ * v16: `exp` no longer feeds the old separate character level/exp system —
+ * that was a second, hidden progression bar players never saw broken down
+ * meaningfully (just a lone star icon), running alongside VIP which already
+ * tracked the exact same kind of progress. Every exp grant (missions, farm-
+ * wave milestones, stage clears) now goes straight into vipExp/vipLevel, so
+ * there's a single unified progression number instead of two.
+ */
 export async function addCurrency(playerId: string, delta: { coin?: number; diamond?: number; ticket?: number; exp?: number }): Promise<Player> {
   const player = await getPlayerById(playerId);
   if (!player) throw new Error("Player not found");
 
-  let newExp = player.exp + (delta.exp ?? 0);
-  let newLevel = player.level;
-  while (newExp >= ECONOMY_CONFIG.expPerLevel(newLevel) && newLevel < 100) {
-    newExp -= ECONOMY_CONFIG.expPerLevel(newLevel);
-    newLevel++;
-  }
-
-  const updates = {
+  const updates: Partial<Player> = {
     coin: player.coin + (delta.coin ?? 0),
     diamond: player.diamond + (delta.diamond ?? 0),
     ticket: player.ticket + (delta.ticket ?? 0),
-    exp: newExp,
-    level: newLevel,
   };
+
+  if (delta.exp) {
+    const newVipExp = player.vipExp + delta.exp;
+    const vipProgress = await computeVipProgress(newVipExp);
+    updates.vipExp = newVipExp;
+    updates.vipLevel = vipProgress.level;
+  }
 
   await updatePlayer(playerId, updates);
   return { ...player, ...updates };

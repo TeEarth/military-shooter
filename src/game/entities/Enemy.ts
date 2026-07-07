@@ -41,12 +41,13 @@ export class Enemy {
     this.hp = this.data.hp;
     this.maxHp = this.data.hp;
     this.magazine = this.data.weapon.magazineSize;
-    // v15: was 100 + accuracy*3, which for high-accuracy weapons (sniper 80,
-    // rocket_launcher 100) landed at or above ENEMY_CONFIG.lineOfSightRange
-    // (350) — meaning those enemies were ALWAYS in "shoot" range the instant
-    // they had line of sight and never actually chased, looking completely
-    // static. Capped well under lineOfSightRange so every enemy type has a
-    // real chase band before settling into its shooting range.
+    // preferredRange: how close the enemy tries to get before it stops
+    // advancing and just shoots in place. v15 capped this well under the old
+    // lineOfSightRange (350) so high-accuracy weapons (sniper 80, rocket
+    // launcher 100) wouldn't always be "close enough" the instant they had
+    // line of sight — v16 removed lineOfSightRange entirely (enemies can now
+    // shoot at any range), but the cap is kept for the same reason: without
+    // it, high-accuracy enemies would never bother closing the distance at all.
     this.preferredRange = Math.min(200, 60 + this.data.weapon.accuracy * 1.5);
     this.worldWidth = scene.physics.world.bounds.width;
     this.worldHeight = scene.physics.world.bounds.height;
@@ -97,12 +98,13 @@ export class Enemy {
     if (this.isDead) return;
 
     // v14: tree stealth — a hidden player is invisible to enemy AI entirely,
-    // regardless of distance/line-of-sight. Falls back to whatever the enemy
-    // was doing before (patrol/wander), same as never having spotted the
-    // player at all.
+    // regardless of distance. Falls back to whatever the enemy was doing
+    // before (patrol/wander), same as never having spotted the player at all.
+    // A stationary turret (v16) has no patrol either — it just goes idle.
     if (playerHidden) {
       this.state = "patrol";
-      this.patrol();
+      if (this.data.immobile) (this.sprite.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+      else this.patrol();
       const margin = UNIT_DISPLAY_SIZE / 2;
       this.sprite.x = Phaser.Math.Clamp(this.sprite.x, margin, this.worldWidth - margin);
       this.sprite.y = Phaser.Math.Clamp(this.sprite.y, margin, this.worldHeight - margin);
@@ -110,16 +112,16 @@ export class Enemy {
       return;
     }
 
+    // v16: enemies can shoot at ANY range now — no more line-of-sight cap
+    // gating whether they're allowed to fire at all. detectionRange only
+    // decides whether they actively CLOSE the distance (chase); outside it,
+    // they stand their ground and keep sniping from afar instead of going
+    // idle, matching "still attacks at long range same as before, just
+    // doesn't come after you until you're within its detection radius."
+    // A stationary turret (immobile) never chases regardless of distance.
     const dist = Phaser.Math.Distance.Between(this.sprite.x, this.sprite.y, playerX, playerY);
-    const hasLOS = dist < ENEMY_CONFIG.lineOfSightRange;
-
-    if (hasLOS) {
-      this.state = dist < this.preferredRange ? "shoot" : "chase";
-    } else if (dist < ENEMY_CONFIG.detectionRange) {
-      this.state = "chase";
-    } else {
-      this.state = "patrol";
-    }
+    const shouldChase = !this.data.immobile && dist < ENEMY_CONFIG.detectionRange && dist > this.preferredRange;
+    this.state = shouldChase ? "chase" : "shoot";
 
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
 
@@ -130,9 +132,6 @@ export class Enemy {
       case "shoot":
         body.setVelocity(0, 0);
         this.tryShoot(playerX, playerY);
-        break;
-      case "patrol":
-        this.patrol();
         break;
     }
 

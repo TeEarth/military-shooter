@@ -19,7 +19,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!credentials?.email || !credentials?.password) return null;
         const player = await verifyPassword(credentials.email as string, credentials.password as string);
         if (!player) return null;
-        return { id: player.id, email: player.email, name: player.username };
+        // v16: banned accounts can't log in at all — Admin's ban/suspend
+        // button (see /admin) is otherwise unenforceable.
+        if (player.isBanned) return null;
+        return { id: player.id, email: player.email, name: player.username, isAdmin: player.isAdmin };
       },
     }),
   ],
@@ -31,19 +34,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (!existing) {
           const created = await createPlayer({ email: user.email, username: user.name ?? "Soldier" });
           user.id = created.id;
+          user.isAdmin = created.isAdmin;
         } else {
+          if (existing.isBanned) return false;
           user.id = existing.id;
+          user.isAdmin = existing.isAdmin;
         }
       }
       return true;
     },
     async jwt({ token, user }) {
-      if (user?.id) token.sub = user.id;
+      if (user?.id) {
+        token.sub = user.id;
+        token.isAdmin = user.isAdmin;
+      }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.sub) {
         session.user.id = token.sub;
+        session.user.isAdmin = token.isAdmin as boolean | undefined;
       }
       return session;
     },

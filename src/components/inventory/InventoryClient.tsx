@@ -285,7 +285,7 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
           <Link href="/home" className="text-military-steel hover:text-white text-sm">← BACK</Link>
           <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">Equipment</h1>
           <div className="ml-auto">
-            <CurrencyBar coin={coin} diamond={diamond} ticket={ticket} exp={exp} greenBanknote={greenBanknote} />
+            <CurrencyBar coin={coin} diamond={diamond} ticket={ticket} greenBanknote={greenBanknote} />
           </div>
         </div>
 

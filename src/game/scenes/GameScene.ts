@@ -119,6 +119,14 @@ export class GameScene extends Phaser.Scene {
     this.reloadKey = this.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.R);
     this.input.keyboard!.on("keydown-ESC", () => this.pauseGame());
 
+    // v16: right-click reloads on desktop (in addition to the R key and the
+    // on-screen button) — disableContextMenu() stops the browser's own
+    // right-click menu from popping up over the canvas.
+    this.input.mouse?.disableContextMenu();
+    this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (pointer.rightButtonDown()) this.triggerReload();
+    });
+
     // v9 #6: only ever created when GameClient.tsx detected an actual touch
     // device under 768px wide — never shown/attached on desktop.
     if (this.registry.get("isMobile")) {
@@ -482,9 +490,15 @@ export class GameScene extends Phaser.Scene {
     let moveRight = this.cursors.right.isDown || this.wasd.D.isDown;
     let moveUp = this.cursors.up.isDown || this.wasd.W.isDown;
     let moveDown = this.cursors.down.isDown || this.wasd.S.isDown;
-    let isShooting = this.shootKey.isDown || this.input.activePointer.isDown;
+    // v16: was `activePointer.isDown`, which Phaser sets true for ANY mouse
+    // button (including right-click) — that meant right-clicking to reload
+    // also fired a shot at the same time. leftButtonDown() only reflects the
+    // left button (and touch, which reports as button 0), so right-click no
+    // longer fires.
+    let isShooting = this.shootKey.isDown || this.input.activePointer.leftButtonDown();
     // v13: the on-screen RELOAD button pulses this.reloadRequested for exactly
     // one frame, same one-shot semantics as JustDown(R) below.
+    // v16: right-click also triggers a reload (see the pointerdown listener in create()).
     const isReloading = Phaser.Input.Keyboard.JustDown(this.reloadKey) || this.reloadRequested;
     this.reloadRequested = false;
 
@@ -562,13 +576,22 @@ export class GameScene extends Phaser.Scene {
 
   /** v14: tree stealth — 3s stationary + non-combat inside a tree's zone makes
    *  the player undetectable; moving, shooting, entering/leaving the zone, or
-   *  being hit all reset the timer to 0. */
+   *  being hit all reset the timer to 0.
+   *  v16: an enemy walking into that SAME tree's zone also breaks/blocks it —
+   *  the hiding spot isn't secret anymore once an enemy is standing in it too. */
   private updateStealth(isMoving: boolean, isShooting: boolean, delta: number) {
-    const inTreeZone = this.treeCovers.some(
+    const playerTrees = this.treeCovers.filter(
       (t) => Phaser.Math.Distance.Between(this.player.sprite.x, this.player.sprite.y, t.sprite.x, t.sprite.y) <= GameScene.TREE_STEALTH_RADIUS
     );
+    const inTreeZone = playerTrees.length > 0;
 
-    const canProgress = inTreeZone && !isMoving && !isShooting && !this.playerHitThisFrame && !this.player.isDead;
+    const enemyInSameTree = inTreeZone && this.enemies.some(
+      (e) => !e.isDead && playerTrees.some(
+        (t) => Phaser.Math.Distance.Between(e.sprite.x, e.sprite.y, t.sprite.x, t.sprite.y) <= GameScene.TREE_STEALTH_RADIUS
+      )
+    );
+
+    const canProgress = inTreeZone && !enemyInSameTree && !isMoving && !isShooting && !this.playerHitThisFrame && !this.player.isDead;
 
     if (canProgress) {
       this.hideTimer += delta;

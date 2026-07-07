@@ -10,12 +10,11 @@ import { getWeaponSprite } from "@/lib/spriteHelpers";
 interface Player {
   id: string;
   username: string;
-  level: number;
   coin: number;
   diamond: number;
   ticket: number;
-  exp: number;
   currentStage: number;
+  isAdmin?: boolean;
 }
 
 interface VipProgress {
@@ -62,7 +61,6 @@ export default function HomeClient({ player, characterSprite, characterName, equ
         <div className="bg-military-dark/80 backdrop-blur-sm border-b border-military-steel px-4 py-3 flex items-center justify-between gap-4">
           <div className="min-w-0">
             <p className="text-military-tan text-sm font-bold truncate">{player.username}</p>
-            <p className="text-military-steel text-xs">LVL {player.level}</p>
           </div>
 
           {/* v9 #2: VIP level + progress toward next level, earned only from story/farm stage-clear exp */}
@@ -81,7 +79,7 @@ export default function HomeClient({ player, characterSprite, characterName, equ
             </div>
           </div>
 
-          <CurrencyBar coin={player.coin} diamond={player.diamond} ticket={player.ticket} exp={player.exp} greenBanknote={greenBanknoteBalance} />
+          <CurrencyBar coin={player.coin} diamond={player.diamond} ticket={player.ticket} greenBanknote={greenBanknoteBalance} />
           <button onClick={() => signOut({ callbackUrl: "/login" })} className="text-military-steel text-xs hover:text-white flex-shrink-0">LOGOUT</button>
         </div>
 
@@ -119,7 +117,7 @@ export default function HomeClient({ player, characterSprite, characterName, equ
           </div>
 
           <div className="grid grid-cols-3 gap-3 w-full max-w-lg">
-            {MENU_ITEMS.map((item) => (
+            {(player.isAdmin ? [...MENU_ITEMS, { href: "/admin", label: "ADMIN", icon: "🛡️" }] : MENU_ITEMS).map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

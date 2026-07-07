@@ -9,12 +9,18 @@ interface Props {
   username: string;
   ticket: number;
   vipLevel: number;
+  coin: number;
+  diamond: number;
+  greenBanknote: number;
+  heroNames: string[];
+  currentStage: number;
+  farmStageMaxWave: number;
 }
 
 const MUTED_KEY = "sfx_muted";
 const VOLUME_KEY = "sfx_volume";
 
-export default function SettingsClient({ username, ticket, vipLevel }: Props) {
+export default function SettingsClient({ username, ticket, vipLevel, coin, diamond, greenBanknote, heroNames, currentStage, farmStageMaxWave }: Props) {
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(0.6);
   const { language, setLanguage } = useLanguage();
@@ -57,7 +63,15 @@ export default function SettingsClient({ username, ticket, vipLevel }: Props) {
           <h2 className="font-bold text-military-tan mb-2 uppercase tracking-wider">Profile</h2>
           <p className="text-sm">Username: <span className="text-white">{username}</span></p>
           <p className="text-sm mt-1">VIP tier: <span className="text-military-gold font-bold">VIP {vipLevel}</span></p>
-          <p className="text-sm mt-1">Tickets: <span className="text-green-400 font-bold">{ticket}</span></p>
+          <div className="grid grid-cols-2 gap-1 mt-2 text-sm">
+            <p>🪙 Coin: <span className="text-military-gold font-bold">{coin.toLocaleString()}</span></p>
+            <p>💎 Diamond: <span className="text-blue-400 font-bold">{diamond.toLocaleString()}</span></p>
+            <p>🎟️ Tickets: <span className="text-green-400 font-bold">{ticket.toLocaleString()}</span></p>
+            <p>💵 Green Banknote: <span className="text-emerald-400 font-bold">{greenBanknote.toLocaleString()}</span></p>
+          </div>
+          <p className="text-sm mt-2">Stage Reached: <span className="text-white font-bold">{currentStage}</span></p>
+          <p className="text-sm mt-1">Farm Stage Best Wave: <span className="text-white font-bold">{farmStageMaxWave}</span></p>
+          <p className="text-sm mt-1">Heroes Owned: <span className="text-white font-bold">{heroNames.length > 0 ? heroNames.join(", ") : "—"}</span></p>
         </div>
 
         <div className="card-military">
