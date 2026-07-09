@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
         return {
           ...enemy,
           hp: Math.round(enemy.hp * multiplier * hpMultiplier),
-          weapon: { ...enemyWeapon, damage: Math.round(enemyWeapon.damage * multiplier) },
+          weapon: { ...enemyWeapon, damage: Math.round(enemyWeapon.damage * multiplier * enemy.damageMultiplier) },
           spawnX: s.spawnX,
           spawnY: s.spawnY,
         };
@@ -121,16 +121,24 @@ export async function POST(req: NextRequest) {
     enemies.push({ ...template, spawnX: template.spawnX + ((i % 2 === 0 ? 1 : -1) * 60), spawnY: template.spawnY + ((i % 2 === 0 ? -1 : 1) * 60) });
   }
 
-  // Farm stages don't use StageEnemy rows — GameScene draws random enemies from
-  // this full roster each wave (see spawnWave() in GameScene.ts).
+  // Farm stages don't use StageEnemy rows for POSITIONS (GameScene draws random
+  // enemies from this roster each wave — see spawnWave() in GameScene.ts), but
+  // v20 repurposes the same StageEnemy rows as a roster WHITELIST: if a farm
+  // stage has any StageEnemy rows, only those enemy ids are eligible; if it has
+  // none (e.g. the original farm_01), every enemy is eligible, unchanged from
+  // before. This is what lets Multiverse 2's farm stage restrict itself to its
+  // own 5 enemy types instead of pulling from the whole global roster.
   let enemyRoster: Array<{ id: string; weaponId: string; hp: number; coinReward: number; sprite: string; weapon: NonNullable<Awaited<ReturnType<typeof getWeaponById>>> }> = [];
   if (stage.isRepeatable) {
     const allEnemies = await getAllEnemies();
+    const allowedIds = new Set(spawns.map((s) => s.enemyId));
+    const pool = allowedIds.size > 0 ? allEnemies.filter((e) => allowedIds.has(e.id)) : allEnemies;
     enemyRoster = (
       await Promise.all(
-        allEnemies.map(async (enemy) => {
+        pool.map(async (enemy) => {
           const enemyWeapon = await getWeaponById(enemy.weaponId);
-          return enemyWeapon ? { ...enemy, weapon: enemyWeapon } : null;
+          if (!enemyWeapon) return null;
+          return { ...enemy, weapon: { ...enemyWeapon, damage: Math.round(enemyWeapon.damage * enemy.damageMultiplier) } };
         })
       )
     ).filter((e) => e !== null);

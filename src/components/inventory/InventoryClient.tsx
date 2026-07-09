@@ -291,28 +291,83 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
 
         {message && <div className="text-center mb-2 text-military-gold text-sm">{message}</div>}
 
-        {/* Character + 4 corner slots (left) / stat panel (right) */}
+        {/* Character + 4 corner slots + item picker, all stacked in ONE left
+         *  column (stat panel is a separate, independently-sized right column)
+         *  so the item grid sits directly under the slots instead of being
+         *  pushed down by however tall the stat panel happens to be. */}
         <div className="flex flex-col lg:flex-row gap-8 max-w-5xl mx-auto items-start">
-          <div className="relative flex-shrink-0 mx-auto" style={{ width: 300, minHeight: 300 }}>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-28 h-28 rounded-full bg-military-dark border-2 border-military-tan flex items-center justify-center overflow-hidden">
-                {characterSprite ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={characterSprite} alt={characterName} className="w-20 h-20 object-contain" />
-                ) : (
-                  <span className="text-4xl">🪖</span>
+          <div className="flex-1 w-full min-w-0">
+            <div className="relative mx-auto" style={{ width: 300, minHeight: 300 }}>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-28 h-28 rounded-full bg-military-dark border-2 border-military-tan flex items-center justify-center overflow-hidden">
+                  {characterSprite ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={characterSprite} alt={characterName} className="w-20 h-20 object-contain" />
+                  ) : (
+                    <span className="text-4xl">🪖</span>
+                  )}
+                </div>
+              </div>
+
+              <CornerSlot position="top-0 left-0" target="weapon" icon="🔫" label="Weapon" itemSprite={equippedWeapon ? getWeaponSprite(equippedWeapon.id) : undefined} itemName={equippedWeapon?.name} onClick={() => setOpenPicker("weapon")} />
+              <CornerSlot position="top-0 right-0" target="helmet" icon={SLOT_ICON.helmet} label={SLOT_LABEL.helmet} itemSprite={equippedByslot.helmet ? getEquipmentSprite(equippedByslot.helmet.id) : undefined} itemName={equippedByslot.helmet?.name} onClick={() => setOpenPicker("helmet")} />
+              <CornerSlot position="bottom-0 left-0" target="vest" icon={SLOT_ICON.vest} label={SLOT_LABEL.vest} itemSprite={equippedByslot.vest ? getEquipmentSprite(equippedByslot.vest.id) : undefined} itemName={equippedByslot.vest?.name} onClick={() => setOpenPicker("vest")} />
+              <CornerSlot position="bottom-0 right-0" target="boots" icon={SLOT_ICON.boots} label={SLOT_LABEL.boots} itemSprite={equippedByslot.boots ? getEquipmentSprite(equippedByslot.boots.id) : undefined} itemName={equippedByslot.boots?.name} onClick={() => setOpenPicker("boots")} />
+            </div>
+
+            {/* Categorized inventory tabs — weapon / helmet / vest / boots, not one mixed grid.
+             *  Directly below the equip slots now (was a separate full-width block after
+             *  BOTH columns, so it sat as low as the taller stat-panel column made it). */}
+            <div className="mt-4">
+              <div className="flex gap-2 mb-3">
+                {(["weapon", "helmet", "vest", "boots"] as const).map((tabKey) => (
+                  <button key={tabKey} onClick={() => setTab(tabKey)} className={`btn-military text-xs ${tab === tabKey ? "" : "opacity-50"}`}>
+                    {tabKey === "weapon"
+                      ? t({ en: "Weapon", th: "อาวุธ" })
+                      : tabKey === "helmet"
+                        ? t({ en: "Helmet", th: "หมวก" })
+                        : tabKey === "vest"
+                          ? t({ en: "Vest", th: "เกราะ" })
+                          : t({ en: "Boots", th: "รองเท้า" })}
+                  </button>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
+                {tab === "weapon" && ownedWeapons.map((w) => (
+                  <DraggableItem
+                    key={`w-${w.id}`}
+                    dragId={`w-${w.id}`}
+                    payload={{ kind: "weapon", id: w.id, name: w.name }}
+                    sprite={getWeaponSprite(w.id)}
+                    equipped={w.id === equippedWeaponId}
+                    onOpen={() => setDetailWeapon(w)}
+                  />
+                ))}
+                {tab !== "weapon" && equipment.filter((e) => e.slot === tab).map((e) => (
+                  <DraggableItem
+                    key={`e-${e.id}`}
+                    dragId={`e-${e.id}`}
+                    payload={{ kind: "equipment", id: e.id, slot: e.slot, name: e.name }}
+                    sprite={getEquipmentSprite(e.id)}
+                    equipped={e.equipped}
+                    upgradeLevel={e.upgradeLevel}
+                    rarity={e.rarity}
+                    onOpen={() => setDetailEquipment(e)}
+                  />
+                ))}
+                {tab === "weapon" && ownedWeapons.length === 0 && (
+                  <p className="text-military-steel text-sm col-span-full text-center py-8">No weapons owned yet — visit Character/Weapon.</p>
+                )}
+                {tab !== "weapon" && equipment.filter((e) => e.slot === tab).length === 0 && (
+                  <p className="text-military-steel text-sm col-span-full text-center py-8">No {SLOT_LABEL[tab]} owned yet — pull the Gacha.</p>
                 )}
               </div>
             </div>
-
-            <CornerSlot position="top-0 left-0" target="weapon" icon="🔫" label="Weapon" itemSprite={equippedWeapon ? getWeaponSprite(equippedWeapon.id) : undefined} itemName={equippedWeapon?.name} onClick={() => setOpenPicker("weapon")} />
-            <CornerSlot position="top-0 right-0" target="helmet" icon={SLOT_ICON.helmet} label={SLOT_LABEL.helmet} itemSprite={equippedByslot.helmet ? getEquipmentSprite(equippedByslot.helmet.id) : undefined} itemName={equippedByslot.helmet?.name} onClick={() => setOpenPicker("helmet")} />
-            <CornerSlot position="bottom-0 left-0" target="vest" icon={SLOT_ICON.vest} label={SLOT_LABEL.vest} itemSprite={equippedByslot.vest ? getEquipmentSprite(equippedByslot.vest.id) : undefined} itemName={equippedByslot.vest?.name} onClick={() => setOpenPicker("vest")} />
-            <CornerSlot position="bottom-0 right-0" target="boots" icon={SLOT_ICON.boots} label={SLOT_LABEL.boots} itemSprite={equippedByslot.boots ? getEquipmentSprite(equippedByslot.boots.id) : undefined} itemName={equippedByslot.boots?.name} onClick={() => setOpenPicker("boots")} />
           </div>
 
-          {/* Stat panel — margin from the character panel, not full-width */}
-          <div className="flex-1 w-full lg:max-w-md space-y-4">
+          {/* Stat panel — its own column, sized independently of the left column */}
+          <div className="w-full lg:w-96 flex-shrink-0 space-y-4">
             {stats && (
               <div className="card-military">
                 <h2 className="text-military-tan text-sm uppercase tracking-wider mb-2">{t({ en: "Total Stats", th: "สรุปค่าสถานะรวม" })}</h2>
@@ -501,53 +556,6 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
           </div>
         )}
 
-        {/* Categorized inventory tabs — weapon / helmet / vest / boots, not one mixed grid */}
-        <div className="mt-4 max-w-5xl mx-auto">
-          <div className="flex gap-2 mb-3">
-            {(["weapon", "helmet", "vest", "boots"] as const).map((tabKey) => (
-              <button key={tabKey} onClick={() => setTab(tabKey)} className={`btn-military text-xs ${tab === tabKey ? "" : "opacity-50"}`}>
-                {tabKey === "weapon"
-                  ? t({ en: "Weapon", th: "อาวุธ" })
-                  : tabKey === "helmet"
-                    ? t({ en: "Helmet", th: "หมวก" })
-                    : tabKey === "vest"
-                      ? t({ en: "Vest", th: "เกราะ" })
-                      : t({ en: "Boots", th: "รองเท้า" })}
-              </button>
-            ))}
-          </div>
-
-          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-2">
-            {tab === "weapon" && ownedWeapons.map((w) => (
-              <DraggableItem
-                key={`w-${w.id}`}
-                dragId={`w-${w.id}`}
-                payload={{ kind: "weapon", id: w.id, name: w.name }}
-                sprite={getWeaponSprite(w.id)}
-                equipped={w.id === equippedWeaponId}
-                onOpen={() => setDetailWeapon(w)}
-              />
-            ))}
-            {tab !== "weapon" && equipment.filter((e) => e.slot === tab).map((e) => (
-              <DraggableItem
-                key={`e-${e.id}`}
-                dragId={`e-${e.id}`}
-                payload={{ kind: "equipment", id: e.id, slot: e.slot, name: e.name }}
-                sprite={getEquipmentSprite(e.id)}
-                equipped={e.equipped}
-                upgradeLevel={e.upgradeLevel}
-                rarity={e.rarity}
-                onOpen={() => setDetailEquipment(e)}
-              />
-            ))}
-            {tab === "weapon" && ownedWeapons.length === 0 && (
-              <p className="text-military-steel text-sm col-span-full text-center py-8">No weapons owned yet — visit Character/Weapon.</p>
-            )}
-            {tab !== "weapon" && equipment.filter((e) => e.slot === tab).length === 0 && (
-              <p className="text-military-steel text-sm col-span-full text-center py-8">No {SLOT_LABEL[tab]} owned yet — pull the Gacha.</p>
-            )}
-          </div>
-        </div>
       </div>
 
       <DragOverlay>

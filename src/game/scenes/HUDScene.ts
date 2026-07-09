@@ -188,17 +188,20 @@ export class HUDScene extends Phaser.Scene {
 
   /** v15: on-screen reload button — same effect as the R key, for players who
    *  don't have (or don't notice) the keyboard shortcut, and for mobile where
-   *  there's no keyboard at all. Circular, fixed at the bottom-right corner on
-   *  both desktop and mobile (identical position either way) — bottom-right is
-   *  free real estate now that the mobile aim joystick/fire button are gone
-   *  (v14 replaced them with tap-to-aim-and-fire).
+   *  there's no keyboard at all.
    *  v16: desktop also has right-click-to-reload now (see GameScene.ts), so
    *  this button is mainly for mobile — plain "Reload" text instead of an
-   *  emoji icon, per request. */
+   *  emoji icon, per request.
+   *  v20: mobile now has a fire joystick sitting in the bottom-right corner
+   *  (mirroring the move stick — see MobileControls.ts), so the reload button
+   *  moves up to sit just above it instead of overlapping. Desktop keeps the
+   *  old bottom-right corner position since there's no fire stick there. */
   private createReloadButton(width: number, height: number) {
-    const cx = width - 56;
-    const cy = height - 56;
     const radius = 30;
+    // Fire stick: center (width-130, height-130), base radius 80 — its top
+    // edge is at height-210. Leave a small gap above that for this button.
+    const cx = this.isMobile ? width - 130 : width - 56;
+    const cy = this.isMobile ? height - 210 - radius - 14 : height - 56;
 
     const circle = this.add.circle(cx, cy, radius, 0x1a1a2e, 0.85)
       .setStrokeStyle(2, 0xc5a97d)

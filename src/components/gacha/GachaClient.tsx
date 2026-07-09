@@ -190,8 +190,8 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
     if (result.rewardType === "currency") {
       return (
         <div className="gacha-anim-item">
-          <span className="text-5xl block mb-2">{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
-          <p className="text-military-gold font-bold">+{result.rewardAmount} {result.rewardCurrency === "coin" ? "coin" : "diamond"}</p>
+          <span className="text-8xl block mb-4">{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
+          <p className="text-military-gold font-bold text-2xl">+{result.rewardAmount} {result.rewardCurrency === "coin" ? "coin" : "diamond"}</p>
         </div>
       );
     }
@@ -201,11 +201,11 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
 
     return (
       <div className="gacha-anim-item flex flex-col items-center">
-        <div className={`relative w-24 h-24 mb-2 rounded-full border-2 ${RARITY_BORDER[rarity]} ${isLegendary ? "gacha-anim-glow-legendary" : ""} ${RARITY_COLOR[rarity]} flex items-center justify-center bg-military-darker`}>
+        <div className={`relative w-44 h-44 mb-4 rounded-full border-4 ${RARITY_BORDER[rarity]} ${isLegendary ? "gacha-anim-glow-legendary" : ""} ${RARITY_COLOR[rarity]} flex items-center justify-center bg-military-darker`}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={getEquipmentSprite(result.equipmentId ?? "")} alt={result.equipmentName ?? ""} className="w-16 h-16 object-contain" />
+          <img src={getEquipmentSprite(result.equipmentId ?? "")} alt={result.equipmentName ?? ""} className="w-32 h-32 object-contain" />
         </div>
-        <p className={`font-bold uppercase ${RARITY_COLOR[rarity]}`}>{rarity} {result.slot}</p>
+        <p className={`font-bold uppercase text-2xl ${RARITY_COLOR[rarity]}`}>{rarity} {result.slot}</p>
         <p className="text-white">{result.equipmentName}</p>
         {result.isDupe ? (
           <p className="text-green-400 text-sm">Duplicate — upgraded to level {result.newUpgradeLevel}!</p>
@@ -223,19 +223,19 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
 
     if (result.rewardType === "currency") {
       return (
-        <div key={key} style={style} className="gacha-anim-item flex flex-col items-center bg-military-darker/60 border border-military-steel rounded p-2">
-          <span className="text-2xl">{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
-          <p className="text-military-gold text-xs font-bold">+{result.rewardAmount}</p>
+        <div key={key} style={style} className="gacha-anim-item flex flex-col items-center bg-military-darker/60 border border-military-steel rounded p-3">
+          <span className="text-4xl">{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
+          <p className="text-military-gold text-sm font-bold">+{result.rewardAmount}</p>
         </div>
       );
     }
     const rarity = (result.rarity ?? "common") as Rarity;
     return (
-      <div key={key} style={style} className={`gacha-anim-item flex flex-col items-center bg-military-darker/60 border rounded p-2 ${RARITY_BORDER[rarity]}`}>
+      <div key={key} style={style} className={`gacha-anim-item flex flex-col items-center bg-military-darker/60 border-2 rounded p-3 ${RARITY_BORDER[rarity]}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={getEquipmentSprite(result.equipmentId ?? "")} alt={result.equipmentName ?? ""} className="w-10 h-10 object-contain" />
-        <p className={`text-[10px] font-bold uppercase ${RARITY_COLOR[rarity]}`}>{rarity}</p>
-        {result.isDupe && <p className="text-green-400 text-[10px]">+lvl {result.newUpgradeLevel}</p>}
+        <img src={getEquipmentSprite(result.equipmentId ?? "")} alt={result.equipmentName ?? ""} className="w-16 h-16 object-contain" />
+        <p className={`text-xs font-bold uppercase ${RARITY_COLOR[rarity]}`}>{rarity}</p>
+        {result.isDupe && <p className="text-green-400 text-[11px]">+lvl {result.newUpgradeLevel}</p>}
       </div>
     );
   }
@@ -297,7 +297,7 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
                     key={i}
                     src={capsuleSpriteForCurrency(activeCurrency)}
                     alt=""
-                    className={`${capsuleCount > 1 ? "w-16 h-16" : "w-28 h-28"} gacha-anim-fall absolute -translate-x-1/2 -translate-y-1/2`}
+                    className={`${capsuleCount > 1 ? "w-24 h-24" : "w-48 h-48"} gacha-anim-fall absolute -translate-x-1/2 -translate-y-1/2`}
                     style={{
                       left: `${pos.left}%`,
                       top: `${pos.top}%`,
@@ -318,15 +318,15 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
                     <img
                       src={capsuleSpriteForCurrency(activeCurrency)}
                       alt=""
-                      className={`${capsuleCount > 1 ? "w-16 h-16" : "w-28 h-28"} gacha-anim-pop`}
+                      className={`${capsuleCount > 1 ? "w-24 h-24" : "w-48 h-48"} gacha-anim-pop`}
                     />
-                    {Array.from({ length: capsuleCount > 1 ? 5 : 8 }).map((_, p) => {
-                      const angle = (p / (capsuleCount > 1 ? 5 : 8)) * Math.PI * 2;
-                      const reach = capsuleCount > 1 ? 45 : 100;
+                    {Array.from({ length: capsuleCount > 1 ? 6 : 10 }).map((_, p) => {
+                      const angle = (p / (capsuleCount > 1 ? 6 : 10)) * Math.PI * 2;
+                      const reach = capsuleCount > 1 ? 65 : 160;
                       return (
                         <span
                           key={p}
-                          className="gacha-anim-particle absolute left-1/2 top-1/2 w-2 h-2 rounded-full bg-military-gold"
+                          className="gacha-anim-particle absolute left-1/2 top-1/2 w-3 h-3 rounded-full bg-military-gold"
                           style={{ "--px": `${Math.cos(angle) * reach}px`, "--py": `${Math.sin(angle) * reach}px` } as React.CSSProperties}
                         />
                       );
@@ -343,21 +343,21 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
                   <img
                     src="/assets/sprites/ui/gacha_burst.svg"
                     alt=""
-                    className={`w-[32rem] h-[32rem] ${isLegendaryReveal || hasLegendaryInMulti ? "gacha-anim-burst-legendary" : "gacha-anim-burst"}`}
+                    className={`w-[90vmin] h-[90vmin] max-w-[900px] max-h-[900px] ${isLegendaryReveal || hasLegendaryInMulti ? "gacha-anim-burst-legendary" : "gacha-anim-burst"}`}
                   />
                 </div>
-                <div className="relative max-w-2xl w-full px-6 text-center">
+                <div className="relative max-w-4xl w-full px-6 text-center">
                   {(isLegendaryReveal || hasLegendaryInMulti) && (
-                    <p className="gacha-anim-title text-military-gold text-2xl font-black tracking-widest mb-4 gacha-anim-glow-legendary">✨ LEGENDARY! ✨</p>
+                    <p className="gacha-anim-title text-military-gold text-4xl font-black tracking-widest mb-6 gacha-anim-glow-legendary">✨ LEGENDARY! ✨</p>
                   )}
                   {multiResults ? (
-                    <div className="grid grid-cols-5 gap-3 mx-auto">
+                    <div className="grid grid-cols-5 gap-4 mx-auto">
                       {multiResults.map((r, i) => renderCompactResult(r, i))}
                     </div>
                   ) : (
                     lastResult && renderResultContent(lastResult)
                   )}
-                  <button onClick={closeReveal} className="btn-military text-xs mt-8">TAP TO CONTINUE</button>
+                  <button onClick={closeReveal} className="btn-military text-sm px-6 py-2 mt-10">TAP TO CONTINUE</button>
                 </div>
               </>
             )}

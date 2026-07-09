@@ -22,6 +22,12 @@ const FARM_ENEMY_UNLOCK_WAVE: Record<string, number> = {
   enemy_sniper: 3,
   enemy_rocket: 4,
   enemy_turret: 5,
+  // v20: Multiverse 2's farm stage roster (see farm_02) — same "unlock a
+  // tougher type every wave, turret last" shape, just its own 5 enemies.
+  enemy_double_pistol: 1,
+  enemy_m16a4: 1,
+  enemy_grenade_launcher: 2,
+  enemy_rasor_gun: 3,
 };
 
 export class GameScene extends Phaser.Scene {
@@ -171,7 +177,7 @@ export class GameScene extends Phaser.Scene {
       // enemyRoster[0] is the pistol template the start route attaches for
       // boss stages specifically (see startBossStage() in game/start/route.ts).
       if (this.isBossStage) {
-        this.time.addEvent({ delay: 60000, loop: true, callback: () => this.spawnBossMinion(), callbackScope: this });
+        this.time.addEvent({ delay: 15000, loop: true, callback: () => this.spawnBossMinion(), callbackScope: this });
       }
     }
 
@@ -279,7 +285,7 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
-  /** v17: called once a minute for the whole boss fight (see the addEvent in
+  /** v17: called every 15s for the whole boss fight (see the addEvent in
    *  create()) — reinforces the boss with one more pistol-wielding minion. */
   private spawnBossMinion() {
     if (this.stageEnded || this.enemyRoster.length === 0) return;
@@ -620,14 +626,18 @@ export class GameScene extends Phaser.Scene {
       moveUp = move.y < -DEAD_ZONE;
       moveDown = move.y > DEAD_ZONE;
 
-      // v14: tap-and-hold anywhere on the right half aims AND fires at that
-      // exact screen point (converted to world space, same as the desktop
-      // mouse pointer) — no separate aim-stick/fire-button pair. This is what
-      // makes the Grenade Launcher's lob land exactly where you tapped.
-      const aimPoint = this.mobileControls.getAimScreenPoint();
-      isShooting = aimPoint !== null;
-      if (aimPoint) {
-        worldPointer = this.cameras.main.getWorldPoint(aimPoint.x, aimPoint.y);
+      // v20: bottom-right fire stick — drag it in a direction to aim and fire
+      // that way (relative to the player), same interaction as the move stick,
+      // replacing the old tap-anywhere-on-the-right-half targeting.
+      const fire = this.mobileControls.getFireVector();
+      const fireMagnitude = Math.hypot(fire.x, fire.y);
+      isShooting = fireMagnitude > DEAD_ZONE;
+      if (isShooting) {
+        const AIM_DISTANCE = 2000;
+        worldPointer = new Phaser.Math.Vector2(
+          this.player.sprite.x + fire.x * AIM_DISTANCE,
+          this.player.sprite.y + fire.y * AIM_DISTANCE
+        );
       }
     }
 
