@@ -25,6 +25,7 @@ interface VipProgress {
 
 const MENU_ITEMS = [
   { href: "/play", label: "PLAY", icon: "⚔️", primary: true },
+  { href: "/pvp", label: "PVP", icon: "🔫" },
   { href: "/character", label: "CHARACTER", icon: "🪖" },
   { href: "/inventory", label: "INVENTORY", icon: "🎒" },
   { href: "/gacha", label: "GACHA", icon: "🏪" },

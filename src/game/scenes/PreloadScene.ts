@@ -95,10 +95,17 @@ export class PreloadScene extends Phaser.Scene {
 
     // Coin popup icon shown floating up from an enemy's death spot (see GameScene's showCoinPopup).
     this.load.svg("coin_pop", "/assets/sprites/ui/coin_pop.svg", { width: 20, height: 20 });
+
+    // PvP only: the opponent's character/weapon art, keyed with an "opponent_"
+    // prefix so it never collides with the local player's own textures even
+    // when both combatants happen to use the same character/weapon.
+    const pvpOpponent = this.registry.get("pvpOpponent") as { sprite: string; weaponId: string } | undefined;
+    if (pvpOpponent?.sprite) this.load.svg("opponent_char_sprite", pvpOpponent.sprite, { width: UNIT_DISPLAY_SIZE, height: UNIT_DISPLAY_SIZE });
+    if (pvpOpponent?.weaponId) this.load.svg(`opponent_weapon_sprite_${pvpOpponent.weaponId}`, getWeaponSprite(pvpOpponent.weaponId), { width: 20, height: 40 });
   }
 
   create() {
     this.registry.set("failedAssetKeys", this.failedKeys);
-    this.scene.start("GameScene");
+    this.scene.start(this.registry.get("pvpMatchId") ? "PvpScene" : "GameScene");
   }
 }

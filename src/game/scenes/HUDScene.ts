@@ -55,9 +55,12 @@ export class HUDScene extends Phaser.Scene {
     super({ key: "HUDScene" });
   }
 
+  private isPvp = false;
+
   create() {
     const { width, height } = this.scale;
     this.isMobile = Boolean(this.registry.get("isMobile"));
+    this.isPvp = Boolean(this.registry.get("pvpMatchId"));
 
     this.hpBar = this.add.graphics();
     this.shieldBar = this.add.graphics();
@@ -111,8 +114,12 @@ export class HUDScene extends Phaser.Scene {
       color: "#f39c12",
     }).setOrigin(1, 0);
 
-    this.createPauseButton(width);
-    this.createRefillButton(width);
+    // PvP has no pause (would desync the live match against the opponent) and
+    // no daily-ammo economy, so neither button applies there.
+    if (!this.isPvp) {
+      this.createPauseButton(width);
+      this.createRefillButton(width);
+    }
     this.createReloadButton(width, height);
 
     this.farmCountdownText = this.add.text(width / 2, height / 2, "", {
@@ -128,7 +135,7 @@ export class HUDScene extends Phaser.Scene {
       fontFamily: "Orbitron, monospace", fontSize: "13px", color: "#7dd3fc", fontStyle: "bold",
     }).setOrigin(0.5).setDepth(40).setVisible(false);
 
-    const gameScene = this.scene.get("GameScene");
+    const gameScene = this.scene.get(this.isPvp ? "PvpScene" : "GameScene");
     gameScene.events.on("hud-update", this.onHudUpdate, this);
     gameScene.events.on("farm-countdown", this.onFarmCountdown, this);
     gameScene.events.on("farm-wave-start", this.onFarmWaveStart, this);
@@ -214,7 +221,7 @@ export class HUDScene extends Phaser.Scene {
 
     circle.on("pointerdown", () => {
       sfx.play("ui_click");
-      const gameScene = this.scene.get("GameScene") as Phaser.Scene & { triggerReload: () => void };
+      const gameScene = this.scene.get(this.isPvp ? "PvpScene" : "GameScene") as Phaser.Scene & { triggerReload: () => void };
       gameScene.triggerReload();
     });
     circle.on("pointerover", () => circle.setStrokeStyle(2, 0xf3c98a));
@@ -226,7 +233,7 @@ export class HUDScene extends Phaser.Scene {
     this.ammoText.setText(`AMMO: ${data.magazine}/${data.magazineSize} (${data.ammo} left today)`);
     this.killsText.setText(`KILLS: ${data.kills}`);
     this.scoreText.setText(`SCORE: ${data.score}`);
-    this.waveText.setText(data.isFarmStage ? `WAVE ${data.wave}` : "ELIMINATE ALL ENEMIES");
+    this.waveText.setText(this.isPvp ? "DEFEAT YOUR OPPONENT" : data.isFarmStage ? `WAVE ${data.wave}` : "ELIMINATE ALL ENEMIES");
     this.reloadText.setVisible(data.isReloading && !data.outOfAmmo);
     this.outOfAmmoText.setVisible(data.outOfAmmo);
 
@@ -317,7 +324,7 @@ export class HUDScene extends Phaser.Scene {
   }
 
   shutdown() {
-    const gameScene = this.scene.get("GameScene");
+    const gameScene = this.scene.get(this.isPvp ? "PvpScene" : "GameScene");
     if (gameScene) {
       gameScene.events.off("hud-update", this.onHudUpdate, this);
       gameScene.events.off("farm-countdown", this.onFarmCountdown, this);
