@@ -145,15 +145,15 @@ function CornerSlot({ position, target, icon, label, itemSprite, itemName, onCli
     <button
       ref={setNodeRef}
       onClick={onClick}
-      className={`absolute ${position} w-28 h-28 border-2 flex flex-col items-center justify-center bg-military-dark transition-colors px-1 ${
+      className={`absolute ${position} w-24 h-24 border-2 flex flex-col items-center justify-center bg-military-dark transition-colors px-1 ${
         isOver ? "border-military-gold bg-military-olive/30" : itemName ? "border-military-tan" : "border-military-steel border-dashed"
       } hover:border-military-tan`}
     >
       {itemSprite ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={itemSprite} alt={itemName} className="w-10 h-10 object-contain" />
+        <img src={itemSprite} alt={itemName} className="w-9 h-9 object-contain" />
       ) : (
-        <span className="text-3xl">{icon}</span>
+        <span className="text-2xl">{icon}</span>
       )}
       <span className="text-xs text-military-steel mt-1">{label}</span>
       <span className="text-xs text-white font-bold text-center truncate w-full">{itemName ?? "(empty)"}</span>
@@ -293,12 +293,12 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
 
         {/* Character + 4 corner slots (left) / stat panel (right) */}
         <div className="flex flex-col lg:flex-row gap-8 max-w-5xl mx-auto items-start">
-          <div className="relative flex-shrink-0 mx-auto" style={{ width: 380, minHeight: 420 }}>
+          <div className="relative flex-shrink-0 mx-auto" style={{ width: 300, minHeight: 300 }}>
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-32 h-32 rounded-full bg-military-dark border-2 border-military-tan flex items-center justify-center overflow-hidden">
+              <div className="w-28 h-28 rounded-full bg-military-dark border-2 border-military-tan flex items-center justify-center overflow-hidden">
                 {characterSprite ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={characterSprite} alt={characterName} className="w-24 h-24 object-contain" />
+                  <img src={characterSprite} alt={characterName} className="w-20 h-20 object-contain" />
                 ) : (
                   <span className="text-4xl">🪖</span>
                 )}
@@ -502,7 +502,7 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
         )}
 
         {/* Categorized inventory tabs — weapon / helmet / vest / boots, not one mixed grid */}
-        <div className="mt-8 max-w-5xl mx-auto">
+        <div className="mt-4 max-w-5xl mx-auto">
           <div className="flex gap-2 mb-3">
             {(["weapon", "helmet", "vest", "boots"] as const).map((tabKey) => (
               <button key={tabKey} onClick={() => setTab(tabKey)} className={`btn-military text-xs ${tab === tabKey ? "" : "opacity-50"}`}>

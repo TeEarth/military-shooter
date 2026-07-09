@@ -15,6 +15,29 @@ interface MissionWithProgress {
   targetValue: number;
   progress: number;
   claimed: boolean;
+  metric: string;
+}
+
+/** Missions sharing the same metric (e.g. "Eliminate 100/500/1000 enemies", all
+ *  metric "kills") are tiers of the same track, not separate missions — only
+ *  the current tier (lowest not-yet-claimed targetValue) is shown, so the list
+ *  reads as one line that gradually upgrades instead of every tier at once. */
+function consolidateByMetric(list: MissionWithProgress[]): MissionWithProgress[] {
+  const byMetric = new Map<string, MissionWithProgress[]>();
+  for (const m of list) {
+    if (!byMetric.has(m.metric)) byMetric.set(m.metric, []);
+    byMetric.get(m.metric)!.push(m);
+  }
+  const result: MissionWithProgress[] = [];
+  for (const group of byMetric.values()) {
+    if (group.length === 1) {
+      result.push(group[0]);
+      continue;
+    }
+    const sorted = [...group].sort((a, b) => a.targetValue - b.targetValue);
+    result.push(sorted.find((m) => !m.claimed) ?? sorted[sorted.length - 1]);
+  }
+  return result.sort((a, b) => a.targetValue - b.targetValue);
 }
 
 interface MilestoneInfo {
@@ -31,8 +54,8 @@ export default function MissionClient({ missions: initialMissions, milestone, co
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
 
-  const daily = missions.filter((m) => m.type === "daily");
-  const personal = missions.filter((m) => m.type === "personal");
+  const daily = consolidateByMetric(missions.filter((m) => m.type === "daily"));
+  const personal = consolidateByMetric(missions.filter((m) => m.type === "personal"));
 
   async function claim(missionId: string) {
     if (loading) return;

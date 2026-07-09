@@ -38,6 +38,35 @@ function capsuleSpriteForCurrency(currency: string): string {
   return currency === "ticket" ? "/assets/sprites/ui/gacha_capsule_ticket.svg" : "/assets/sprites/ui/shop_gacha_capsule.svg";
 }
 
+// v20: full-screen "falling from the sky" reveal timing — one capsule per pull
+// (1 or 10), staggered so they don't all land in the same instant.
+const FALL_MS = 900;
+const FALL_STAGGER_MS = 70;
+function popDelayFor(count: number) {
+  return (count - 1) * FALL_STAGGER_MS + FALL_MS + 150;
+}
+function revealDelayFor(count: number) {
+  return popDelayFor(count) + 300;
+}
+
+/** Scatters capsules across the full-screen overlay instead of stacking them
+ *  in one spot — a single pull drops dead center, a x10 pull spreads into a
+ *  5-wide, 2-row meteor shower with alternating tumble direction. */
+function capsulePositions(count: number): { left: number; top: number; rotFrom: number; rotTo: number }[] {
+  if (count <= 1) return [{ left: 50, top: 42, rotFrom: -20, rotTo: 10 }];
+  const cols = 5;
+  return Array.from({ length: count }, (_, i) => {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    return {
+      left: 10 + col * 20,
+      top: row === 0 ? 32 : 58,
+      rotFrom: i % 2 === 0 ? -25 : 25,
+      rotTo: i % 2 === 0 ? 12 : -12,
+    };
+  });
+}
+
 /** v14: decorative equipment/currency icons scattered around the page edges,
  *  purely visual (pointer-events disabled), fixed positions so they don't
  *  shift on re-render. */
@@ -89,11 +118,11 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
       });
       const data = await res.json();
       if (data.success) {
-        // Sequence: capsule spins (1.1s) -> pops (0.25s, sfx here) -> burst + item reveal (0.5-0.7s).
+        // Sequence: capsule falls from off-screen -> pops (sfx here) -> burst + item reveal.
         setTimeout(() => {
           setPhase("pop");
           sfx.play("gacha_reveal");
-        }, 1100);
+        }, popDelayFor(1));
         setTimeout(() => {
           setPhase("reveal");
           setLastResult(data.result);
@@ -101,7 +130,7 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
             setDiamond(data.updatedPlayer.diamond);
             setTicket(data.updatedPlayer.ticket);
           }
-        }, 1350);
+        }, revealDelayFor(1));
       } else {
         setMessage(data.error);
         setPhase("idle");
@@ -133,7 +162,7 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
         setTimeout(() => {
           setPhase("pop");
           sfx.play("gacha_reveal");
-        }, 1100);
+        }, popDelayFor(MULTI_PULL_COUNT));
         setTimeout(() => {
           setPhase("reveal");
           setMultiResults(data.results);
@@ -141,7 +170,7 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
             setDiamond(data.updatedPlayer.diamond);
             setTicket(data.updatedPlayer.ticket);
           }
-        }, 1350);
+        }, revealDelayFor(MULTI_PULL_COUNT));
       } else {
         setMessage(data.error);
         setPhase("idle");
@@ -149,6 +178,12 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
     } finally {
       setLoading(false);
     }
+  }
+
+  function closeReveal() {
+    setPhase("idle");
+    setLastResult(null);
+    setMultiResults(null);
   }
 
   function renderResultContent(result: GachaPullResult) {
@@ -244,47 +279,61 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
         {message && <div className="max-w-4xl mx-auto mb-4 text-red-400 text-sm">{message}</div>}
 
         {phase !== "idle" && (
-          <div className="max-w-4xl mx-auto mb-6 card-military text-center py-10 relative overflow-hidden" style={{ minHeight: 260 }}>
+          <div
+            className="gacha-anim-overlay fixed inset-0 z-[100] bg-black/88 flex items-center justify-center overflow-hidden"
+            onClick={() => phase === "reveal" && closeReveal()}
+          >
+            {/* Faint sky-glow behind the falling capsules, purely atmospheric. */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{ background: "radial-gradient(ellipse at 50% -10%, rgba(197,169,125,0.18), transparent 60%)" }}
+            />
+
             {phase === "capsule" && (
-              <div className={capsuleCount > 1 ? "grid grid-cols-5 gap-4 max-w-lg mx-auto place-items-center" : ""}>
-                {Array.from({ length: capsuleCount }).map((_, i) => (
+              <div className="absolute inset-0">
+                {capsulePositions(capsuleCount).map((pos, i) => (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     key={i}
                     src={capsuleSpriteForCurrency(activeCurrency)}
                     alt=""
-                    className={`${capsuleCount > 1 ? "w-14 h-14" : "w-20 h-20 mx-auto"} gacha-anim-capsule`}
-                    style={{ animationDelay: `${i * 30}ms` }}
+                    className={`${capsuleCount > 1 ? "w-16 h-16" : "w-28 h-28"} gacha-anim-fall absolute -translate-x-1/2 -translate-y-1/2`}
+                    style={{
+                      left: `${pos.left}%`,
+                      top: `${pos.top}%`,
+                      animationDelay: `${i * FALL_STAGGER_MS}ms`,
+                      "--rot-from": `${pos.rotFrom}deg`,
+                      "--rot-to": `${pos.rotTo}deg`,
+                    } as React.CSSProperties}
                   />
                 ))}
               </div>
             )}
 
             {phase === "pop" && (
-              <>
-                <div className={capsuleCount > 1 ? "grid grid-cols-5 gap-4 max-w-lg mx-auto place-items-center relative" : "relative"}>
-                  {Array.from({ length: capsuleCount }).map((_, i) => (
-                    // eslint-disable-next-line @next/next/no-img-element
+              <div className="absolute inset-0">
+                {capsulePositions(capsuleCount).map((pos, i) => (
+                  <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${pos.left}%`, top: `${pos.top}%` }}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      key={i}
                       src={capsuleSpriteForCurrency(activeCurrency)}
                       alt=""
-                      className={`${capsuleCount > 1 ? "w-14 h-14" : "w-20 h-20 mx-auto"} gacha-anim-pop`}
-                      style={{ animationDelay: `${i * 30}ms` }}
+                      className={`${capsuleCount > 1 ? "w-16 h-16" : "w-28 h-28"} gacha-anim-pop`}
                     />
-                  ))}
-                </div>
-                {Array.from({ length: 8 }).map((_, i) => {
-                  const angle = (i / 8) * Math.PI * 2;
-                  return (
-                    <span
-                      key={i}
-                      className="gacha-anim-particle absolute left-1/2 top-1/2 w-2 h-2 rounded-full bg-military-gold"
-                      style={{ "--px": `${Math.cos(angle) * 90}px`, "--py": `${Math.sin(angle) * 90}px` } as React.CSSProperties}
-                    />
-                  );
-                })}
-              </>
+                    {Array.from({ length: capsuleCount > 1 ? 5 : 8 }).map((_, p) => {
+                      const angle = (p / (capsuleCount > 1 ? 5 : 8)) * Math.PI * 2;
+                      const reach = capsuleCount > 1 ? 45 : 100;
+                      return (
+                        <span
+                          key={p}
+                          className="gacha-anim-particle absolute left-1/2 top-1/2 w-2 h-2 rounded-full bg-military-gold"
+                          style={{ "--px": `${Math.cos(angle) * reach}px`, "--py": `${Math.sin(angle) * reach}px` } as React.CSSProperties}
+                        />
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
             )}
 
             {phase === "reveal" && (
@@ -294,17 +343,21 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
                   <img
                     src="/assets/sprites/ui/gacha_burst.svg"
                     alt=""
-                    className={`w-64 h-64 ${isLegendaryReveal || hasLegendaryInMulti ? "gacha-anim-burst-legendary" : "gacha-anim-burst"}`}
+                    className={`w-[32rem] h-[32rem] ${isLegendaryReveal || hasLegendaryInMulti ? "gacha-anim-burst-legendary" : "gacha-anim-burst"}`}
                   />
                 </div>
-                <div className="relative">
+                <div className="relative max-w-2xl w-full px-6 text-center">
+                  {(isLegendaryReveal || hasLegendaryInMulti) && (
+                    <p className="gacha-anim-title text-military-gold text-2xl font-black tracking-widest mb-4 gacha-anim-glow-legendary">✨ LEGENDARY! ✨</p>
+                  )}
                   {multiResults ? (
-                    <div className="grid grid-cols-5 gap-2 max-w-md mx-auto">
+                    <div className="grid grid-cols-5 gap-3 mx-auto">
                       {multiResults.map((r, i) => renderCompactResult(r, i))}
                     </div>
                   ) : (
                     lastResult && renderResultContent(lastResult)
                   )}
+                  <button onClick={closeReveal} className="btn-military text-xs mt-8">TAP TO CONTINUE</button>
                 </div>
               </>
             )}
