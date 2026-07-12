@@ -112,18 +112,18 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
 
         <div className="card-military">
           <h2 className="font-bold text-military-tan mb-2 uppercase tracking-wider">Mobile Controls</h2>
-          <p className="text-xs text-military-steel mb-3">Only affects touch devices — pick how the bottom-right stick works.</p>
+          <p className="text-xs text-military-steel mb-3">Only affects touch devices — pick how aiming/firing works.</p>
           <div className="space-y-2">
             <button
               onClick={() => chooseControlScheme("split")}
               className={`w-full text-left p-3 border text-sm ${controlScheme === "split" ? "border-military-tan bg-military-dark" : "border-military-steel"}`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-bold">Layout 1 — Aim stick + FIRE button</span>
+                <span className="font-bold">Layout 1 — Tap to aim + FIRE button</span>
                 {controlScheme === "split" && <span className="text-military-gold text-xs">✓ ACTIVE</span>}
               </div>
               <p className="text-xs text-military-steel mt-1">
-                The bottom-right stick only turns your gun. A separate FIRE button (top-left, under the minimap) shoots.
+                Touch anywhere on the right half of the screen to turn your gun that way. A separate FIRE button (top-left, under the minimap) shoots.
               </p>
             </button>
             <button
