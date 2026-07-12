@@ -1,11 +1,16 @@
 import { getCachedSheet, invalidateSheetCache } from "./cache";
-import { appendRow, readSheetRaw, updateRow, parseBool } from "./sheet";
+import { appendRow, readSheetRaw, updateRow, deleteRowsWhere, parseBool } from "./sheet";
 import { addCurrency } from "../db/player";
 import { getStageById } from "./stage";
 import { grantEquipmentToPlayer, unlockCharacterForPlayer } from "../db/inventory";
 import { addGreenBanknotes, markWithdrawalProcessed, getWithdrawalRequestById } from "../db/income";
 
 const MAIL_SHEET = "Mail";
+/** v22: mail older than this (and already claimed) is auto-purged so the
+ *  mailbox doesn't accumulate clutter forever — unclaimed rewards are NEVER
+ *  auto-deleted no matter how old, since that would silently destroy
+ *  currency/items the player hasn't collected yet. */
+const MAIL_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000;
 
 // ---------- Stage completion rewards ----------
 
@@ -35,17 +40,39 @@ export interface MailItem {
   message: string;
   reward: string; // format: "type:amountOrId" e.g. "coin:100", "equipment:helmet_common"
   claimed: boolean;
+  /** ISO timestamp of when this mail was sent — blank for mail sent before
+   *  v22 added this column. */
+  sentAt: string;
+}
+
+/** Deletes every already-claimed mail row older than MAIL_EXPIRY_MS, across
+ *  every player — called before every mailbox read so the sheet never grows
+ *  unbounded. Rows with no sentAt (pre-v22) or unclaimed rows are left alone. */
+async function purgeExpiredMail(): Promise<void> {
+  const now = Date.now();
+  const removed = await deleteRowsWhere(MAIL_SHEET, (r) => {
+    if (!parseBool(r.claimed)) return false;
+    if (!r.sentAt) return false;
+    const sentTime = Date.parse(r.sentAt);
+    if (Number.isNaN(sentTime)) return false;
+    return now - sentTime > MAIL_EXPIRY_MS;
+  });
+  if (removed > 0) invalidateSheetCache(MAIL_SHEET);
 }
 
 export async function getMailForPlayer(playerId: string): Promise<MailItem[]> {
+  await purgeExpiredMail();
   const { rows } = await getCachedSheet(MAIL_SHEET);
   return rows
-    .map((row, index) => ({ index, playerId: row.playerId, title: row.title, message: row.message, reward: row.reward, claimed: parseBool(row.claimed) }))
-    .filter((m) => m.playerId === playerId);
+    .map((row, index) => ({ index, playerId: row.playerId, title: row.title, message: row.message, reward: row.reward, claimed: parseBool(row.claimed), sentAt: row.sentAt || "" }))
+    .filter((m) => m.playerId === playerId)
+    // Newest first — sentAt is an ISO string, so plain string comparison sorts
+    // chronologically; blank (pre-v22) timestamps sort last.
+    .sort((a, b) => (b.sentAt || "").localeCompare(a.sentAt || ""));
 }
 
 export async function sendMail(playerId: string, title: string, message: string, reward: string): Promise<void> {
-  await appendRow(MAIL_SHEET, { playerId, title, message, reward, claimed: false });
+  await appendRow(MAIL_SHEET, { playerId, title, message, reward, claimed: false, sentAt: new Date().toISOString() });
   invalidateSheetCache(MAIL_SHEET);
 }
 

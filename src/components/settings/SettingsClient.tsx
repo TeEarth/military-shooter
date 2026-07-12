@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { sfx } from "@/lib/sfx";
 import { useLanguage } from "@/lib/i18n";
+import { getControlScheme, setControlScheme, type ControlScheme } from "@/lib/controlScheme";
 
 interface Props {
   username: string;
@@ -24,6 +25,7 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(0.6);
   const { language, setLanguage } = useLanguage();
+  const [controlScheme, setControlSchemeState] = useState<ControlScheme>("joystick");
 
   // Restore + apply the saved audio preference on mount — sfx itself defaults
   // to unmuted/0.6 volume, so without this every fresh page load would ignore
@@ -35,7 +37,14 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
     setVolume(savedVolume);
     sfx.setMuted(savedMuted);
     sfx.setVolume(savedVolume);
+    setControlSchemeState(getControlScheme());
   }, []);
+
+  function chooseControlScheme(scheme: ControlScheme) {
+    sfx.play("ui_click");
+    setControlSchemeState(scheme);
+    setControlScheme(scheme);
+  }
 
   function toggleMuted() {
     const next = !muted;
@@ -98,6 +107,37 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
               className="flex-1"
             />
             <span className="text-xs text-military-steel w-10 text-right">{Math.round(volume * 100)}%</span>
+          </div>
+        </div>
+
+        <div className="card-military">
+          <h2 className="font-bold text-military-tan mb-2 uppercase tracking-wider">Mobile Controls</h2>
+          <p className="text-xs text-military-steel mb-3">Only affects touch devices — pick how the bottom-right stick works.</p>
+          <div className="space-y-2">
+            <button
+              onClick={() => chooseControlScheme("split")}
+              className={`w-full text-left p-3 border text-sm ${controlScheme === "split" ? "border-military-tan bg-military-dark" : "border-military-steel"}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold">Layout 1 — Aim stick + FIRE button</span>
+                {controlScheme === "split" && <span className="text-military-gold text-xs">✓ ACTIVE</span>}
+              </div>
+              <p className="text-xs text-military-steel mt-1">
+                The bottom-right stick only turns your gun. A separate FIRE button (top-left, under the minimap) shoots.
+              </p>
+            </button>
+            <button
+              onClick={() => chooseControlScheme("joystick")}
+              className={`w-full text-left p-3 border text-sm ${controlScheme === "joystick" ? "border-military-tan bg-military-dark" : "border-military-steel"}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-bold">Layout 2 — Drag to aim &amp; fire</span>
+                {controlScheme === "joystick" && <span className="text-military-gold text-xs">✓ ACTIVE</span>}
+              </div>
+              <p className="text-xs text-military-steel mt-1">
+                Drag the bottom-right stick in any direction to aim AND fire that way at the same time (default).
+              </p>
+            </button>
           </div>
         </div>
 

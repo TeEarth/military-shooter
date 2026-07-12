@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import type { StageData } from "@/types/stage";
 import type { EnemySpawn } from "@/types/enemy";
 import type { CombatLoadout } from "@/types/loadout";
+import { getControlScheme } from "@/lib/controlScheme";
 
 export default function GameClient() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -103,6 +104,7 @@ export default function GameClient() {
         });
 
         game.registry.set("isMobile", isMobile);
+        game.registry.set("mobileControlScheme", getControlScheme());
         game.registry.set("stageData", stageData);
         game.registry.set("stageId", stageId);
         game.registry.set("enemySpawns", enemies);

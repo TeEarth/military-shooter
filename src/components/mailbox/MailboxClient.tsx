@@ -10,6 +10,14 @@ interface MailItem {
   message: string;
   reward: string;
   claimed: boolean;
+  sentAt: string;
+}
+
+function formatSentAt(sentAt: string): string {
+  if (!sentAt) return "";
+  const d = new Date(sentAt);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
 const ICON_FOR_TYPE: Record<string, string> = { coin: "🪙", diamond: "💎", ticket: "🎟️", exp: "⭐", equipment: "🔧", character: "🪖", withdrawal: "💸" };
@@ -46,7 +54,10 @@ export default function MailboxClient({ items }: { items: MailItem[] }) {
             <div key={item.index} className={`card-military flex items-start gap-4 ${!item.claimed ? "border-military-tan" : ""}`}>
               <span className="text-3xl">{ICON_FOR_TYPE[type] ?? "📦"}</span>
               <div className="flex-1">
-                <h3 className="font-bold">{item.title}</h3>
+                <div className="flex items-baseline justify-between gap-2">
+                  <h3 className="font-bold">{item.title}</h3>
+                  {formatSentAt(item.sentAt) && <span className="text-military-steel text-[11px] whitespace-nowrap">{formatSentAt(item.sentAt)}</span>}
+                </div>
                 <p className="text-military-steel text-sm">{item.message}</p>
                 {!isWithdrawal && value && <p className="text-military-gold text-sm mt-1">+{value} {type}</p>}
               </div>

@@ -159,7 +159,7 @@ export class GameScene extends Phaser.Scene {
     // v9 #6: only ever created when GameClient.tsx detected an actual touch
     // device under 768px wide — never shown/attached on desktop.
     if (this.registry.get("isMobile")) {
-      this.mobileControls = new MobileControls(this);
+      this.mobileControls = new MobileControls(this, this.registry.get("mobileControlScheme"));
     }
 
     if (this.isFarmStage) {

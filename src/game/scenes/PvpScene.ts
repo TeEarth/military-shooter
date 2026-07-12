@@ -110,7 +110,7 @@ export class PvpScene extends Phaser.Scene {
     });
 
     if (this.registry.get("isMobile")) {
-      this.mobileControls = new MobileControls(this);
+      this.mobileControls = new MobileControls(this, this.registry.get("mobileControlScheme"));
     }
 
     this.physics.add.overlap(this.bullets, this.remotePlayer.sprite, (bulletObj) => {

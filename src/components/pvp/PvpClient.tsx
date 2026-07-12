@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
+import { getControlScheme } from "@/lib/controlScheme";
 
 interface PvpMatch {
   id: string;
@@ -93,6 +94,7 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
       });
 
       game.registry.set("isMobile", isMobile);
+      game.registry.set("mobileControlScheme", getControlScheme());
       game.registry.set("stageData", startRes.stageData);
       game.registry.set("pvpMatchId", startRes.matchId);
       game.registry.set("pvpIsPlayer1", startRes.isPlayer1);
