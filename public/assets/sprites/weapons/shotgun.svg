@@ -1,7 +1,30 @@
-<svg viewBox="0 0 30 108" xmlns="http://www.w3.org/2000/svg">
-  <rect x="11" y="0" width="8" height="50" rx="3" fill="#3a2a1a"/>
-  <rect x="8" y="50" width="14" height="30" rx="2" fill="#6a4a2a" stroke="#111" stroke-width="1.5"/>
-  <rect x="18" y="74" width="9" height="24" rx="2" fill="#3a2a18"/>
-  <rect x="5" y="82" width="8" height="22" rx="2" fill="#2a1a10"/>
-  <circle cx="15" cy="4" r="4" fill="#0a0a0a"/>
+<svg viewBox="0 0 34 110" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="bl" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9f9f9f"></stop>
+      <stop offset="42%" stop-color="#2a2a2a"></stop>
+      <stop offset="100%" stop-color="#131313"></stop>
+    </linearGradient><linearGradient id="wood" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a68e7a"></stop>
+      <stop offset="45%" stop-color="#6a4322"></stop>
+      <stop offset="100%" stop-color="#402814"></stop>
+    </linearGradient><linearGradient id="pump" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7f7973"></stop>
+      <stop offset="45%" stop-color="#2a2016"></stop>
+      <stop offset="100%" stop-color="#19130d"></stop>
+    </linearGradient></defs>
+  <circle cx="16" cy="3" r="3.4" fill="#0a0a0a"></circle>
+  <rect x="13" y="2" width="6" height="46" rx="2" fill="url(#bl)"></rect>
+  
+  <rect x="8" y="14" width="4" height="30" rx="2" fill="#3a3a3a"></rect>
+  
+  <rect x="6" y="42" width="14" height="14" rx="3" fill="url(#pump)" stroke="#0c0804" stroke-width="1"></rect>
+  <g stroke="#0c0804" stroke-width="0.7" opacity="0.6"><path d="M8 45 H18 M8 49 H18 M8 53 H18"></path></g>
+  
+  <rect x="10" y="56" width="14" height="20" rx="2" fill="url(#wood)" stroke="#170f08" stroke-width="1.2"></rect>
+  <circle cx="17" cy="64" r="1.6" fill="#0a0a0a"></circle>
+  
+  <path d="M12 76 Q9 82 12 88" stroke="#170f08" stroke-width="1.6" fill="none"></path>
+  <rect x="18" y="76" width="9" height="24" rx="2" fill="url(#wood)"></rect>
+  
+  <rect x="5" y="84" width="8" height="22" rx="2" fill="url(#wood)"></rect>
 </svg>

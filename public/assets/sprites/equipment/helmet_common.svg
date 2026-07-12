@@ -1,7 +1,13 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="32" cy="54" rx="20" ry="6" fill="#000" opacity="0.25"/>
-  <circle cx="32" cy="30" r="24" fill="#8a6a42" stroke="#4a3018" stroke-width="2.5"/>
-  <path d="M10 28 A22 22 0 0 1 54 28" fill="#6a4e2e" opacity="0.5"/>
-  <path d="M14 20 Q32 10 50 20" stroke="#4a3018" stroke-width="1.5" fill="none" opacity="0.6" stroke-dasharray="3 3"/>
-  <rect x="20" y="28" width="24" height="6" rx="2" fill="#5a3e22"/>
+  <defs><radialGradient id="h" cx="40%" cy="32%" r="75%">
+      <stop offset="0%" stop-color="#bba991"></stop>
+      <stop offset="55%" stop-color="#8a6a42"></stop>
+      <stop offset="100%" stop-color="#5a452b"></stop>
+    </radialGradient></defs>
+  <ellipse cx="32" cy="54" rx="20" ry="6" fill="#000" opacity="0.28"></ellipse>
+  <circle cx="32" cy="30" r="24" fill="url(#h)" stroke="#4a3018" stroke-width="2.5"></circle>
+  <path d="M10 28 A22 22 0 0 1 54 28" fill="#4a3018" opacity="0.35"></path>
+  <ellipse cx="24" cy="18" rx="8" ry="5" fill="#fff" opacity="0.28"></ellipse>
+  <path d="M14 20 Q32 10 50 20" stroke="#4a3018" stroke-width="1.5" fill="none" opacity="0.6" stroke-dasharray="3 3"></path>
+  <rect x="20" y="28" width="24" height="6" rx="2" fill="#5a3e22"></rect>
 </svg>

@@ -1,10 +1,41 @@
-<svg viewBox="0 0 30 114" xmlns="http://www.w3.org/2000/svg">
-  <rect x="12" y="0" width="6" height="48" rx="2" fill="#2b2b2b"/>
-  <rect x="9" y="48" width="12" height="34" rx="2" fill="#4a5a34" stroke="#111" stroke-width="1.5"/>
-  <rect x="17" y="72" width="9" height="24" rx="2" fill="#2f3a1e"/>
-  <rect x="6" y="82" width="8" height="26" rx="2" fill="#3a3a3a"/>
-  <rect x="10" y="44" width="10" height="6" fill="#1c1c1c"/>
-  <circle cx="15" cy="6" r="3" fill="#0a0a0a"/>
-  <!-- 3-round burst marker -->
-  <rect x="4" y="50" width="4" height="10" fill="#8ac86a"/>
+<svg viewBox="0 0 30 116" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bl" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9f9f9f"></stop>
+      <stop offset="42%" stop-color="#2a2a2a"></stop>
+      <stop offset="100%" stop-color="#131313"></stop>
+    </linearGradient>
+    <linearGradient id="stock" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#929c85"></stop>
+      <stop offset="45%" stop-color="#4a5a34"></stop>
+      <stop offset="100%" stop-color="#2c361f"></stop>
+    </linearGradient>
+    <linearGradient id="grip" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7a7d76"></stop>
+      <stop offset="45%" stop-color="#22261a"></stop>
+      <stop offset="100%" stop-color="#141710"></stop>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="0" width="6" height="44" rx="1.5" fill="url(#bl)"></rect>
+  
+  <rect x="9" y="4" width="12" height="10" rx="1.5" fill="#242822"></rect>
+  <rect x="14" y="0" width="2" height="6" fill="#0a0a0a"></rect>
+  
+  <rect x="8" y="44" width="14" height="20" rx="1" fill="url(#stock)" stroke="#10130c" stroke-width="1"></rect>
+  <g stroke="#10130c" stroke-width="0.8" opacity="0.7">
+    <path d="M8 48 H22 M8 52 H22 M8 56 H22 M8 60 H22"></path>
+  </g>
+  
+  <rect x="11" y="24" width="8" height="4" fill="#1c1c1c"></rect>
+  <rect x="11" y="30" width="8" height="4" fill="#1c1c1c"></rect>
+  <rect x="11" y="36" width="8" height="4" fill="#1c1c1c"></rect>
+  
+  <rect x="10" y="64" width="10" height="8" fill="#252921"></rect>
+  
+  <path d="M12 72 L20 72 L18 100 Q16 104 14 100 Z" fill="url(#bl)" stroke="#0a0a0a" stroke-width="1"></path>
+  <rect x="3" y="66" width="4" height="10" fill="#7ec25e"></rect>
+  
+  <rect x="17" y="72" width="9" height="24" rx="2" fill="url(#grip)"></rect>
+  <path d="M11 76 Q15 82 11 88" stroke="#0a0a0a" stroke-width="1.6" fill="none"></path>
+  <rect x="6" y="82" width="8" height="26" rx="2" fill="url(#stock)"></rect>
 </svg>

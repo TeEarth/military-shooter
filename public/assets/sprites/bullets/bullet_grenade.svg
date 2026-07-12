@@ -1,6 +1,18 @@
 <svg viewBox="0 0 16 20" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="8" cy="12" r="7" fill="#3a4a3a" stroke="#151f15" stroke-width="1.5"/>
-  <rect x="6" y="1" width="4" height="4" fill="#5a5a5a"/>
-  <rect x="5" y="0" width="6" height="2" rx="1" fill="#8a8a8a"/>
-  <path d="M7 8 Q8 6 9 8 Q10 10 8 11 Q6 10 7 8" fill="#5a7a5a" opacity="0.6"/>
+  <defs>
+    <radialGradient id="gBody" cx="35%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#899289"></stop>
+      <stop offset="55%" stop-color="#3a4a3a"></stop>
+      <stop offset="100%" stop-color="#232c23"></stop>
+    </radialGradient>
+    <linearGradient id="gCap" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#a0a0a0"></stop>
+      <stop offset="100%" stop-color="#4a4a4a"></stop>
+    </linearGradient>
+  </defs>
+  <circle cx="8" cy="12" r="7" fill="url(#gBody)" stroke="#151f15" stroke-width="1.5"></circle>
+  <ellipse cx="5.5" cy="9" rx="1.6" ry="2.2" fill="#fff" opacity="0.18"></ellipse>
+  <rect x="6" y="1" width="4" height="4" fill="url(#gCap)"></rect>
+  <rect x="5" y="0" width="6" height="2" rx="1" fill="#a8a8a8"></rect>
+  <path d="M7 8 Q8 6 9 8 Q10 10 8 11 Q6 10 7 8" fill="#5a7a5a" opacity="0.6"></path>
 </svg>

@@ -1,15 +1,25 @@
 <svg viewBox="0 0 128 96" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="64" cy="82" rx="46" ry="10" fill="#000000" opacity="0.3"/>
-  <g stroke="#4a3a1e" stroke-width="2">
-    <ellipse cx="30" cy="60" rx="22" ry="14" fill="#b89a5a"/>
-    <ellipse cx="64" cy="52" rx="24" ry="15" fill="#c8ac6a"/>
-    <ellipse cx="98" cy="60" rx="22" ry="14" fill="#b89a5a"/>
-    <ellipse cx="46" cy="70" rx="22" ry="14" fill="#a68c4e"/>
-    <ellipse cx="82" cy="70" rx="22" ry="14" fill="#a68c4e"/>
+  <defs>
+    <radialGradient id="sb1" cx="40%" cy="30%" r="80%"><stop offset="0%" stop-color="#cdb88c"></stop><stop offset="100%" stop-color="#816c3f"></stop></radialGradient>
+    <radialGradient id="sb2" cx="40%" cy="28%" r="80%"><stop offset="0%" stop-color="#dac79a"></stop><stop offset="100%" stop-color="#907c4c"></stop></radialGradient>
+    <radialGradient id="sb3" cx="40%" cy="30%" r="80%"><stop offset="0%" stop-color="#c1af83"></stop><stop offset="100%" stop-color="#715f35"></stop></radialGradient>
+  </defs>
+  <ellipse cx="64" cy="82" rx="46" ry="10" fill="#000000" opacity="0.34"></ellipse>
+  <g stroke="#3e3016" stroke-width="2">
+    <ellipse cx="30" cy="60" rx="22" ry="14" fill="url(#sb1)"></ellipse>
+    <ellipse cx="98" cy="60" rx="22" ry="14" fill="url(#sb1)"></ellipse>
+    <ellipse cx="46" cy="70" rx="22" ry="14" fill="url(#sb3)"></ellipse>
+    <ellipse cx="82" cy="70" rx="22" ry="14" fill="url(#sb3)"></ellipse>
+    <ellipse cx="64" cy="52" rx="24" ry="15" fill="url(#sb2)"></ellipse>
   </g>
-  <g stroke="#5a4626" stroke-width="1.5" opacity="0.6" fill="none">
-    <path d="M14 60 Q30 50 46 60"/>
-    <path d="M48 52 Q64 42 80 52"/>
-    <path d="M82 60 Q98 50 114 60"/>
+  <ellipse cx="22" cy="52" rx="7" ry="4" fill="#fff" opacity="0.22"></ellipse>
+  <ellipse cx="56" cy="43" rx="7" ry="4" fill="#fff" opacity="0.24"></ellipse>
+  <ellipse cx="90" cy="52" rx="7" ry="4" fill="#fff" opacity="0.22"></ellipse>
+  <g stroke="#5a4626" stroke-width="1.3" opacity="0.6" fill="none" stroke-dasharray="2 2">
+    <path d="M14 60 Q30 50 46 60"></path>
+    <path d="M48 52 Q64 42 80 52"></path>
+    <path d="M82 60 Q98 50 114 60"></path>
+    <path d="M20 66 Q46 78 72 66"></path>
+    <path d="M56 76 Q82 88 108 76"></path>
   </g>
 </svg>

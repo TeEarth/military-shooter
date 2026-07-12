@@ -1,21 +1,27 @@
 <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <radialGradient id="burstGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#fffbe0" stop-opacity="1"/>
-      <stop offset="35%" stop-color="#ffe98a" stop-opacity="0.85"/>
-      <stop offset="70%" stop-color="#ffb84a" stop-opacity="0.3"/>
-      <stop offset="100%" stop-color="#ffb84a" stop-opacity="0"/>
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="1"></stop>
+      <stop offset="25%" stop-color="#fffbe0" stop-opacity="1"></stop>
+      <stop offset="45%" stop-color="#ffe98a" stop-opacity="0.85"></stop>
+      <stop offset="70%" stop-color="#ffb84a" stop-opacity="0.3"></stop>
+      <stop offset="100%" stop-color="#ffb84a" stop-opacity="0"></stop>
+    </radialGradient>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#ffffff"></stop>
+      <stop offset="100%" stop-color="#fff2b0" stop-opacity="0"></stop>
     </radialGradient>
   </defs>
-  <circle cx="100" cy="100" r="95" fill="url(#burstGlow)"/>
+  <circle cx="100" cy="100" r="95" fill="url(#burstGlow)"></circle>
   <g stroke="#fff6c8" stroke-width="3" opacity="0.9">
-    <line x1="100" y1="100" x2="100" y2="4"/>
-    <line x1="100" y1="100" x2="100" y2="196"/>
-    <line x1="100" y1="100" x2="4" y2="100"/>
-    <line x1="100" y1="100" x2="196" y2="100"/>
-    <line x1="100" y1="100" x2="32" y2="32"/>
-    <line x1="100" y1="100" x2="168" y2="32"/>
-    <line x1="100" y1="100" x2="32" y2="168"/>
-    <line x1="100" y1="100" x2="168" y2="168"/>
+    <line x1="100" y1="100" x2="100" y2="4"></line>
+    <line x1="100" y1="100" x2="100" y2="196"></line>
+    <line x1="100" y1="100" x2="4" y2="100"></line>
+    <line x1="100" y1="100" x2="196" y2="100"></line>
+    <line x1="100" y1="100" x2="32" y2="32"></line>
+    <line x1="100" y1="100" x2="168" y2="32"></line>
+    <line x1="100" y1="100" x2="32" y2="168"></line>
+    <line x1="100" y1="100" x2="168" y2="168"></line>
   </g>
+  <circle cx="100" cy="100" r="26" fill="url(#core)"></circle>
 </svg>

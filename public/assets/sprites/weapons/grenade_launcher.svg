@@ -1,7 +1,35 @@
-<svg viewBox="0 0 32 104" xmlns="http://www.w3.org/2000/svg">
-  <rect x="11" y="0" width="10" height="46" rx="4" fill="#4a4a2a" stroke="#111" stroke-width="1.5"/>
-  <circle cx="16" cy="4" r="5" fill="#151515"/>
-  <rect x="8" y="46" width="16" height="26" rx="3" fill="#5a5a3a" stroke="#111" stroke-width="1.5"/>
-  <rect x="16" y="72" width="9" height="20" rx="2" fill="#2a2a1a"/>
-  <rect x="4" y="80" width="8" height="20" rx="2" fill="#3a3a2a"/>
+<svg viewBox="0 0 36 108" xmlns="http://www.w3.org/2000/svg">
+  <defs><linearGradient id="tube" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#92927f"></stop>
+      <stop offset="45%" stop-color="#4a4a2a"></stop>
+      <stop offset="100%" stop-color="#2c2c19"></stop>
+    </linearGradient><linearGradient id="body" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9c9c89"></stop>
+      <stop offset="45%" stop-color="#5a5a3a"></stop>
+      <stop offset="100%" stop-color="#363623"></stop>
+    </linearGradient><linearGradient id="grip" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#89897f"></stop>
+      <stop offset="45%" stop-color="#3a3a2a"></stop>
+      <stop offset="100%" stop-color="#232319"></stop>
+    </linearGradient><linearGradient id="grip2" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7f7f76"></stop>
+      <stop offset="45%" stop-color="#2a2a1a"></stop>
+      <stop offset="100%" stop-color="#191910"></stop>
+    </linearGradient></defs>
+  
+  <rect x="10" y="0" width="12" height="42" rx="4" fill="url(#tube)" stroke="#0e0e08" stroke-width="1.5"></rect>
+  <circle cx="16" cy="4" r="5.5" fill="#0e0e0e"></circle>
+  <circle cx="14.5" cy="2.5" r="1.6" fill="#6a6a5a" opacity="0.6"></circle>
+  
+  <path d="M13 8 L11 2 M19 8 L21 2" stroke="#1a1a1a" stroke-width="1.4"></path>
+  
+  <circle cx="16" cy="52" r="14" fill="url(#body)" stroke="#0e0e08" stroke-width="1.8"></circle>
+  <circle cx="9" cy="46" r="2.6" fill="#20200e"></circle>
+  <circle cx="23" cy="46" r="2.6" fill="#20200e"></circle>
+  <circle cx="9" cy="58" r="2.6" fill="#20200e"></circle>
+  <circle cx="23" cy="58" r="2.6" fill="#20200e"></circle>
+  <circle cx="16" cy="52" r="5" fill="#20200e"></circle>
+  <rect x="10" y="66" width="12" height="16" rx="2" fill="url(#tube)" stroke="#0e0e08" stroke-width="1.2"></rect>
+  <rect x="18" y="82" width="9" height="20" rx="2" fill="url(#grip2)"></rect>
+  <rect x="4" y="86" width="8" height="20" rx="2" fill="url(#grip)"></rect>
 </svg>

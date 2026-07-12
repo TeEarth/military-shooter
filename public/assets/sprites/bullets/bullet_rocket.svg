@@ -1,7 +1,19 @@
 <svg viewBox="0 0 26 14" xmlns="http://www.w3.org/2000/svg">
-  <!-- nose points right (+X) to match rotation convention: bullet.rotation = angle of travel, 0 = pointing right -->
-  <path d="M26 7 L16 3 L10 3 L10 11 L16 11 Z" fill="#8a8a8a" stroke="#2a2a2a" stroke-width="1"/>
-  <path d="M10 3 L2 1 L8 7 Z" fill="#e0483a"/>
-  <path d="M10 11 L2 13 L8 7 Z" fill="#e0483a"/>
-  <circle cx="18" cy="7" r="2" fill="#e0483a"/>
+  <defs>
+    <linearGradient id="rBody" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#c0c0c0"></stop>
+      <stop offset="50%" stop-color="#8a8a8a"></stop>
+      <stop offset="100%" stop-color="#3a3a3a"></stop>
+    </linearGradient>
+    <radialGradient id="flame" cx="30%" cy="50%" r="70%">
+      <stop offset="0%" stop-color="#fff2a0"></stop>
+      <stop offset="55%" stop-color="#e0483a"></stop>
+      <stop offset="100%" stop-color="#8a1c14"></stop>
+    </radialGradient>
+  </defs>
+  <path d="M26 7 L16 3 L10 3 L10 11 L16 11 Z" fill="url(#rBody)" stroke="#2a2a2a" stroke-width="1"></path>
+  <path d="M10 3 L2 1 L8 7 Z" fill="url(#flame)"></path>
+  <path d="M10 11 L2 13 L8 7 Z" fill="url(#flame)"></path>
+  <circle cx="18" cy="7" r="2" fill="url(#flame)"></circle>
+  <rect x="16" y="4.5" width="8" height="1" fill="#fff" opacity="0.35"></rect>
 </svg>

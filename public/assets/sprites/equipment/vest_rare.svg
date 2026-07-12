@@ -1,11 +1,17 @@
 <svg viewBox="0 0 64 72" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="32" cy="64" rx="22" ry="6" fill="#000" opacity="0.28"/>
-  <path d="M14 14 Q32 4 50 14 L54 56 Q32 66 10 56 Z" fill="#9aa4ac" stroke="#43494e" stroke-width="2.5"/>
-  <rect x="24" y="26" width="16" height="20" rx="3" fill="#5c6469"/>
-  <path d="M20 14 L20 56 M44 14 L44 56" stroke="#43494e" stroke-width="1.5" opacity="0.6"/>
-  <circle cx="18" cy="20" r="2" fill="#2a2e32"/>
-  <circle cx="46" cy="20" r="2" fill="#2a2e32"/>
-  <circle cx="18" cy="46" r="2" fill="#2a2e32"/>
-  <circle cx="46" cy="46" r="2" fill="#2a2e32"/>
-  <path d="M14 14 Q32 4 50 14 L54 56 Q32 66 10 56 Z" fill="none" stroke="#d4e0ea" stroke-width="1.2" opacity="0.6"/>
+  <defs><linearGradient id="v" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#bdc4c9"></stop>
+    <stop offset="55%" stop-color="#9aa4ac"></stop>
+    <stop offset="100%" stop-color="#646b70"></stop>
+  </linearGradient></defs>
+  <ellipse cx="32" cy="64" rx="22" ry="6" fill="#000" opacity="0.28"></ellipse>
+  <path d="M14 14 Q32 4 50 14 L54 56 Q32 66 10 56 Z" fill="url(#v)" stroke="#43494e" stroke-width="2.5"></path>
+  <ellipse cx="22" cy="22" rx="7" ry="10" fill="#fff" opacity="0.2"></ellipse>
+  <rect x="24" y="26" width="16" height="20" rx="3" fill="#5c6469"></rect>
+  <path d="M20 14 L20 56 M44 14 L44 56" stroke="#43494e" stroke-width="1.5" opacity="0.6"></path>
+  <circle cx="18" cy="20" r="2" fill="#2a2e32"></circle>
+  <circle cx="46" cy="20" r="2" fill="#2a2e32"></circle>
+  <circle cx="18" cy="46" r="2" fill="#2a2e32"></circle>
+  <circle cx="46" cy="46" r="2" fill="#2a2e32"></circle>
+  <path d="M14 14 Q32 4 50 14 L54 56 Q32 66 10 56 Z" fill="none" stroke="#d4e0ea" stroke-width="1.2" opacity="0.6"></path>
 </svg>

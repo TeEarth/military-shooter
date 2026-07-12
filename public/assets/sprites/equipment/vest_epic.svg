@@ -1,12 +1,12 @@
 <svg viewBox="0 0 64 72" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <radialGradient id="vEpic" cx="45%" cy="35%" r="70%">
-      <stop offset="0%" stop-color="#c48cf0"/>
-      <stop offset="100%" stop-color="#6a2ea0"/>
-    </radialGradient>
-  </defs>
-  <ellipse cx="32" cy="64" rx="22" ry="6" fill="#000" opacity="0.3"/>
-  <path d="M14 14 Q32 4 50 14 L54 56 Q32 66 10 56 Z" fill="url(#vEpic)" stroke="#3a1560" stroke-width="2.5"/>
-  <path d="M32 20 L38 32 L32 44 L26 32 Z" fill="#f0c840" opacity="0.9"/>
-  <path d="M14 14 Q32 4 50 14 L54 56 Q32 66 10 56 Z" fill="none" stroke="#e6b8ff" stroke-width="1.5" opacity="0.8"/>
+  <defs><radialGradient id="vEpic" cx="42%" cy="30%" r="75%">
+    <stop offset="0%" stop-color="#e8caff"></stop>
+    <stop offset="40%" stop-color="#c48cf0"></stop>
+    <stop offset="100%" stop-color="#5a2690"></stop>
+  </radialGradient></defs>
+  <ellipse cx="32" cy="64" rx="22" ry="6" fill="#000" opacity="0.3"></ellipse>
+  <path d="M14 14 Q32 4 50 14 L54 56 Q32 66 10 56 Z" fill="url(#vEpic)" stroke="#3a1560" stroke-width="2.5"></path>
+  <ellipse cx="22" cy="20" rx="7" ry="10" fill="#fff" opacity="0.3"></ellipse>
+  <path d="M32 20 L38 32 L32 44 L26 32 Z" fill="#f0c840" opacity="0.9"></path>
+  <path d="M14 14 Q32 4 50 14 L54 56 Q32 66 10 56 Z" fill="none" stroke="#e6b8ff" stroke-width="1.5" opacity="0.85"></path>
 </svg>

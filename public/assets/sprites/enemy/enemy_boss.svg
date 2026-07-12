@@ -1,15 +1,52 @@
 <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="64" cy="102" rx="40" ry="11" fill="#000" opacity="0.3"/>
-  <ellipse cx="64" cy="78" rx="26" ry="21" fill="#1c0d0d"/>
-  <circle cx="64" cy="64" r="38" fill="#3a1414" stroke="#0c0303" stroke-width="3"/>
-  <circle cx="64" cy="44" r="22" fill="#4a1a1a" stroke="#0c0303" stroke-width="3"/>
-  <!-- gold crest marking this as the boss -->
-  <path d="M48 30 L56 18 L64 28 L72 18 L80 30 L72 26 L64 34 L56 26 Z" fill="#d4af37" stroke="#8a6a1a" stroke-width="1"/>
-  <ellipse cx="64" cy="46" rx="10" ry="4.5" fill="#100404" opacity="0.7"/>
-  <!-- glowing eyes -->
-  <circle cx="56" cy="44" r="2.5" fill="#ff3b3b"/>
-  <circle cx="72" cy="44" r="2.5" fill="#ff3b3b"/>
-  <rect x="59" y="96" width="10" height="24" rx="2" fill="#1a1a1a"/>
-  <circle cx="30" cy="66" r="11" fill="#2e0f0f"/>
-  <circle cx="98" cy="66" r="11" fill="#2e0f0f"/>
+  <defs>
+    <radialGradient id="bossBody" cx="36%" cy="30%" r="75%">
+      <stop offset="0%" stop-color="#a69595"></stop>
+      <stop offset="55%" stop-color="#3a1414"></stop>
+      <stop offset="100%" stop-color="#230c0c"></stop>
+    </radialGradient>
+    <radialGradient id="bossHead" cx="34%" cy="26%" r="80%">
+      <stop offset="0%" stop-color="#ae9898"></stop>
+      <stop offset="55%" stop-color="#4a1a1a"></stop>
+      <stop offset="100%" stop-color="#2c1010"></stop>
+    </radialGradient>
+    <radialGradient id="bossArm" cx="32%" cy="28%" r="85%">
+      <stop offset="0%" stop-color="#826f6f"></stop>
+      <stop offset="100%" stop-color="#200b0b"></stop>
+    </radialGradient>
+    <radialGradient id="eyeGlow" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#ffb0a8"></stop>
+      <stop offset="45%" stop-color="#ff3b3b"></stop>
+      <stop offset="100%" stop-color="#8a0f0f"></stop>
+    </radialGradient>
+    <radialGradient id="ao" cx="50%" cy="55%" r="52%">
+      <stop offset="55%" stop-color="#000" stop-opacity="0"></stop>
+      <stop offset="100%" stop-color="#000" stop-opacity="0.42"></stop>
+    </radialGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fff2b0"></stop>
+      <stop offset="50%" stop-color="#d4af37"></stop>
+      <stop offset="100%" stop-color="#8a6a1a"></stop>
+    </linearGradient>
+  </defs>
+  <ellipse cx="64" cy="104" rx="42" ry="12" fill="#000" opacity="0.35"></ellipse>
+  <ellipse cx="64" cy="78" rx="26" ry="21" fill="#1c0d0d"></ellipse>
+  <ellipse cx="64" cy="78" rx="26" ry="21" fill="url(#ao)"></ellipse>
+  <circle cx="64" cy="64" r="38" fill="url(#bossBody)" stroke="#050101" stroke-width="3"></circle>
+  <circle cx="64" cy="64" r="38" fill="url(#ao)"></circle>
+  <circle cx="64" cy="44" r="22" fill="url(#bossHead)" stroke="#050101" stroke-width="3"></circle>
+  <ellipse cx="55" cy="34" rx="8" ry="5" fill="#fff" opacity="0.22"></ellipse>
+  
+  <path d="M48 30 L56 18 L64 28 L72 18 L80 30 L72 26 L64 34 L56 26 Z" fill="url(#gold)" stroke="#5c4008" stroke-width="1"></path>
+  <ellipse cx="64" cy="46" rx="10" ry="4.5" fill="#100404" opacity="0.75"></ellipse>
+  
+  <circle cx="56" cy="44" r="3" fill="url(#eyeGlow)"></circle>
+  <circle cx="72" cy="44" r="3" fill="url(#eyeGlow)"></circle>
+  <circle cx="55" cy="43" r="1" fill="#fff" opacity="0.8"></circle>
+  <circle cx="71" cy="43" r="1" fill="#fff" opacity="0.8"></circle>
+  <rect x="59" y="96" width="10" height="24" rx="2" fill="#1a1a1a"></rect>
+  <rect x="60" y="98" width="2" height="18" fill="#3a3a3a" opacity="0.6"></rect>
+  <circle cx="30" cy="66" r="11" fill="url(#bossArm)" stroke="#100404" stroke-width="1.5"></circle>
+  <circle cx="98" cy="66" r="11" fill="url(#bossArm)" stroke="#100404" stroke-width="1.5"></circle>
+  <circle cx="64" cy="64" r="38" fill="none" stroke="#ff8a6a" stroke-width="1.5" opacity="0.3"></circle>
 </svg>

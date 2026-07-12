@@ -1,8 +1,36 @@
 <svg viewBox="0 0 96 96" xmlns="http://www.w3.org/2000/svg">
-  <ellipse cx="48" cy="82" rx="34" ry="9" fill="#000000" opacity="0.3"/>
-  <rect x="12" y="18" width="72" height="60" rx="4" fill="#8a5a2e" stroke="#4a2e14" stroke-width="3"/>
-  <rect x="12" y="18" width="72" height="60" rx="4" fill="none" stroke="#5c3a1a" stroke-width="1" opacity="0.5"/>
-  <path d="M12 18 L84 78 M84 18 L12 78" stroke="#4a2e14" stroke-width="3" opacity="0.5"/>
-  <rect x="20" y="26" width="56" height="44" fill="none" stroke="#c8935a" stroke-width="2" opacity="0.7"/>
-  <circle cx="48" cy="48" r="6" fill="#3a2410"/>
+  <defs>
+    <linearGradient id="crateWood" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ad8c6d"></stop>
+      <stop offset="55%" stop-color="#8a5a2e"></stop>
+      <stop offset="100%" stop-color="#5a3b1e"></stop>
+    </linearGradient>
+    <linearGradient id="metalBand" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#9a9a94"></stop>
+      <stop offset="100%" stop-color="#4a4a44"></stop>
+    </linearGradient>
+  </defs>
+  <ellipse cx="48" cy="82" rx="34" ry="9" fill="#000000" opacity="0.32"></ellipse>
+  <rect x="12" y="18" width="72" height="60" rx="3" fill="url(#crateWood)" stroke="#3a2410" stroke-width="3"></rect>
+  
+  <g stroke="#3a2410" stroke-width="1.4" opacity="0.55">
+    <path d="M12 32 H84 M12 46 H84 M12 60 H84 M12 74 H84"></path>
+  </g>
+  <g stroke="#c8935a" stroke-width="0.7" opacity="0.35">
+    <path d="M18 22 Q40 24 78 21"></path>
+    <path d="M16 38 Q50 40 80 37"></path>
+    <path d="M16 52 Q45 54 80 51"></path>
+    <path d="M16 66 Q50 68 80 65"></path>
+  </g>
+  
+  <rect x="10" y="16" width="10" height="64" fill="url(#metalBand)" opacity="0.85"></rect>
+  <rect x="76" y="16" width="10" height="64" fill="url(#metalBand)" opacity="0.85"></rect>
+  <rect x="10" y="44" width="76" height="8" fill="url(#metalBand)" opacity="0.8"></rect>
+  <g fill="#2a2a24">
+    <circle cx="15" cy="22" r="1.4"></circle><circle cx="15" cy="74" r="1.4"></circle>
+    <circle cx="81" cy="22" r="1.4"></circle><circle cx="81" cy="74" r="1.4"></circle>
+  </g>
+  <rect x="26" y="30" width="44" height="34" fill="none" stroke="#c8935a" stroke-width="1.8" opacity="0.6"></rect>
+  <circle cx="48" cy="47" r="6" fill="#3a2410"></circle>
+  <rect x="12" y="18" width="72" height="10" fill="#fff" opacity="0.08"></rect>
 </svg>
