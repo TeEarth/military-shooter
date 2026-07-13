@@ -55,7 +55,7 @@ export default function GameClient() {
         const stageData: StageData = startRes.stageData;
         const enemies: EnemySpawn[] = startRes.enemies;
         const enemyRoster = startRes.enemyRoster;
-        const covers: { coverType: string; x: number; y: number }[] = startRes.covers ?? [];
+        const covers: { coverType: string; x: number; y: number; rotation?: number }[] = startRes.covers ?? [];
         const character: CombatLoadout = startRes.character;
         const weaponId: string = startRes.weaponId;
 

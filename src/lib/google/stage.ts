@@ -42,6 +42,9 @@ export interface StageCoverSpawn {
   coverType: string;
   x: number;
   y: number;
+  /** v25: 90 for wall segments drawn as a vertical column in the stage-layout
+   *  PDF — every other cover type/orientation stays 0 (blank cell defaults here). */
+  rotation: 0 | 90;
 }
 
 function rowToStage(row: Record<string, string>): StageRow {
@@ -94,5 +97,5 @@ export async function getStageCovers(stageId: string): Promise<StageCoverSpawn[]
   const rows = await getConfigRows(STAGE_COVER_SHEET);
   return rows
     .filter((r) => r.stageId === stageId)
-    .map((r) => ({ stageId: r.stageId, coverType: r.coverType, x: Number(r.x || 0), y: Number(r.y || 0) }));
+    .map((r) => ({ stageId: r.stageId, coverType: r.coverType, x: Number(r.x || 0), y: Number(r.y || 0), rotation: Number(r.rotation) === 90 ? 90 : 0 }));
 }

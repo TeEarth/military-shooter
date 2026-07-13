@@ -126,7 +126,15 @@ export class CoverObject {
     width: number, height: number,
     type: CoverType,
     group: Phaser.Physics.Arcade.StaticGroup,
-    failedAssetKeys?: Set<string>
+    failedAssetKeys?: Set<string>,
+    // v25: stage-layout PDFs draw some wall runs as vertical columns, not just
+    // horizontal rows — the sprite/hitbox were previously always authored
+    // landscape (100x44), so a "vertical" placement just stacked flat
+    // horizontal segments with big gaps instead of reading as an actual wall.
+    // rotationDeg 90 rotates the sprite visually AND swaps the footprint used
+    // for the hitbox math below, so a rotated wall collides as a true
+    // portrait bar matching what's drawn on screen.
+    rotationDeg: 0 | 90 = 0
   ) {
     this.type = type;
     const realKey = `cover_sprite_${type}`;
@@ -146,6 +154,7 @@ export class CoverObject {
 
     this.sprite = group.create(x, y, key) as Phaser.Physics.Arcade.Image;
     if (hasRealSprite) this.sprite.setDisplaySize(width, height);
+    if (rotationDeg) this.sprite.setAngle(rotationDeg);
     this.sprite.setDepth(8);
     // v14: lets GameScene's colliders skip trees specifically (trees are
     // walk-through/shoot-through — a hiding spot, not solid cover — while
@@ -156,15 +165,21 @@ export class CoverObject {
     // ...then reshape it to the sprite's actual visual footprint. This MUST
     // happen after refreshBody() — calling setSize/setOffset/setCircle before
     // it gets silently overwritten, since Arcade static bodies resnap to the
-    // full display size every time refreshBody() runs.
+    // full display size every time refreshBody() runs. Arcade static bodies
+    // are always axis-aligned regardless of the sprite's visual angle, so a
+    // rotated wall's hitbox is built directly from the swapped (footprint)
+    // width/height rather than actually rotating a shape — this correctly
+    // reproduces the post-rotation on-screen bounding box.
+    const footprintWidth = rotationDeg ? height : width;
+    const footprintHeight = rotationDeg ? width : height;
     const shape = HITBOX_SHAPE[type];
     const body = this.sprite.body as Phaser.Physics.Arcade.StaticBody;
     if (shape.kind === "circle") {
-      const radius = width * shape.radiusFrac;
-      body.setCircle(radius, width * shape.centerXFrac - radius, height * shape.centerYFrac - radius);
+      const radius = footprintWidth * shape.radiusFrac;
+      body.setCircle(radius, footprintWidth * shape.centerXFrac - radius, footprintHeight * shape.centerYFrac - radius);
     } else {
-      body.setSize(width * shape.widthFrac, height * shape.heightFrac);
-      body.setOffset(width * shape.offsetXFrac, height * shape.offsetYFrac);
+      body.setSize(footprintWidth * shape.widthFrac, footprintHeight * shape.heightFrac);
+      body.setOffset(footprintWidth * shape.offsetXFrac, footprintHeight * shape.offsetYFrac);
     }
   }
 }

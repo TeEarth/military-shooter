@@ -7,6 +7,7 @@ import type { StageData } from "@/types/stage";
 import type { EnemySpawn, EnemyData } from "@/types/enemy";
 import type { CombatLoadout } from "@/types/loadout";
 import { PLAYER_CONFIG } from "../../../config/player";
+import { ENEMY_CONFIG } from "../../../config/enemy";
 import { sfx } from "@/lib/sfx";
 
 const FARM_BASE_ENEMY_COUNT = 3;
@@ -179,20 +180,37 @@ export class GameScene extends Phaser.Scene {
       if (this.isBossStage) {
         this.time.addEvent({ delay: 15000, loop: true, callback: () => this.spawnBossMinion(), callbackScope: this });
       }
+
+      // v25: story/boss stage enemies are all placed and visible immediately
+      // (unlike farm's spawn-on-wave-start), so there's no countdown phase to
+      // reuse here — just reuse the same freeze window farm waves already get,
+      // so the player has a moment to get their bearings instead of eating
+      // damage the instant the stage loads.
+      this.farmPhase = "freeze";
+      this.farmPhaseElapsed = 0;
+      this.startFreezeBlink();
     }
 
     // --- Collisions ---
-    // v14: trees are walk-through/shoot-through (a hiding spot, not solid
+    // v14/v25: trees are walk-through/shoot-through (a hiding spot, not solid
     // cover) — every collider against `this.covers` skips anything tagged
-    // coverType "tree" via its process callback.
-    const notTree = (coverObj: unknown) => (coverObj as Phaser.Physics.Arcade.Image).getData("coverType") !== "tree";
+    // coverType "tree" via its process callback. v25 fix: Phaser calls a
+    // collider's processCallback as (object1, object2) — for the
+    // player/enemy-vs-group colliders below, object2 (the group member) is
+    // the actual cover, but this used to be declared as a 1-arg function that
+    // only ever read object1 (the player/enemy sprite, which never has a
+    // "coverType"), so it silently always returned true and never actually
+    // skipped trees for movement — only the bullet collider (which called it
+    // explicitly with the right single argument) skipped trees correctly.
+    // That's exactly why bullets passed through trees but walking didn't.
+    const notTree = (_obj1: unknown, coverObj: unknown) => (coverObj as Phaser.Physics.Arcade.Image).getData("coverType") !== "tree";
 
     this.physics.add.collider(this.player.sprite, this.covers, undefined, notTree, this);
     this.physics.add.collider(this.enemyGroup, this.covers, undefined, notTree, this);
 
     // Bullets vanish on hitting a wall — except "lob" (grenade) bullets, which fly over cover.
     const skipIgnoreCover = (bulletObj: unknown, coverObj: unknown) =>
-      !(bulletObj as Phaser.Physics.Arcade.Image).getData("ignoreCover") && notTree(coverObj);
+      !(bulletObj as Phaser.Physics.Arcade.Image).getData("ignoreCover") && notTree(bulletObj, coverObj);
 
     this.physics.add.collider(this.bullets, this.covers, (bulletObj) => {
       this.detonateBullet(bulletObj as Phaser.Physics.Arcade.Image, true);
@@ -249,13 +267,14 @@ export class GameScene extends Phaser.Scene {
     // v11 #2: stages designed from the stage-layout PDF ship a fixed cover
     // list (registry "stageCovers", from StageCover sheet via /api/game/start)
     // — any stage without one (not yet designed) keeps the old random scatter.
-    const fixedCovers = (this.registry.get("stageCovers") as { coverType: string; x: number; y: number }[]) ?? [];
+    const fixedCovers = (this.registry.get("stageCovers") as { coverType: string; x: number; y: number; rotation?: number }[]) ?? [];
     if (fixedCovers.length > 0) {
       for (const c of fixedCovers) {
         const type = c.coverType as CoverType;
         if (!(type in COVER_SIZES)) continue;
         const { width, height } = COVER_SIZES[type];
-        const cover = new CoverObject(this, c.x, c.y, width, height, type, this.covers, this.failedAssetKeys);
+        const rotationDeg = c.rotation === 90 ? 90 : 0;
+        const cover = new CoverObject(this, c.x, c.y, width, height, type, this.covers, this.failedAssetKeys, rotationDeg);
         if (type === "tree") this.treeCovers.push(cover);
       }
       return;
@@ -301,14 +320,58 @@ export class GameScene extends Phaser.Scene {
     };
   }
 
+  /** v25: farm-wave spawns must land at least 1.5x an enemy's detection range
+   *  away from the player — spawning inside (or barely outside) that radius
+   *  meant a fresh wave could aggro and start chasing the instant it appeared,
+   *  which read as an unfair ambush rather than a wave "arriving". Retries a
+   *  handful of times, then just takes the farthest of the attempts if it
+   *  never finds a fully-clear spot (small/oddly-shaped arenas). */
+  private randomSpawnPointAwayFromPlayer(): { x: number; y: number } {
+    const minDistance = ENEMY_CONFIG.detectionRange * 1.5;
+    const playerX = this.player.sprite.x;
+    const playerY = this.player.sprite.y;
+
+    let best = this.randomSpawnPoint();
+    let bestDist = Phaser.Math.Distance.Between(playerX, playerY, best.x, best.y);
+
+    for (let attempt = 0; attempt < 10 && bestDist < minDistance; attempt++) {
+      const candidate = this.randomSpawnPoint();
+      const dist = Phaser.Math.Distance.Between(playerX, playerY, candidate.x, candidate.y);
+      if (dist > bestDist) {
+        best = candidate;
+        bestDist = dist;
+      }
+    }
+
+    return best;
+  }
+
   /** v17: called every 15s for the whole boss fight (see the addEvent in
-   *  create()) — reinforces the boss with one more pistol-wielding minion. */
+   *  create()) — reinforces the boss with one more minion. v25: spawns at the
+   *  boss's own current position (a small ring around it) instead of a
+   *  map-wide random point — minions are supposed to read as the boss calling
+   *  in backup, not enemies teleporting in from nowhere across the arena. */
   private spawnBossMinion() {
     if (this.stageEnded || this.enemyRoster.length === 0) return;
     const template = this.enemyRoster[0];
-    const { x, y } = this.randomSpawnPoint();
+    const { x, y } = this.bossEnemy && !this.bossEnemy.isDead
+      ? this.spawnPointNearBoss()
+      : this.randomSpawnPoint();
     const spawn: EnemySpawn = { ...template, spawnX: x, spawnY: y };
     this.enemies.push(new Enemy(this, x, y, spawn, this.enemyBullets, this.enemyGroup, 1, 1, this.failedAssetKeys));
+  }
+
+  /** A point in a small ring just outside the boss's own hitbox, clamped to
+   *  stay inside the arena — used so summoned minions visibly emerge from the
+   *  boss instead of spawning on top of it or off in a random corner. */
+  private spawnPointNearBoss(): { x: number; y: number } {
+    const boss = this.bossEnemy!;
+    const { width, height } = this.stageData;
+    const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
+    const radius = Phaser.Math.Between(50, 90);
+    const x = Phaser.Math.Clamp(boss.sprite.x + Math.cos(angle) * radius, 40, width - 40);
+    const y = Phaser.Math.Clamp(boss.sprite.y + Math.sin(angle) * radius, 40, height - 40);
+    return { x, y };
   }
 
   private spawnWave(wave: number) {
@@ -324,7 +387,7 @@ export class GameScene extends Phaser.Scene {
 
     for (let i = 0; i < enemyCount; i++) {
       const template = Phaser.Utils.Array.GetRandom(pool);
-      const { x, y } = this.randomSpawnPoint();
+      const { x, y } = this.randomSpawnPointAwayFromPlayer();
       const spawn: EnemySpawn = { ...template, spawnX: x, spawnY: y };
       this.enemies.push(new Enemy(this, x, y, spawn, this.enemyBullets, this.enemyGroup, multiplier, multiplier, this.failedAssetKeys));
     }
@@ -664,7 +727,11 @@ export class GameScene extends Phaser.Scene {
       }
     }
 
-    if (this.isFarmStage) this.updateFarmPhase(delta);
+    // v25: also drives the story/boss-stage opening freeze now (see create()) —
+    // updateFarmPhase() already no-ops once farmPhase is "active", and story
+    // stages never enter "countdown" (only farm's opening sequence does), so
+    // this is safe to call unconditionally instead of gating on isFarmStage.
+    this.updateFarmPhase(delta);
     const frozen = this.farmPhase === "freeze";
 
     this.player.update(moveLeft, moveRight, moveUp, moveDown, isShooting, isReloading, worldPointer, delta, this.covers);

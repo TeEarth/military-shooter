@@ -255,7 +255,13 @@ export class HUDScene extends Phaser.Scene {
     this.ammoText.setText(`AMMO: ${data.magazine}/${data.magazineSize} (${data.ammo} left today)`);
     this.killsText.setText(`KILLS: ${data.kills}`);
     this.scoreText.setText(`SCORE: ${data.score}`);
-    this.waveText.setText(this.isPvp ? "DEFEAT YOUR OPPONENT" : data.isFarmStage ? `WAVE ${data.wave}` : "ELIMINATE ALL ENEMIES");
+    // v25: boss stages get the big top-center boss name/hp bar instead — the
+    // plain "ELIMINATE ALL ENEMIES" objective line used to render at the same
+    // y=12 spot and visually collide with "BOSS" right underneath it.
+    const isBossStage = data.bossHp !== undefined && data.bossMaxHp !== undefined;
+    this.waveText.setText(
+      isBossStage ? "" : this.isPvp ? "DEFEAT YOUR OPPONENT" : data.isFarmStage ? `WAVE ${data.wave}` : "ELIMINATE ALL ENEMIES"
+    );
     this.reloadText.setVisible(data.isReloading && !data.outOfAmmo);
     this.outOfAmmoText.setVisible(data.outOfAmmo);
 

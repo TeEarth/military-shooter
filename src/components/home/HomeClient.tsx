@@ -37,31 +37,194 @@ const MENU_ITEMS = [
   { href: "/settings", label: "SETTINGS", icon: "⚙️" },
 ];
 
-const HOW_TO_PLAY_SECTIONS = [
+interface HowToPlayTopic {
+  id: string;
+  label: string;
+  icon: string;
+  title: string;
+  body: string[];
+}
+
+const HOW_TO_PLAY_TOPICS: HowToPlayTopic[] = [
   {
-    title: "Move & Aim",
+    id: "controls",
+    label: "Move & Aim",
     icon: "/assets/sprites/characters/soldier_player.svg",
-    body: "Drag the left stick to move. On Layout 2 the right stick both aims and fires; on Layout 1 just tap where you want to shoot.",
+    title: "Move & Aim",
+    body: [
+      "Drag the left stick to move around the stage.",
+      "Layout 1 (default touch): tap anywhere on the right half of the screen to aim AND fire at that exact spot.",
+      "Layout 2: drag the right-side stick in a direction to aim and fire that way continuously.",
+      "On desktop, use WASD/arrow keys to move and the mouse to aim — left-click or Space to fire, R or right-click to reload.",
+    ],
   },
   {
-    title: "Take Cover",
+    id: "cover",
+    label: "Cover & Stealth",
     icon: "/assets/sprites/tilemap/cover_sandbag.svg",
-    body: "Stand behind trees, sandbags, and crates — bullets can't pass through them. Standing still near a tree for a moment hides you from enemies.",
+    title: "Cover & Stealth",
+    body: [
+      "Sandbags, crates, houses, and walls are solid — they block both your bullets and the enemy's.",
+      "Trees are different: bullets and footsteps both pass through them freely, but if you stand still near one for about a second, you become HIDDEN — enemies lose track of you until you move, shoot, or get shot again.",
+    ],
   },
   {
-    title: "Farm Stages",
+    id: "story",
+    label: "Clearing a Stage",
+    icon: "/assets/sprites/tilemap/obstacle_house.svg",
+    title: "Clearing a Story Stage",
+    body: [
+      "Each story stage has a fixed set of enemies placed on the map — eliminate all of them to clear the stage.",
+      "Enemies freeze for a few seconds when the stage first loads, so you get a moment to find cover before combat starts.",
+      "Clearing a stage grants coin + exp and unlocks the next one. A [NEXT STAGE] button appears on the results screen so you don't have to go back to Home between stages.",
+      "A stage can only be cleared once — replaying an already-cleared story stage isn't possible (Retry only appears after a loss).",
+    ],
+  },
+  {
+    id: "farm",
+    label: "Farm Stages",
     icon: "/assets/sprites/tilemap/cover_crate.svg",
-    body: "Survive endless waves for coins. Enemy types unlock as your wave climbs, and your best wave reached unlocks weapons like the Rasor Gun.",
+    title: "Farm Stages",
+    body: [
+      "Farm stages are repeatable, endless-wave survival — enemies keep spawning in escalating waves instead of a fixed list.",
+      "Each wave briefly freezes after spawning so you can reposition before it turns hostile.",
+      "Tougher enemy types unlock as your wave number climbs; your best wave reached also unlocks certain weapons (like the Rasor Gun) for purchase.",
+      "Rewards are based on the highest wave you reach and the coins earned from kills that run — there's no fixed \"clear\" reward like a story stage.",
+    ],
   },
   {
-    title: "Boss Fights",
+    id: "boss",
+    label: "Boss Fights",
     icon: "/assets/sprites/weapons/gatling.svg",
-    body: "Every Multiverse ends in a boss with a huge HP bar and no cover on the field — bring your best weapon and watch the summoned minions.",
+    title: "Boss Fights",
+    body: [
+      "Every Multiverse ends in a boss stage — a huge top-of-screen HP bar shows the boss's health.",
+      "Boss arenas have zero cover, so positioning and ammo management matter more than hiding.",
+      "The boss periodically summons a minion right at its own position to reinforce itself — watch your flanks once you hear/see one appear.",
+      "Defeating a boss unlocks the next Multiverse's story stages.",
+    ],
+  },
+  {
+    id: "shop",
+    label: "Buying Weapons & Characters",
+    icon: "/assets/sprites/weapons/ak47.svg",
+    title: "Buying Weapons & Characters",
+    body: [
+      "New weapons and characters are unlocked from the Character page — each one lists its unlock requirement: a ticket cost, a specific story stage cleared, or a farm-stage wave reached (in ANY Multiverse's farm stage).",
+      "Once unlocked, equip a weapon or character from the same page — your loadout carries into every stage, farm run, and PvP match.",
+    ],
+  },
+  {
+    id: "exchange",
+    label: "Exchanging Resources",
+    icon: "/assets/sprites/ui/coin_pop.svg",
+    title: "Exchanging Resources",
+    body: [
+      "The Trade page lets you convert between currencies (e.g. coin ↔ diamond) at rates set by the game's economy config.",
+      "This is separate from real-money top-up and cash withdrawal — Trade only moves in-game currencies against each other.",
+    ],
+  },
+  {
+    id: "withdraw",
+    label: "Cashing Out (Real Money)",
+    icon: "/assets/sprites/ui/coin_pop.svg",
+    title: "Cashing Out (Real Money)",
+    body: [
+      "Green Banknotes are earned from boss kills and every few personal stage milestones — they're the only currency that converts to real money.",
+      "From the Income page, request a withdrawal to your TrueMoney Wallet phone number (1 banknote = ฿1, capped at 100 baht/day).",
+      "Withdrawals are reviewed and paid out manually by an admin, not instantly — check your Mailbox for the approval notice.",
+    ],
+  },
+  {
+    id: "topup",
+    label: "Topping Up",
+    icon: "/assets/sprites/ui/gacha_capsule_ticket.svg",
+    title: "Topping Up",
+    body: [
+      "The Income page's Top Up section sells ticket packages for real money via Omise — pay by card or PromptPay QR.",
+      "PromptPay payments confirm automatically once you scan and pay — no need to refresh, the page polls for you.",
+      "Your top-up history (date, amount, method, status) is listed right under the packages on the Income page.",
+    ],
+  },
+  {
+    id: "passive",
+    label: "Passive Upgrades",
+    icon: "/assets/sprites/ui/star_upgrade.svg",
+    title: "Passive Upgrades",
+    body: [
+      "Passive upgrades are permanent stat boosts (hp, damage, speed, etc.) bought with coin from the Character page, stacking on top of whatever weapon/character you have equipped.",
+      "Each upgrade tier costs more than the last — invest coin from farming or story clears here to make every future stage easier.",
+    ],
+  },
+  {
+    id: "gacha",
+    label: "Gacha",
+    icon: "/assets/sprites/ui/gacha_burst.svg",
+    title: "Gacha",
+    body: [
+      "The Gacha page spends diamonds or tickets on a randomized pull for characters, weapons, or cosmetics.",
+      "Use the Skip button during the reveal animation if you'd rather see the result immediately instead of watching the full reveal.",
+      "Multi-pull discounts (if configured) are shown right on the pull button.",
+    ],
+  },
+  {
+    id: "equipment",
+    label: "Equipping Gear",
+    icon: "/assets/sprites/tilemap/cover_sandbag.svg",
+    title: "Equipping Gear",
+    body: [
+      "The Inventory page holds every weapon, character, and equipment piece you've unlocked or pulled from gacha.",
+      "Tap an item to equip it — equipped gear applies immediately to your next stage, farm run, or PvP match.",
+    ],
+  },
+  {
+    id: "mission",
+    label: "Missions",
+    icon: "/assets/sprites/ui/coin_pop.svg",
+    title: "Missions",
+    body: [
+      "The Mission page lists daily/ongoing objectives (like clearing a stage or getting kills) that pay out coin, exp, or tickets when completed.",
+      "Missions reset periodically — check back regularly for free rewards you'd otherwise leave on the table.",
+    ],
+  },
+  {
+    id: "leaderboard",
+    label: "Leaderboard",
+    icon: "/assets/sprites/ui/star_upgrade.svg",
+    title: "Leaderboard",
+    body: [
+      "The Leaderboard ranks players by their highest farm-stage wave reached, resetting weekly.",
+      "Top-ranked players earn bonus rewards when the week resets — check the Leaderboard page for the current cutoffs.",
+    ],
+  },
+  {
+    id: "pvp",
+    label: "PvP",
+    icon: "/assets/sprites/weapons/double_pistol.svg",
+    title: "PvP",
+    body: [
+      "PvP is a real-time 1v1 arena — tap FIND MATCH and you'll be paired with the next player also searching (usually within a few seconds).",
+      "Your equipped character/weapon/passive upgrades carry into the match — daily ammo limits don't apply in PvP, only magazine size.",
+      "Winning grants a small coin + ticket reward. There's no pause in PvP (it would desync the match), so make sure you're ready before queuing.",
+    ],
+  },
+  {
+    id: "currency",
+    label: "Currencies",
+    icon: "/assets/sprites/ui/coin_pop.svg",
+    title: "Currencies",
+    body: [
+      "Coin — earned from stage/farm clears, spent on weapons, upgrades, and Trade exchanges.",
+      "Diamond — premium currency, mainly spent on Gacha pulls.",
+      "Ticket — spent on story-attempt costs, revives, and some weapon unlocks; purchasable via top-up.",
+      "Green Banknote — earned from boss kills and stage milestones, the only currency that withdraws to real money.",
+    ],
   },
 ];
 
 export default function HomeClient({ player, characterSprite, characterName, equippedWeaponId, vipProgress, greenBanknoteBalance, unreadMailCount }: { player: Player; characterSprite: string; characterName: string; equippedWeaponId: string; vipProgress: VipProgress; greenBanknoteBalance: number; unreadMailCount: number }) {
   const [howToPlayOpen, setHowToPlayOpen] = useState(false);
+  const [howToPlayTopicId, setHowToPlayTopicId] = useState(HOW_TO_PLAY_TOPICS[0].id);
 
   // Warm the server-side sheet cache for the screens the player is most likely to
   // open next, so /play and /character render instantly off a warm cache instead
@@ -185,39 +348,62 @@ export default function HomeClient({ player, characterSprite, characterName, equ
         <span className="text-lg">❓</span> How to play?
       </button>
 
-      {howToPlayOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/80 flex items-center justify-center p-4"
-          onClick={() => setHowToPlayOpen(false)}
-        >
+      {howToPlayOpen && (() => {
+        const activeTopic = HOW_TO_PLAY_TOPICS.find((t) => t.id === howToPlayTopicId) ?? HOW_TO_PLAY_TOPICS[0];
+        return (
           <div
-            className="card-military max-w-lg w-full max-h-[85vh] overflow-y-auto p-5"
-            onClick={(e) => e.stopPropagation()}
+            className="fixed inset-0 z-30 bg-black/80 flex items-center justify-center p-4"
+            onClick={() => setHowToPlayOpen(false)}
           >
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-black text-military-tan uppercase tracking-widest">How to Play</h2>
-              <button
-                onClick={() => { sfx.play("ui_click"); setHowToPlayOpen(false); }}
-                className="text-military-steel hover:text-white text-xl leading-none"
-              >
-                ✕
-              </button>
-            </div>
-            <div className="space-y-4">
-              {HOW_TO_PLAY_SECTIONS.map((section) => (
-                <div key={section.title} className="flex gap-3 items-start">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={section.icon} alt="" className="w-10 h-10 object-contain flex-shrink-0 mt-0.5" />
-                  <div>
-                    <h3 className="text-sm font-bold text-military-gold uppercase tracking-wider">{section.title}</h3>
-                    <p className="text-xs text-military-steel mt-0.5">{section.body}</p>
-                  </div>
+            <div
+              className="card-military w-full max-w-3xl h-[85vh] flex flex-col p-0 overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between px-5 py-3 border-b border-military-steel flex-shrink-0">
+                <h2 className="text-lg font-black text-military-tan uppercase tracking-widest">How to Play</h2>
+                <button
+                  onClick={() => { sfx.play("ui_click"); setHowToPlayOpen(false); }}
+                  className="text-military-steel hover:text-white text-xl leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex flex-1 min-h-0">
+                {/* Topic list — click any topic to jump straight to its explanation. */}
+                <div className="w-40 sm:w-52 flex-shrink-0 border-r border-military-steel overflow-y-auto">
+                  {HOW_TO_PLAY_TOPICS.map((topic) => (
+                    <button
+                      key={topic.id}
+                      onClick={() => { sfx.play("ui_click"); setHowToPlayTopicId(topic.id); }}
+                      className={`w-full text-left px-3 py-2.5 text-xs border-b border-military-steel/40 flex items-center gap-2 ${
+                        topic.id === activeTopic.id ? "bg-military-dark text-military-gold font-bold" : "text-military-steel hover:text-white"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={topic.icon} alt="" className="w-5 h-5 object-contain flex-shrink-0" />
+                      <span className="leading-tight">{topic.label}</span>
+                    </button>
+                  ))}
                 </div>
-              ))}
+
+                <div className="flex-1 overflow-y-auto p-5">
+                  <div className="flex items-center gap-3 mb-3">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={activeTopic.icon} alt="" className="w-10 h-10 object-contain flex-shrink-0" />
+                    <h3 className="text-base font-bold text-military-gold uppercase tracking-wider">{activeTopic.title}</h3>
+                  </div>
+                  <ul className="space-y-2.5 list-disc list-inside">
+                    {activeTopic.body.map((line, i) => (
+                      <li key={i} className="text-sm text-military-steel leading-relaxed">{line}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

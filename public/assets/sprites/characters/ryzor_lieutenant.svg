@@ -46,9 +46,6 @@
   <ellipse cx="64" cy="48" rx="9" ry="4" fill="#100a08" opacity="0.65"></ellipse>
   <ellipse cx="61" cy="47" rx="2" ry="1" fill="#fff" opacity="0.45"></ellipse>
 
-  <rect x="60" y="4" width="8" height="30" rx="3" fill="url(#gun)" stroke="#050505" stroke-width="1.5"></rect>
-  <rect x="58" y="30" width="12" height="10" rx="2" fill="#3a3a3a"></rect>
-  <rect x="61" y="6" width="2" height="24" fill="#8a8a8a" opacity="0.5"></rect>
 
   <circle cx="38" cy="66" r="9" fill="url(#arm)" stroke="#0f1c26" stroke-width="1.5"></circle>
   <circle cx="90" cy="66" r="9" fill="url(#arm)" stroke="#0f1c26" stroke-width="1.5"></circle>

@@ -195,48 +195,55 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
     setPhase("idle");
   }
 
-  if (phase === "playing") {
-    return (
-      <div className="w-screen h-screen bg-military-darker flex items-center justify-center overflow-hidden">
-        <div id="pvp-container" ref={containerRef} className="w-full h-full" />
-      </div>
-    );
-  }
-
+  // v25 fix: the game container must ALWAYS be mounted, not just when
+  // phase === "playing" — startMatch() needs containerRef.current to exist
+  // the moment it finishes loading (while phase is still "loading"), but a
+  // conditionally-rendered div only appears on the render AFTER setPhase
+  // ("playing") already ran. That chicken-and-egg gap meant containerRef was
+  // always null, the `if (!containerRef.current) return;` guard always fired,
+  // and PvP got stuck on "Opponent found — loading match..." forever. Now the
+  // container is always in the DOM (empty until Phaser attaches to it) and
+  // the phase-specific menu/status UI is an overlay on top of it instead.
   return (
-    <div className="min-h-screen bg-military-darker flex items-center justify-center p-6">
-      <div className="card-military max-w-sm w-full text-center space-y-4">
-        <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">PvP Arena</h1>
-        <p className="text-military-steel text-sm">Playing as {username}</p>
+    <div className="w-screen h-screen bg-military-darker relative overflow-hidden">
+      <div id="pvp-container" ref={containerRef} className="w-full h-full" />
 
-        {phase === "idle" && (
-          <button onClick={findMatch} className="btn-gold w-full py-3">FIND MATCH</button>
-        )}
+      {phase !== "playing" && (
+        <div className="absolute inset-0 flex items-center justify-center p-6">
+          <div className="card-military max-w-sm w-full text-center space-y-4">
+            <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">PvP Arena</h1>
+            <p className="text-military-steel text-sm">Playing as {username}</p>
 
-        {phase === "searching" && (
-          <div className="space-y-3">
-            <div className="w-10 h-10 mx-auto border-2 border-military-steel border-t-military-tan rounded-full animate-spin" />
-            <p className="text-military-tan text-sm">Searching for an opponent...</p>
-            <button onClick={cancelSearch} className="btn-military w-full py-2 text-xs">CANCEL</button>
+            {phase === "idle" && (
+              <button onClick={findMatch} className="btn-gold w-full py-3">FIND MATCH</button>
+            )}
+
+            {phase === "searching" && (
+              <div className="space-y-3">
+                <div className="w-10 h-10 mx-auto border-2 border-military-steel border-t-military-tan rounded-full animate-spin" />
+                <p className="text-military-tan text-sm">Searching for an opponent...</p>
+                <button onClick={cancelSearch} className="btn-military w-full py-2 text-xs">CANCEL</button>
+              </div>
+            )}
+
+            {phase === "loading" && (
+              <div className="space-y-3">
+                <div className="w-10 h-10 mx-auto border-2 border-military-steel border-t-military-tan rounded-full animate-spin" />
+                <p className="text-military-tan text-sm">Opponent found — loading match...</p>
+              </div>
+            )}
+
+            {phase === "error" && (
+              <div className="space-y-3">
+                <p className="text-red-400 text-sm">{error}</p>
+                <button onClick={() => setPhase("idle")} className="btn-military w-full py-2 text-xs">TRY AGAIN</button>
+              </div>
+            )}
+
+            <button onClick={() => router.push("/home")} className="text-military-steel hover:text-white text-xs">← BACK TO HOME</button>
           </div>
-        )}
-
-        {phase === "loading" && (
-          <div className="space-y-3">
-            <div className="w-10 h-10 mx-auto border-2 border-military-steel border-t-military-tan rounded-full animate-spin" />
-            <p className="text-military-tan text-sm">Opponent found — loading match...</p>
-          </div>
-        )}
-
-        {phase === "error" && (
-          <div className="space-y-3">
-            <p className="text-red-400 text-sm">{error}</p>
-            <button onClick={() => setPhase("idle")} className="btn-military w-full py-2 text-xs">TRY AGAIN</button>
-          </div>
-        )}
-
-        <button onClick={() => router.push("/home")} className="text-military-steel hover:text-white text-xs">← BACK TO HOME</button>
-      </div>
+        </div>
+      )}
     </div>
   );
 }

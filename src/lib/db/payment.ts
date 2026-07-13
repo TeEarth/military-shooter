@@ -76,6 +76,21 @@ export async function getTransactionById(id: string): Promise<PaymentTransaction
   return data ? rowToTransaction(data) : null;
 }
 
+/** Top-up history for the Income page — newest first, capped at 50 rows so a
+ *  long-lived account's page load stays fast (this is a display list, not an
+ *  export/audit tool). */
+export async function getTransactionsForPlayer(playerId: string): Promise<PaymentTransaction[]> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase
+    .from(TABLE)
+    .select("*")
+    .eq("player_id", playerId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) throw new Error(`getTransactionsForPlayer: ${error.message}`);
+  return (data ?? []).map(rowToTransaction);
+}
+
 /**
  * Flips a transaction from pending to successful/failed — guarded by
  * `.eq("status", "pending")` so this can never run twice for the same

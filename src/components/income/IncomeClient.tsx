@@ -5,6 +5,7 @@ import Script from "next/script";
 import Link from "next/link";
 import type { PlayerIncomeRow, WithdrawalRequestRow } from "@/lib/db/income";
 import type { TicketTopUpRow } from "@/lib/google/topup";
+import type { PaymentTransaction } from "@/lib/db/payment";
 import { sfx } from "@/lib/sfx";
 
 interface Props {
@@ -12,6 +13,7 @@ interface Props {
   requests: WithdrawalRequestRow[];
   topUpPackages: TicketTopUpRow[];
   ticket: number;
+  transactions: PaymentTransaction[];
 }
 
 // Minimal shape of the global Omise.js puts on window — no official types
@@ -38,10 +40,11 @@ type TopUpPhase = "idle" | "choosing" | "card_form" | "qr_wait" | "processing";
 
 const POLL_INTERVAL_MS = 3000;
 
-export default function IncomeClient({ income: initialIncome, requests: initialRequests, topUpPackages, ticket: initialTicket }: Props) {
+export default function IncomeClient({ income: initialIncome, requests: initialRequests, topUpPackages, ticket: initialTicket, transactions: initialTransactions }: Props) {
   const [income, setIncome] = useState(initialIncome);
   const [requests, setRequests] = useState(initialRequests);
   const [ticket, setTicket] = useState(initialTicket);
+  const [transactions, setTransactions] = useState(initialTransactions);
   const [withdrawAmount, setWithdrawAmount] = useState("");
   const [truemoneyPhone, setTruemoneyPhone] = useState("");
   const [loading, setLoading] = useState(false);
@@ -64,6 +67,7 @@ export default function IncomeClient({ income: initialIncome, requests: initialR
         sfx.play("pickup_item");
         setTicket((t) => t + (activePackage?.ticketAmount ?? 0));
         setMessage(`+${activePackage?.ticketAmount} tickets — payment confirmed!`);
+        if (activePackage) recordTransaction(activePackage, "promptpay", "successful");
         closeTopUp();
       } else if (data.status === "failed") {
         clearInterval(timer);
@@ -74,6 +78,30 @@ export default function IncomeClient({ income: initialIncome, requests: initialR
     return () => clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [topUpPhase, transactionId]);
+
+  /** Optimistic history entry for a payment that just resolved client-side —
+   *  the charge route only returns transactionId/status/qrImageUrl (not the
+   *  full row), so this reconstructs a display-shaped row from data already
+   *  on hand rather than adding a round-trip just to re-fetch it. A page
+   *  reload would show the authoritative Supabase row regardless. */
+  function recordTransaction(pkg: TicketTopUpRow, method: PayMethod, status: "successful" | "failed") {
+    const now = new Date().toISOString();
+    setTransactions((prev) => [
+      {
+        id: `local-${now}`,
+        playerId: "",
+        packageId: pkg.id,
+        omiseChargeId: "",
+        amountSatang: Math.round(pkg.priceBaht * 100),
+        ticketAmount: pkg.ticketAmount,
+        paymentMethod: method,
+        status,
+        createdAt: now,
+        completedAt: now,
+      },
+      ...prev,
+    ]);
+  }
 
   function openTopUp(pkg: TicketTopUpRow) {
     sfx.play("ui_click");
@@ -152,6 +180,7 @@ export default function IncomeClient({ income: initialIncome, requests: initialR
             sfx.play("pickup_item");
             setTicket((t) => t + activePackage.ticketAmount);
             setMessage(`+${activePackage.ticketAmount} tickets — payment successful!`);
+            recordTransaction(activePackage, "card", "successful");
             closeTopUp();
           } else {
             setMessage(data.error ?? "Payment was not successful");
@@ -223,6 +252,28 @@ export default function IncomeClient({ income: initialIncome, requests: initialR
             {topUpPackages.length === 0 && <p className="text-military-steel text-xs col-span-3">No top-up packages configured yet.</p>}
           </div>
           <p className="text-xs text-military-steel mt-3">Paid via Omise — card or PromptPay.</p>
+
+          {transactions.length > 0 && (
+            <div className="mt-4 space-y-1">
+              <h3 className="text-xs text-military-steel uppercase tracking-wider">Top-up history</h3>
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {transactions.map((t) => (
+                  <div key={t.id} className="flex justify-between text-xs">
+                    <span>{new Date(t.createdAt).toLocaleDateString()}</span>
+                    <span>฿{(t.amountSatang / 100).toLocaleString()} → 🎟️ {t.ticketAmount}</span>
+                    <span className="text-military-steel uppercase">{t.paymentMethod}</span>
+                    <span
+                      className={
+                        t.status === "successful" ? "text-green-400" : t.status === "failed" ? "text-red-400" : "text-military-gold"
+                      }
+                    >
+                      {t.status.toUpperCase()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="card-military">
