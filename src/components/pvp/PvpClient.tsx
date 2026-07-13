@@ -195,30 +195,6 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
     setPhase("idle");
   }
 
-  /** v25: there was previously no way to leave an in-progress match — the
-   *  Back to Home / Cancel buttons only ever rendered in the pre-"playing"
-   *  overlay, which stops rendering entirely once phase is "playing". Beyond
-   *  just being a missing button, an abandoned match that's never explicitly
-   *  resolved stays "active" in the DB — getActiveMatchForPlayer now expires
-   *  those after 10 minutes on its own, but forfeiting immediately here means
-   *  leaving on purpose doesn't leave the match dangling (or an opponent
-   *  waiting) at all. Reports the OPPONENT as the winner — same as any other
-   *  forfeit. */
-  async function exitMatch() {
-    const matchId = gameRef.current?.registry.get("pvpMatchId") as string | undefined;
-    const opponentId = (gameRef.current?.registry.get("pvpOpponent") as { id: string } | undefined)?.id;
-    gameRef.current?.destroy(true);
-    gameRef.current = null;
-    if (matchId && opponentId) {
-      fetch("/api/pvp/match/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ matchId, winnerId: opponentId }),
-      }).catch(() => {});
-    }
-    router.push("/home");
-  }
-
   // v25 fix: the game container must ALWAYS be mounted, not just when
   // phase === "playing" — startMatch() needs containerRef.current to exist
   // the moment it finishes loading (while phase is still "loading"), but a
@@ -230,21 +206,11 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
   // the phase-specific menu/status UI is an overlay on top of it instead.
   return (
     <div className="w-screen h-screen bg-military-darker relative overflow-hidden">
+      {/* v25: EXIT now lives inside the Phaser HUD itself (HUDScene's
+          createExitButton), styled identically to the single-player PAUSE
+          button in the same corner/position — a plain DOM button here never
+          matched the rest of the in-game chrome. */}
       <div id="pvp-container" ref={containerRef} className="w-full h-full" />
-
-      {phase === "playing" && (
-        // v25: moved to top-right, offset below where HUDScene draws
-        // KILLS/SCORE in-canvas — top-left is HP/ammo and top-right (right at
-        // the very top) is KILLS/SCORE, so either corner's very top row was
-        // already spoken for. Restyled to match the game's other HUD chrome
-        // instead of a bare outlined rectangle.
-        <button
-          onClick={exitMatch}
-          className="absolute top-12 right-3 z-10 flex items-center gap-1.5 bg-military-darker/90 border border-military-steel hover:border-red-400 text-military-steel hover:text-red-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded shadow-lg backdrop-blur-sm transition-colors"
-        >
-          <span className="text-sm leading-none">✕</span> Exit
-        </button>
-      )}
 
       {phase !== "playing" && (
         <div className="absolute inset-0 flex items-center justify-center p-6">

@@ -108,6 +108,15 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
   // phase/state changes immediately instead of waiting them out.
   const pendingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pendingReveal = useRef<(() => void) | null>(null);
+  // v25 fix: the Skip button appears the instant phase becomes "capsule" —
+  // synchronously, before the /api/gacha/pull fetch has even been sent — but
+  // pendingReveal.current is only populated once that fetch resolves. Clicking
+  // Skip immediately (the natural instinct) landed in that gap and silently
+  // did nothing, so the animation played out in full anyway. This flag
+  // records "skip was requested" so the fetch-resolved handler can honor it
+  // the moment the real result is actually known, instead of the click just
+  // being lost.
+  const skipRequested = useRef(false);
 
   function clearPendingTimers() {
     pendingTimers.current.forEach(clearTimeout);
@@ -115,10 +124,14 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
   }
 
   function skipToReveal() {
-    if (!pendingReveal.current) return;
+    if (!pendingReveal.current) {
+      skipRequested.current = true;
+      return;
+    }
     clearPendingTimers();
     pendingReveal.current();
     pendingReveal.current = null;
+    skipRequested.current = false;
   }
 
   async function pull(poolId: string, currency: string) {
@@ -130,6 +143,7 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
     setPullMode("single");
     setActiveCurrency(currency);
     setPhase("capsule");
+    skipRequested.current = false;
     try {
       const res = await fetch("/api/gacha/pull", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -146,12 +160,20 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
           }
         };
         pendingReveal.current = applyReveal;
-        // Sequence: capsule falls from off-screen -> pops (sfx here) -> burst + item reveal.
-        pendingTimers.current.push(setTimeout(() => {
-          setPhase("pop");
-          sfx.play("gacha_reveal");
-        }, popDelayFor(1)));
-        pendingTimers.current.push(setTimeout(applyReveal, revealDelayFor(1)));
+        if (skipRequested.current) {
+          // Skip was clicked before the fetch resolved — honor it now instead
+          // of scheduling the animation timers at all.
+          skipRequested.current = false;
+          pendingReveal.current = null;
+          applyReveal();
+        } else {
+          // Sequence: capsule falls from off-screen -> pops (sfx here) -> burst + item reveal.
+          pendingTimers.current.push(setTimeout(() => {
+            setPhase("pop");
+            sfx.play("gacha_reveal");
+          }, popDelayFor(1)));
+          pendingTimers.current.push(setTimeout(applyReveal, revealDelayFor(1)));
+        }
       } else {
         setMessage(data.error);
         setPhase("idle");
@@ -173,6 +195,7 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
     setPullMode("multi");
     setActiveCurrency(currency);
     setPhase("capsule");
+    skipRequested.current = false;
     try {
       const res = await fetch("/api/gacha/pull-multi", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -189,11 +212,17 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
           }
         };
         pendingReveal.current = applyReveal;
-        pendingTimers.current.push(setTimeout(() => {
-          setPhase("pop");
-          sfx.play("gacha_reveal");
-        }, popDelayFor(MULTI_PULL_COUNT)));
-        pendingTimers.current.push(setTimeout(applyReveal, revealDelayFor(MULTI_PULL_COUNT)));
+        if (skipRequested.current) {
+          skipRequested.current = false;
+          pendingReveal.current = null;
+          applyReveal();
+        } else {
+          pendingTimers.current.push(setTimeout(() => {
+            setPhase("pop");
+            sfx.play("gacha_reveal");
+          }, popDelayFor(MULTI_PULL_COUNT)));
+          pendingTimers.current.push(setTimeout(applyReveal, revealDelayFor(MULTI_PULL_COUNT)));
+        }
       } else {
         setMessage(data.error);
         setPhase("idle");

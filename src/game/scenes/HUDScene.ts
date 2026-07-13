@@ -124,10 +124,14 @@ export class HUDScene extends Phaser.Scene {
     }).setOrigin(1, 0);
 
     // PvP has no pause (would desync the live match against the opponent) and
-    // no daily-ammo economy, so neither button applies there.
+    // no daily-ammo economy, so neither button applies there — an EXIT button
+    // takes the exact same slot instead (see v25's createExitButton, styled
+    // identically to createPauseButton per the user's request to match it).
     if (!this.isPvp) {
       this.createPauseButton(width);
       this.createRefillButton(width);
+    } else {
+      this.createExitButton(width);
     }
     this.createReloadButton(width, height);
 
@@ -189,6 +193,29 @@ export class HUDScene extends Phaser.Scene {
       sfx.play("ui_click");
       const gameScene = this.scene.get("GameScene") as Phaser.Scene & { pauseGame: () => void };
       gameScene.pauseGame();
+    });
+    btn.on("pointerover", () => btn.setColor("#f3c98a"));
+    btn.on("pointerout", () => btn.setColor("#c5a97d"));
+  }
+
+  /** v25: PvP's equivalent of the PAUSE button above — same position/style,
+   *  same font, same hover behavior, just labeled EXIT and forfeiting the
+   *  match instead of pausing (PvP has no pause, see the isPvp branch in
+   *  create()). Replaces the earlier plain DOM/React button, which didn't
+   *  match the rest of the in-game HUD's look at all. */
+  private createExitButton(width: number) {
+    const btn = this.add.text(width - 10, 50, "✕ EXIT", {
+      fontFamily: "Orbitron, monospace",
+      fontSize: "12px",
+      color: "#c5a97d",
+      backgroundColor: "#1a1a2e",
+      padding: { x: 8, y: 4 },
+    }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+
+    btn.on("pointerdown", () => {
+      sfx.play("ui_click");
+      const pvpScene = this.scene.get("PvpScene") as Phaser.Scene & { exitMatch: () => void };
+      pvpScene.exitMatch();
     });
     btn.on("pointerover", () => btn.setColor("#f3c98a"));
     btn.on("pointerout", () => btn.setColor("#c5a97d"));

@@ -347,4 +347,26 @@ export class PvpScene extends Phaser.Scene {
     // PvP has no pause (would desync the match) — no-op so the HUD's pause
     // button doesn't error if tapped.
   }
+
+  /** v25: EXIT button (HUDScene's createExitButton) — forfeits the match
+   *  (reports the opponent as winner, same as any other loss) and leaves.
+   *  Uses a full navigation rather than React's router so the whole page
+   *  (and every bit of Phaser/game state) tears down cleanly, same as
+   *  GameOverScene's own HOME button. */
+  exitMatch() {
+    if (this.matchEnded) {
+      window.location.href = "/home";
+      return;
+    }
+    this.matchEnded = true;
+    fetch("/api/pvp/match/complete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ matchId: this.matchId, winnerId: this.opponent.id }),
+    })
+      .catch(() => {})
+      .finally(() => {
+        window.location.href = "/home";
+      });
+  }
 }
