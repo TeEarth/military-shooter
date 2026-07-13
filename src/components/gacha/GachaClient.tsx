@@ -303,7 +303,7 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
 
         {phase !== "idle" && (
           <div
-            className="gacha-anim-overlay fixed inset-0 z-[100] bg-black/88 flex items-center justify-center overflow-hidden"
+            className="gacha-anim-overlay fixed inset-0 z-[100] bg-black/90 flex items-center justify-center overflow-hidden"
             onClick={() => phase === "reveal" && closeReveal()}
           >
             {/* Faint sky-glow behind the falling capsules, purely atmospheric. */}

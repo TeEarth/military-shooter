@@ -27,6 +27,11 @@ export class RemotePlayer {
   private hpBar: Phaser.GameObjects.Graphics;
   private nameText: Phaser.GameObjects.Text;
   private muzzleFlash: Phaser.GameObjects.Arc;
+  /** v25: dying just faded the sprite to 30% alpha, which against grass/rock
+   *  backgrounds read as "the opponent just vanished" rather than "they
+   *  died" — this label makes the state unambiguous instead of looking like
+   *  a rendering glitch. */
+  private defeatedText: Phaser.GameObjects.Text;
 
   hp = 100;
   maxHp = 100;
@@ -66,6 +71,10 @@ export class RemotePlayer {
     }).setOrigin(0.5).setDepth(21);
 
     this.muzzleFlash = scene.add.circle(x, y, 6, 0xffdd55, 0.9).setDepth(12).setVisible(false);
+
+    this.defeatedText = scene.add.text(x, y, "DEFEATED", {
+      fontFamily: "Orbitron, monospace", fontSize: "13px", color: "#ff4444", fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(22).setVisible(false);
 
     this.updateHpBar();
   }
@@ -107,6 +116,7 @@ export class RemotePlayer {
     }
 
     this.nameText.setPosition(snap.x, snap.y - 44);
+    this.defeatedText.setPosition(snap.x, snap.y - 28).setVisible(this.isDead);
     this.muzzleFlash.setPosition(snap.x + Math.cos(snap.rotation - Math.PI / 2) * 20, snap.y + Math.sin(snap.rotation - Math.PI / 2) * 20);
 
     // Cosmetic-only muzzle flash on the rising edge of "firing" — no real
@@ -138,5 +148,6 @@ export class RemotePlayer {
     this.hpBar.destroy();
     this.nameText.destroy();
     this.muzzleFlash.destroy();
+    this.defeatedText.destroy();
   }
 }

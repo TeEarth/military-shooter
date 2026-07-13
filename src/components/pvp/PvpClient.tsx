@@ -233,11 +233,16 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
       <div id="pvp-container" ref={containerRef} className="w-full h-full" />
 
       {phase === "playing" && (
+        // v25: moved to top-right, offset below where HUDScene draws
+        // KILLS/SCORE in-canvas — top-left is HP/ammo and top-right (right at
+        // the very top) is KILLS/SCORE, so either corner's very top row was
+        // already spoken for. Restyled to match the game's other HUD chrome
+        // instead of a bare outlined rectangle.
         <button
           onClick={exitMatch}
-          className="absolute top-2 left-2 z-10 bg-military-darker/80 border border-military-steel text-military-steel hover:text-white text-xs px-3 py-1.5"
+          className="absolute top-12 right-3 z-10 flex items-center gap-1.5 bg-military-darker/90 border border-military-steel hover:border-red-400 text-military-steel hover:text-red-400 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded shadow-lg backdrop-blur-sm transition-colors"
         >
-          ✕ EXIT
+          <span className="text-sm leading-none">✕</span> Exit
         </button>
       )}
 
