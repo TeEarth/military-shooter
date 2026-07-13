@@ -103,6 +103,16 @@ export class RemotePlayer {
     this.maxHp = snap.maxHp;
     this.isDead = snap.isDead;
 
+    // TEMP DEBUG (v25): remove once the "opponent vanishes on hit" root cause
+    // is confirmed. Logs the exact render state every snapshot so we can see
+    // what actually changes at the instant it disappears.
+    console.log("[RP-DEBUG]", {
+      hp: this.hp, maxHp: this.maxHp, isDead: this.isDead,
+      spriteVisible: this.sprite.visible, spriteAlpha: this.sprite.alpha,
+      textureKey: this.sprite.texture?.key, active: this.sprite.active,
+      x: Math.round(snap.x), y: Math.round(snap.y),
+    });
+
     this.sprite.setPosition(snap.x, snap.y);
     this.sprite.setRotation(snap.rotation);
     this.sprite.setAlpha(this.isDead ? 0.3 : 1);

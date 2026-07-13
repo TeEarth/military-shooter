@@ -188,6 +188,8 @@ export class PvpScene extends Phaser.Scene {
     const explosionRadius = Number(bullet.getData("explosionRadius") ?? PLAYER_CONFIG.aoeRadius);
     const impactX = bullet.x;
     const impactY = bullet.y;
+    // TEMP DEBUG (v25): remove once root cause confirmed.
+    console.log("[HIT-DEBUG]", { damage, isMiss, isAoe, weaponId: this.registry.get("weaponId"), spriteVisibleBefore: this.remotePlayer.sprite.visible });
     bullet.destroy();
 
     if (isAoe) {
