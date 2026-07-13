@@ -197,13 +197,25 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
 
   /** v25: there was previously no way to leave an in-progress match — the
    *  Back to Home / Cancel buttons only ever rendered in the pre-"playing"
-   *  overlay, which stops rendering entirely once phase is "playing". This
-   *  tears down the Phaser game directly and navigates home; the match row
-   *  itself is left "active" (the opponent's own win/loss detection or a
-   *  future timeout is what resolves it), same as any other disconnect. */
-  function exitMatch() {
+   *  overlay, which stops rendering entirely once phase is "playing". Beyond
+   *  just being a missing button, an abandoned match that's never explicitly
+   *  resolved stays "active" in the DB — getActiveMatchForPlayer now expires
+   *  those after 10 minutes on its own, but forfeiting immediately here means
+   *  leaving on purpose doesn't leave the match dangling (or an opponent
+   *  waiting) at all. Reports the OPPONENT as the winner — same as any other
+   *  forfeit. */
+  async function exitMatch() {
+    const matchId = gameRef.current?.registry.get("pvpMatchId") as string | undefined;
+    const opponentId = (gameRef.current?.registry.get("pvpOpponent") as { id: string } | undefined)?.id;
     gameRef.current?.destroy(true);
     gameRef.current = null;
+    if (matchId && opponentId) {
+      fetch("/api/pvp/match/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ matchId, winnerId: opponentId }),
+      }).catch(() => {});
+    }
     router.push("/home");
   }
 

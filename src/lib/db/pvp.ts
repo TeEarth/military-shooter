@@ -79,6 +79,19 @@ export async function leaveQueue(playerId: string): Promise<void> {
   if (error) throw new Error(`leaveQueue: ${error.message}`);
 }
 
+// v25 fix: confirmed live (via two real accounts) that a match abandoned by
+// either side — tab closed, connection dropped, or just navigating away —
+// stays "active" forever, since nothing ever calls completeMatch() for it.
+// getActiveMatchForPlayer kept handing that same dead match back to either
+// original participant on every future joinQueue call, permanently blocking
+// them from ever being paired with anyone else again — the "opponent doesn't
+// respond" symptom was really "you're matched against a session that isn't
+// there anymore," not a sync bug in the live match itself. Anything still
+// "active" past this window is almost certainly abandoned, not a genuinely
+// ongoing match, so it's treated as stale and closed out here instead of
+// being returned.
+const STALE_MATCH_MS = 10 * 60 * 1000;
+
 export async function getActiveMatchForPlayer(playerId: string): Promise<PvpMatch | null> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase
@@ -90,7 +103,14 @@ export async function getActiveMatchForPlayer(playerId: string): Promise<PvpMatc
     .limit(1)
     .maybeSingle();
   if (error) throw new Error(`getActiveMatchForPlayer: ${error.message}`);
-  return data ? rowToMatch(data) : null;
+  if (!data) return null;
+
+  const match = rowToMatch(data);
+  if (Date.now() - new Date(match.createdAt).getTime() > STALE_MATCH_MS) {
+    await supabase.from(MATCH_TABLE).update({ status: "done" }).eq("id", match.id).eq("status", "active");
+    return null;
+  }
+  return match;
 }
 
 export async function getMatchById(matchId: string): Promise<PvpMatch | null> {
