@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { RealtimeChannel } from "@supabase/supabase-js";
 import { getBrowserSupabaseClient } from "@/lib/supabase/browserClient";
 import { getControlScheme } from "@/lib/controlScheme";
 
@@ -27,8 +28,27 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
   // response, once from the Realtime notification racing in right after).
   const handledMatchId = useRef<string | null>(null);
 
+  // Live handles for the search-phase poll/subscription, so cancelSearch (and
+  // unmount) can actually tear them down — without this, cancelling would
+  // leave the poll running, which now re-POSTs into the queue every tick and
+  // would silently un-cancel the player a few seconds later.
+  const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const channelRef = useRef<RealtimeChannel | null>(null);
+
+  function stopSearching() {
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+    if (channelRef.current) {
+      getBrowserSupabaseClient().removeChannel(channelRef.current);
+      channelRef.current = null;
+    }
+  }
+
   useEffect(() => {
     return () => {
+      stopSearching();
       gameRef.current?.destroy(true);
       gameRef.current = null;
     };
@@ -142,23 +162,27 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
           startMatch((payload.new as PvpMatch).id);
         })
         .subscribe();
+      channelRef.current = channel;
 
-      // Covers the race where a match was created between the POST above and
-      // the subscription actually going live.
-      const pollTimer = setInterval(async () => {
-        const check = await fetch("/api/pvp/queue").then((r) => r.json());
+      // Covers two races: (1) a match was created between the POST above and
+      // the subscription actually going live, and (2) joinQueue's own
+      // check-then-act race — if two players call POST /api/pvp/queue within
+      // the same instant, both can see "nobody waiting" before either insert
+      // commits, so both just sit in the queue forever with no match ever
+      // created. Re-POSTing (not just GETting) on every tick is what recovers
+      // from that: joinQueue() is idempotent for an already-matched or
+      // still-waiting player, and by the next tick the other player's row
+      // will actually be visible, so this pairs them. Stored in a ref (not a
+      // local closure return value) so cancelSearch/unmount can actually stop
+      // it — a plain onClick handler's return value is never awaited as a
+      // cleanup function the way a useEffect's is.
+      pollTimerRef.current = setInterval(async () => {
+        const check = await fetch("/api/pvp/queue", { method: "POST" }).then((r) => r.json());
         if (check.match) {
-          clearInterval(pollTimer);
-          supabase.removeChannel(channel);
+          stopSearching();
           await startMatch(check.match.id);
         }
       }, 3000);
-
-      // Cleanup if the component unmounts while still searching.
-      return () => {
-        clearInterval(pollTimer);
-        supabase.removeChannel(channel);
-      };
     } catch (e) {
       setError((e as Error).message);
       setPhase("error");
@@ -166,6 +190,7 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
   }
 
   async function cancelSearch() {
+    stopSearching();
     await fetch("/api/pvp/queue", { method: "DELETE" }).catch(() => {});
     setPhase("idle");
   }

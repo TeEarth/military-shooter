@@ -79,8 +79,33 @@ export class GameOverScene extends Phaser.Scene {
         .on("pointerout", function(this: Phaser.GameObjects.Text) { this.setColor("#2d5a27"); });
     }
 
+    // v24: cleared a regular story stage (not farm, not a boss encounter) —
+    // offer a direct "NEXT STAGE" instead of forcing a trip back through the
+    // Home menu every single time. Stage ids are always "stageNN", so the
+    // next one is just that number +1 — if it turns out to be locked (e.g.
+    // the next multiverse needs its boss cleared first), /game's own existing
+    // "not unlocked" handling takes over exactly like navigating there any
+    // other way would.
+    const isBossStage = data.stageId.startsWith("boss_");
+    const nextStageMatch = data.stageId.match(/^stage(\d+)$/);
+    const showNext = data.completed && !data.isFarmStage && !isBossStage && nextStageMatch !== null;
+    const nextStageId = nextStageMatch ? `stage${String(Number(nextStageMatch[1]) + 1).padStart(2, "0")}` : null;
+
+    if (showNext && nextStageId) {
+      this.add.text(width / 2 - 90, height / 2 + 80, "[ NEXT STAGE ]", {
+        fontFamily: "Orbitron, monospace",
+        fontSize: "20px",
+        color: "#2d5a27",
+      }).setOrigin(0.5).setInteractive({ useHandCursor: true })
+        .on("pointerdown", () => {
+          window.location.href = `/game?stage=${nextStageId}`;
+        })
+        .on("pointerover", function(this: Phaser.GameObjects.Text) { this.setColor("#f39c12"); })
+        .on("pointerout", function(this: Phaser.GameObjects.Text) { this.setColor("#2d5a27"); });
+    }
+
     // Home button
-    this.add.text(data.completed ? width / 2 : width / 2 + 80, height / 2 + 80, "[ HOME ]", {
+    this.add.text(showNext ? width / 2 + 90 : data.completed ? width / 2 : width / 2 + 80, height / 2 + 80, "[ HOME ]", {
       fontFamily: "Orbitron, monospace",
       fontSize: "20px",
       color: "#4a4e69",

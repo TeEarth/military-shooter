@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import CurrencyBar from "@/components/ui/CurrencyBar";
 import { sfx } from "@/lib/sfx";
@@ -37,7 +37,32 @@ const MENU_ITEMS = [
   { href: "/settings", label: "SETTINGS", icon: "⚙️" },
 ];
 
+const HOW_TO_PLAY_SECTIONS = [
+  {
+    title: "Move & Aim",
+    icon: "/assets/sprites/characters/soldier_player.svg",
+    body: "Drag the left stick to move. On Layout 2 the right stick both aims and fires; on Layout 1 just tap where you want to shoot.",
+  },
+  {
+    title: "Take Cover",
+    icon: "/assets/sprites/tilemap/cover_sandbag.svg",
+    body: "Stand behind trees, sandbags, and crates — bullets can't pass through them. Standing still near a tree for a moment hides you from enemies.",
+  },
+  {
+    title: "Farm Stages",
+    icon: "/assets/sprites/tilemap/cover_crate.svg",
+    body: "Survive endless waves for coins. Enemy types unlock as your wave climbs, and your best wave reached unlocks weapons like the Rasor Gun.",
+  },
+  {
+    title: "Boss Fights",
+    icon: "/assets/sprites/weapons/gatling.svg",
+    body: "Every Multiverse ends in a boss with a huge HP bar and no cover on the field — bring your best weapon and watch the summoned minions.",
+  },
+];
+
 export default function HomeClient({ player, characterSprite, characterName, equippedWeaponId, vipProgress, greenBanknoteBalance, unreadMailCount }: { player: Player; characterSprite: string; characterName: string; equippedWeaponId: string; vipProgress: VipProgress; greenBanknoteBalance: number; unreadMailCount: number }) {
+  const [howToPlayOpen, setHowToPlayOpen] = useState(false);
+
   // Warm the server-side sheet cache for the screens the player is most likely to
   // open next, so /play and /character render instantly off a warm cache instead
   // of triggering a fresh Google Sheets read on click.
@@ -101,14 +126,21 @@ export default function HomeClient({ player, characterSprite, characterName, equ
                   className="w-48 h-48 object-contain"
                   style={{ filter: "drop-shadow(0 0 24px rgba(197,169,125,0.4))" }}
                 />
-                {/* v10 #3: shows the currently equipped weapon in-hand, matching in-game */}
+                {/* v10 #3 / v24 fix: weapon shown in-hand, matching in-game — anchored
+                 *  at roughly the character's grip/hand height (66% down) with the
+                 *  image's OWN grip point (72% down its own height, same 0.5/0.7
+                 *  origin convention Player.ts uses in the real game) pinned there via
+                 *  transform, instead of an untransformed top-left corner. The old
+                 *  fixed top:18% put the top of every weapon sprite at head height,
+                 *  which read as a stick poking out of the character's skull for any
+                 *  long-barreled weapon (sniper, rasor gun, etc). */}
                 {equippedWeaponId && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={getWeaponSprite(equippedWeaponId)}
                     alt=""
                     className="absolute w-14 h-24 object-contain pointer-events-none"
-                    style={{ left: "58%", top: "18%" }}
+                    style={{ left: "58%", top: "66%", transform: "translate(-50%, -75%)" }}
                   />
                 )}
               </div>
@@ -143,6 +175,49 @@ export default function HomeClient({ player, characterSprite, characterName, equ
           </div>
         </div>
       </div>
+
+      {/* v24: "How to play?" — a quick reference for new players, tucked out of the
+          way bottom-right so it never competes with the main menu grid. */}
+      <button
+        onClick={() => { sfx.play("ui_click"); setHowToPlayOpen(true); }}
+        className="fixed bottom-4 right-4 z-20 card-military card-themed-glow px-4 py-2 flex items-center gap-2 text-sm font-bold text-military-tan hover:text-white"
+      >
+        <span className="text-lg">❓</span> How to play?
+      </button>
+
+      {howToPlayOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/80 flex items-center justify-center p-4"
+          onClick={() => setHowToPlayOpen(false)}
+        >
+          <div
+            className="card-military max-w-lg w-full max-h-[85vh] overflow-y-auto p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-black text-military-tan uppercase tracking-widest">How to Play</h2>
+              <button
+                onClick={() => { sfx.play("ui_click"); setHowToPlayOpen(false); }}
+                className="text-military-steel hover:text-white text-xl leading-none"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-4">
+              {HOW_TO_PLAY_SECTIONS.map((section) => (
+                <div key={section.title} className="flex gap-3 items-start">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={section.icon} alt="" className="w-10 h-10 object-contain flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h3 className="text-sm font-bold text-military-gold uppercase tracking-wider">{section.title}</h3>
+                    <p className="text-xs text-military-steel mt-0.5">{section.body}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

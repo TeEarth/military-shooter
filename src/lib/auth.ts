@@ -8,6 +8,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      // v24: Auth.js's default Google provider does live OIDC discovery on
+      // EVERY sign-in attempt (a fetch to accounts.google.com/.well-known/
+      // openid-configuration inside getAuthorizationUrl) — that fetch was
+      // throwing consistently in this Vercel deployment (confirmed via the
+      // server log stack trace, which dies inside that exact function) and
+      // Auth.js masks any non-whitelisted thrown error as a generic
+      // "Configuration" page, which is what was showing up. Supplying the
+      // authorization URL directly skips discovery entirely — these are
+      // Google's own stable, publicly documented OAuth 2.0 endpoints, not
+      // going to change.
+      authorization: {
+        url: "https://accounts.google.com/o/oauth2/v2/auth",
+        params: { scope: "openid email profile" },
+      },
+      token: "https://oauth2.googleapis.com/token",
+      userinfo: "https://openidconnect.googleapis.com/v1/userinfo",
     }),
     CredentialsProvider({
       name: "Email",
@@ -72,8 +88,4 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // domains — same as this project's `/api/auth/[...nextauth]` route already
   // trusting the platform-provided host.
   trustHost: true,
-  // v24 TEMP: surfaces the real underlying "Configuration" error in server
-  // logs instead of the generic sanitized one the client sees — remove once
-  // the Google sign-in issue is diagnosed.
-  debug: true,
 });

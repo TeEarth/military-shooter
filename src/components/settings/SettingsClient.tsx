@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { sfx } from "@/lib/sfx";
-import { useLanguage } from "@/lib/i18n";
 import { getControlScheme, setControlScheme, type ControlScheme } from "@/lib/controlScheme";
 
 interface Props {
@@ -24,7 +23,6 @@ const VOLUME_KEY = "sfx_volume";
 export default function SettingsClient({ username, ticket, vipLevel, coin, diamond, greenBanknote, heroNames, currentStage, farmStageMaxWave }: Props) {
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(0.6);
-  const { language, setLanguage } = useLanguage();
   const [controlScheme, setControlSchemeState] = useState<ControlScheme>("joystick");
 
   // Restore + apply the saved audio preference on mount — sfx itself defaults
@@ -141,23 +139,6 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
           </div>
         </div>
 
-        <div className="card-military">
-          <h2 className="font-bold text-military-tan mb-2 uppercase tracking-wider">Language</h2>
-          <div className="flex gap-2">
-            <button
-              onClick={() => { sfx.play("ui_click"); setLanguage("en"); }}
-              className={language === "en" ? "btn-military text-xs" : "border border-military-steel text-xs px-3 py-1 text-military-steel"}
-            >
-              English
-            </button>
-            <button
-              onClick={() => { sfx.play("ui_click"); setLanguage("th"); }}
-              className={language === "th" ? "btn-military text-xs" : "border border-military-steel text-xs px-3 py-1 text-military-steel"}
-            >
-              ภาษาไทย
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

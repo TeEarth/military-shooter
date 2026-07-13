@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import type { GachaConfigRow, GachaPullResult } from "@/lib/google/gacha";
 import type { Rarity } from "@/lib/google/inventory";
@@ -102,6 +102,25 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
   // beat) so the capsule/pop phases know to render 10 capsules, not 1.
   const [pullMode, setPullMode] = useState<"single" | "multi">("single");
 
+  // v24: SKIP button — the pull's real result is already known the moment the
+  // fetch resolves, well before the fall/pop animation finishes playing; skip
+  // just cancels the two pending setTimeouts and applies the same
+  // phase/state changes immediately instead of waiting them out.
+  const pendingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const pendingReveal = useRef<(() => void) | null>(null);
+
+  function clearPendingTimers() {
+    pendingTimers.current.forEach(clearTimeout);
+    pendingTimers.current = [];
+  }
+
+  function skipToReveal() {
+    if (!pendingReveal.current) return;
+    clearPendingTimers();
+    pendingReveal.current();
+    pendingReveal.current = null;
+  }
+
   async function pull(poolId: string, currency: string) {
     if (loading) return;
     sfx.play("ui_click");
@@ -118,19 +137,21 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
       });
       const data = await res.json();
       if (data.success) {
-        // Sequence: capsule falls from off-screen -> pops (sfx here) -> burst + item reveal.
-        setTimeout(() => {
-          setPhase("pop");
-          sfx.play("gacha_reveal");
-        }, popDelayFor(1));
-        setTimeout(() => {
+        const applyReveal = () => {
           setPhase("reveal");
           setLastResult(data.result);
           if (data.updatedPlayer) {
             setDiamond(data.updatedPlayer.diamond);
             setTicket(data.updatedPlayer.ticket);
           }
-        }, revealDelayFor(1));
+        };
+        pendingReveal.current = applyReveal;
+        // Sequence: capsule falls from off-screen -> pops (sfx here) -> burst + item reveal.
+        pendingTimers.current.push(setTimeout(() => {
+          setPhase("pop");
+          sfx.play("gacha_reveal");
+        }, popDelayFor(1)));
+        pendingTimers.current.push(setTimeout(applyReveal, revealDelayFor(1)));
       } else {
         setMessage(data.error);
         setPhase("idle");
@@ -159,18 +180,20 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
       });
       const data = await res.json();
       if (data.success) {
-        setTimeout(() => {
-          setPhase("pop");
-          sfx.play("gacha_reveal");
-        }, popDelayFor(MULTI_PULL_COUNT));
-        setTimeout(() => {
+        const applyReveal = () => {
           setPhase("reveal");
           setMultiResults(data.results);
           if (data.updatedPlayer) {
             setDiamond(data.updatedPlayer.diamond);
             setTicket(data.updatedPlayer.ticket);
           }
-        }, revealDelayFor(MULTI_PULL_COUNT));
+        };
+        pendingReveal.current = applyReveal;
+        pendingTimers.current.push(setTimeout(() => {
+          setPhase("pop");
+          sfx.play("gacha_reveal");
+        }, popDelayFor(MULTI_PULL_COUNT)));
+        pendingTimers.current.push(setTimeout(applyReveal, revealDelayFor(MULTI_PULL_COUNT)));
       } else {
         setMessage(data.error);
         setPhase("idle");
@@ -288,6 +311,15 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
               className="absolute inset-0 pointer-events-none"
               style={{ background: "radial-gradient(ellipse at 50% -10%, rgba(197,169,125,0.18), transparent 60%)" }}
             />
+
+            {(phase === "capsule" || phase === "pop") && (
+              <button
+                onClick={(e) => { e.stopPropagation(); skipToReveal(); }}
+                className="absolute top-6 right-6 z-10 text-military-steel hover:text-white text-xs border border-military-steel hover:border-military-tan px-3 py-1.5 rounded uppercase tracking-wider"
+              >
+                Skip ▸▸
+              </button>
+            )}
 
             {phase === "capsule" && (
               <div className="absolute inset-0">

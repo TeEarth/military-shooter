@@ -1,10 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext } from "react";
 
 export type Language = "en" | "th";
-
-const STORAGE_KEY = "app_language";
 
 interface LanguageContextValue {
   language: Language;
@@ -16,21 +14,14 @@ const LanguageContext = createContext<LanguageContextValue>({
   setLanguage: () => {},
 });
 
-/** Defaults to English; only ever becomes Thai if the player explicitly
- *  switched it in Settings (persisted in localStorage) — per the request
- *  that pages like Inventory must not silently default to Thai anymore. */
+/** v24: Thai support only ever covered the Inventory page (every other page
+ *  is English-only), which read as a broken/half-translated toggle — the
+ *  Settings switcher was removed, and this now always stays "en" (ignoring
+ *  any "th" a player switched to before that removal) rather than leaving a
+ *  dead code path that could still show a half-translated app. */
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("en");
-
-  useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === "th" || saved === "en") setLanguageState(saved);
-  }, []);
-
-  const setLanguage = useCallback((lang: Language) => {
-    setLanguageState(lang);
-    localStorage.setItem(STORAGE_KEY, lang);
-  }, []);
+  const language: Language = "en";
+  const setLanguage = useCallback(() => {}, []);
 
   return <LanguageContext.Provider value={{ language, setLanguage }}>{children}</LanguageContext.Provider>;
 }

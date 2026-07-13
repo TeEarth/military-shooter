@@ -361,14 +361,15 @@ export default function CharacterHubClient(props: Props) {
                   className="w-32 h-32 object-contain"
                   style={{ filter: `drop-shadow(0 0 14px ${(CHARACTER_THEME[selectedCharacter.id] ?? DEFAULT_THEME).glow})` }}
                 />
-                {/* v10 #3: preview shows the currently equipped weapon in-hand, matching in-game */}
+                {/* v10 #3 / v24 fix: same grip-anchored positioning fix as HomeClient —
+                 *  see its comment for why (was reading as a stick out of the head). */}
                 {equippedWeaponId && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={getWeaponSprite(equippedWeaponId)}
                     alt=""
                     className="absolute w-10 h-16 object-contain pointer-events-none"
-                    style={{ left: "58%", top: "18%" }}
+                    style={{ left: "58%", top: "66%", transform: "translate(-50%, -75%)" }}
                   />
                 )}
               </div>
