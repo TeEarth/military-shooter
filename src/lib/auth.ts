@@ -72,4 +72,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   // domains — same as this project's `/api/auth/[...nextauth]` route already
   // trusting the platform-provided host.
   trustHost: true,
+  // v24 TEMP: surfaces the real underlying "Configuration" error in server
+  // logs instead of the generic sanitized one the client sees — remove once
+  // the Google sign-in issue is diagnosed.
+  debug: true,
 });
