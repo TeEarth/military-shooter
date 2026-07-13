@@ -597,6 +597,17 @@ export class GameScene extends Phaser.Scene {
   private handlePlayerDeath() {
     if (!this.reviveUsedThisGame) {
       this.awaitingRevive = true;
+      // v25 fix: awaitingRevive only short-circuits THIS scene's own update()
+      // loop (enemy AI, movement) — Phaser's Arcade physics step keeps
+      // integrating velocity every frame regardless, so every enemy (and any
+      // bullet already in flight) kept sliding along whatever velocity it had
+      // at the moment of death for the whole time the revive prompt was up.
+      // By the time the player revived, enemies had silently drifted to
+      // positions that never matched what was on screen a second earlier.
+      // physics.pause() freezes the entire physics world (bodies AND
+      // in-flight bullets), which is what the screen already looked like it
+      // was doing.
+      this.physics.pause();
       this.time.delayedCall(600, () => this.showRevivePrompt());
     } else {
       this.time.delayedCall(1500, () => this.endStage(false));
@@ -633,6 +644,7 @@ export class GameScene extends Phaser.Scene {
           this.reviveUsedThisGame = true;
           this.player.revive();
           this.awaitingRevive = false;
+          this.physics.resume();
           cleanup();
         } else {
           sub.setText(data.error ?? "Not enough tickets");

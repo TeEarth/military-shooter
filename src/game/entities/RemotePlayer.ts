@@ -106,6 +106,7 @@ export class RemotePlayer {
     this.sprite.setPosition(snap.x, snap.y);
     this.sprite.setRotation(snap.rotation);
     this.sprite.setAlpha(this.isDead ? 0.3 : 1);
+    this.sprite.setVisible(true); // defensive — nothing should ever hide this outright, but never silently stay invisible if something does
     (this.sprite.body as Phaser.Physics.Arcade.Body).enable = !this.isDead;
 
     this.ensureWeaponSprite(snap.weaponId, failedAssetKeys);

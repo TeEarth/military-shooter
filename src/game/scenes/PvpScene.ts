@@ -120,7 +120,15 @@ export class PvpScene extends Phaser.Scene {
 
     this.events.on("lob-detonate", (data: { x: number; y: number; damage: number; explosionRadius: number }) => {
       sfx.play("explosion");
-      this.add.circle(data.x, data.y, data.explosionRadius, 0xff8800, 0.35).setDepth(15);
+      // v25 fix: this circle was never stored/cleaned up — unlike GameScene's
+      // identical effect (which fades it out and destroys it after 300ms),
+      // this one was a permanent decal. Repeated AOE shots near the same
+      // spot (very likely once the opponent is cornered/stationary) stacked
+      // dozens of these translucent orange circles on top of each other,
+      // and the compounding opacity eventually buried the character
+      // underneath completely — exactly the "character disappears" report.
+      const explosion = this.add.circle(data.x, data.y, data.explosionRadius, 0xff8800, 0.35).setDepth(15);
+      this.tweens.add({ targets: explosion, alpha: 0, scale: 1.3, duration: 300, onComplete: () => explosion.destroy() });
       const dist = Phaser.Math.Distance.Between(data.x, data.y, this.remotePlayer.sprite.x, this.remotePlayer.sprite.y);
       if (dist <= data.explosionRadius && data.damage > 0) {
         this.reportHit(data.damage);
@@ -184,7 +192,10 @@ export class PvpScene extends Phaser.Scene {
 
     if (isAoe) {
       sfx.play("explosion");
-      this.add.circle(impactX, impactY, explosionRadius, 0xff8800, 0.35).setDepth(15);
+      // v25 fix: see the identical fix on the lob-detonate handler above —
+      // this circle was never cleaned up either.
+      const explosion = this.add.circle(impactX, impactY, explosionRadius, 0xff8800, 0.35).setDepth(15);
+      this.tweens.add({ targets: explosion, alpha: 0, scale: 1.3, duration: 300, onComplete: () => explosion.destroy() });
       if (damage > 0) this.reportHit(damage);
       return;
     }
