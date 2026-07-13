@@ -1,31 +1,25 @@
 import Phaser from "phaser";
 import type { ControlScheme } from "@/lib/controlScheme";
 
-/** v9 #6 / v14 rework / v20 rework / v22-v23 scheme choice: touch-only
+/** v9 #6 / v14 rework / v20 rework / v22-v24 scheme choice: touch-only
  *  virtual controls — created by GameScene ONLY when the registry's
  *  "isMobile" flag is true, so none of this ever renders or attaches input
  *  listeners on desktop.
  *
  * Two schemes, chosen on the Settings page (see src/lib/controlScheme.ts)
- * and read once at construction — either way, callers keep using the SAME
- * getFireVector() contract (a direction vector whose magnitude signals
- * "should be firing right now"), so GameScene/PvpScene don't need to know or
- * care which scheme is active:
+ * and read once at construction:
  *
  *  - "joystick": a second fixed stick, bottom-right, mirrors the move stick —
  *    drag it in a direction to aim AND fire that way at the same time.
+ *    Consumed via getFireVector() (a direction relative to the player).
  *
- *  - "split" (v23 rework): no bottom-right stick at all. Touching/holding
- *    anywhere on the right half of the screen turns the gun toward that
- *    point (tap-to-aim, like the original v14 scheme) but does NOT fire by
- *    itself; a separate FIRE button, top-left under the minimap, does the
- *    shooting — held down, it fires toward wherever the player last aimed,
- *    even after lifting the aiming finger, so resting off-screen mid-fight
- *    doesn't stop the FIRE button from working. The aim direction is
- *    computed relative to SCREEN CENTER rather than the player's exact
- *    world position — since the camera follows the player, screen-center
- *    is always a close approximation of "where the player currently is",
- *    without this class needing to know the player's position at all. */
+ *  - "split" (v24: back to the original v14 tap-to-aim-and-fire, after a
+ *    detour through an aim-stick+FIRE-button split in v22/v23 that the user
+ *    asked to undo): no stick, no separate fire button. Touching/holding
+ *    anywhere on the right half of the screen aims AND fires at that exact
+ *    point — release to stop. Consumed via getAimScreenPoint() (an absolute
+ *    screen point, converted to a world point via the camera by the caller),
+ *    null while nothing is held there. */
 export class MobileControls {
   private scene: Phaser.Scene;
   private scheme: ControlScheme;
@@ -36,7 +30,6 @@ export class MobileControls {
   /** How far from a stick's center a touch-down still grabs it — bigger than
    *  the visible base so thumbs don't need pixel-perfect placement. */
   private readonly grabRadius = 110;
-  private readonly fireButtonRadius = 36;
 
   private moveCenter: { x: number; y: number };
   private moveBase: Phaser.GameObjects.Arc;
@@ -47,26 +40,15 @@ export class MobileControls {
   private aimBase?: Phaser.GameObjects.Arc;
   private aimKnob?: Phaser.GameObjects.Arc;
 
-  /** scheme "split" only — separate FIRE button, top-left under the minimap. */
-  private fireButtonCenter = { x: 55, y: 211 };
-  private fireButton?: Phaser.GameObjects.Arc;
-  private fireButtonText?: Phaser.GameObjects.Text;
-
   private movePointerId: number | null = null;
   private aimPointerId: number | null = null;
-  private fireButtonPointerId: number | null = null;
 
   private moveVector = { x: 0, y: 0 };
-  /** scheme "joystick": raw drag vector of the bottom-right stick — this IS
-   *  the fire vector directly. Unused in scheme "split". */
+  /** scheme "joystick" only — raw drag vector of the bottom-right stick. */
   private aimVector = { x: 0, y: 0 };
-  /** Last non-zero direction the player aimed toward — persists after the
-   *  stick recenters/finger lifts, so the FIRE button (scheme "split") or a
-   *  released stick (scheme "joystick", between touches) keeps a sane
-   *  direction. Defaults to "up" so firing before ever aiming still does
-   *  something sane instead of firing nowhere. */
-  private lastAimDirection = { x: 0, y: -1 };
-  private fireButtonHeld = false;
+  /** scheme "split" only — raw screen coords of the held right-half touch, or
+   *  null when nothing is held (i.e. not aiming/firing right now). */
+  private aimScreenPoint: { x: number; y: number } | null = null;
 
   private onDown: (p: Phaser.Input.Pointer) => void;
   private onMove: (p: Phaser.Input.Pointer) => void;
@@ -91,13 +73,9 @@ export class MobileControls {
         .setScrollFactor(0).setDepth(DEPTH).setStrokeStyle(2, 0xff4444, 0.35);
       this.aimKnob = scene.add.circle(this.aimCenter.x, this.aimCenter.y, this.knobRadius, 0xc0392b, 0.5)
         .setScrollFactor(0).setDepth(DEPTH + 1);
-    } else {
-      this.fireButton = scene.add.circle(this.fireButtonCenter.x, this.fireButtonCenter.y, this.fireButtonRadius, 0xc0392b, 0.55)
-        .setScrollFactor(0).setDepth(DEPTH).setStrokeStyle(2, 0xff8080, 0.8);
-      this.fireButtonText = scene.add.text(this.fireButtonCenter.x, this.fireButtonCenter.y, "FIRE", {
-        fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#ffffff", fontStyle: "bold",
-      }).setOrigin(0.5).setScrollFactor(0).setDepth(DEPTH + 1);
     }
+    // scheme "split" has no visible widget on the right side at all — the
+    // whole right half of the screen is itself the aim/fire surface.
 
     this.onDown = (p) => this.handleDown(p);
     this.onMove = (p) => this.handleMove(p);
@@ -117,28 +95,16 @@ export class MobileControls {
     }
 
     if (this.scheme === "split") {
-      if (
-        this.fireButtonPointerId === null &&
-        Phaser.Math.Distance.Between(pointer.x, pointer.y, this.fireButtonCenter.x, this.fireButtonCenter.y) <= this.fireButtonRadius + 20
-      ) {
-        this.fireButtonPointerId = pointer.id;
-        this.fireButtonHeld = true;
-        this.fireButton?.setFillStyle(0xff4444, 0.8);
-        return;
-      }
-
-      // Tap-to-aim: anywhere on the right half of the screen turns the gun
-      // (doesn't fire — see class doc).
       if (this.aimPointerId === null && pointer.x >= this.scene.scale.width / 2) {
         this.aimPointerId = pointer.id;
-        this.updateAimFromScreenPoint(pointer.x, pointer.y);
+        this.aimScreenPoint = { x: pointer.x, y: pointer.y };
       }
       return;
     }
 
     if (this.aimPointerId === null && Phaser.Math.Distance.Between(pointer.x, pointer.y, this.aimCenter.x, this.aimCenter.y) <= this.grabRadius) {
       this.aimPointerId = pointer.id;
-      this.updateStick(pointer.x, pointer.y, this.aimCenter, this.aimKnob!, (v) => this.setAimVector(v));
+      this.updateStick(pointer.x, pointer.y, this.aimCenter, this.aimKnob!, (v) => (this.aimVector = v));
     }
   }
 
@@ -146,8 +112,8 @@ export class MobileControls {
     if (pointer.id === this.movePointerId) this.updateStick(pointer.x, pointer.y, this.moveCenter, this.moveKnob, (v) => (this.moveVector = v));
     if (pointer.id !== this.aimPointerId) return;
 
-    if (this.scheme === "split") this.updateAimFromScreenPoint(pointer.x, pointer.y);
-    else this.updateStick(pointer.x, pointer.y, this.aimCenter, this.aimKnob!, (v) => this.setAimVector(v));
+    if (this.scheme === "split") this.aimScreenPoint = { x: pointer.x, y: pointer.y };
+    else this.updateStick(pointer.x, pointer.y, this.aimCenter, this.aimKnob!, (v) => (this.aimVector = v));
   }
 
   private handleUp(pointer: Phaser.Input.Pointer) {
@@ -159,36 +125,12 @@ export class MobileControls {
     if (pointer.id === this.aimPointerId) {
       this.aimPointerId = null;
       if (this.scheme === "joystick") {
-        this.aimVector = { x: 0, y: 0 }; // releasing the stick also stops firing in this scheme
+        this.aimVector = { x: 0, y: 0 };
         this.aimKnob?.setPosition(this.aimCenter.x, this.aimCenter.y);
+      } else {
+        this.aimScreenPoint = null; // releasing stops both aiming and firing
       }
-      // scheme "split": lifting the aiming finger keeps lastAimDirection as-is
-      // — FIRE (a separate touch) keeps shooting that way.
     }
-    if (pointer.id === this.fireButtonPointerId) {
-      this.fireButtonPointerId = null;
-      this.fireButtonHeld = false;
-      this.fireButton?.setFillStyle(0xc0392b, 0.55);
-    }
-  }
-
-  private setAimVector(v: { x: number; y: number }) {
-    this.aimVector = v;
-    const magnitude = Math.hypot(v.x, v.y);
-    if (magnitude > 0.05) this.lastAimDirection = { x: v.x / magnitude, y: v.y / magnitude };
-  }
-
-  /** scheme "split" only — direction relative to screen CENTER (not the
-   *  player's exact world position, which this class doesn't track) — since
-   *  the camera follows the player, screen-center closely approximates
-   *  "where the player currently is" without needing that coupling. */
-  private updateAimFromScreenPoint(px: number, py: number) {
-    const { width, height } = this.scene.scale;
-    const dx = px - width / 2;
-    const dy = py - height / 2;
-    const magnitude = Math.hypot(dx, dy);
-    if (magnitude < 5) return; // ignore near-dead-center taps rather than risk a zero-length direction
-    this.lastAimDirection = { x: dx / magnitude, y: dy / magnitude };
   }
 
   private updateStick(px: number, py: number, center: { x: number; y: number }, knob: Phaser.GameObjects.Arc, setVector: (v: { x: number; y: number }) => void) {
@@ -206,12 +148,18 @@ export class MobileControls {
     return this.moveVector;
   }
 
-  /** Direction vector (each axis roughly -1..1) to aim/fire toward, relative
-   *  to the player — not an absolute screen point. Magnitude near 0 means
-   *  "not firing right now", regardless of which control scheme is active. */
+  /** scheme "joystick" only — direction vector (each axis roughly -1..1) to
+   *  aim/fire toward, relative to the player. Magnitude near 0 means "not
+   *  firing right now". */
   getFireVector(): { x: number; y: number } {
-    if (this.scheme === "joystick") return this.aimVector;
-    return this.fireButtonHeld ? this.lastAimDirection : { x: 0, y: 0 };
+    return this.aimVector;
+  }
+
+  /** scheme "split" only — absolute screen point to aim/fire at (feed through
+   *  camera.getWorldPoint(), same as the desktop mouse pointer), or null if
+   *  nothing is currently held on the right half of the screen. */
+  getAimScreenPoint(): { x: number; y: number } | null {
+    return this.aimScreenPoint;
   }
 
   destroy() {
@@ -223,7 +171,5 @@ export class MobileControls {
     this.moveKnob.destroy();
     this.aimBase?.destroy();
     this.aimKnob?.destroy();
-    this.fireButton?.destroy();
-    this.fireButtonText?.destroy();
   }
 }

@@ -218,12 +218,18 @@ export class PvpScene extends Phaser.Scene {
       moveUp = move.y < -DEAD_ZONE;
       moveDown = move.y > DEAD_ZONE;
 
-      const fire = this.mobileControls.getFireVector();
-      const fireMagnitude = Math.hypot(fire.x, fire.y);
-      isShooting = fireMagnitude > DEAD_ZONE;
-      if (isShooting) {
-        const AIM_DISTANCE = 2000;
-        worldPointer = new Phaser.Math.Vector2(this.player.sprite.x + fire.x * AIM_DISTANCE, this.player.sprite.y + fire.y * AIM_DISTANCE);
+      if (this.registry.get("mobileControlScheme") === "split") {
+        const aimPoint = this.mobileControls.getAimScreenPoint();
+        isShooting = aimPoint !== null;
+        if (aimPoint) worldPointer = this.cameras.main.getWorldPoint(aimPoint.x, aimPoint.y);
+      } else {
+        const fire = this.mobileControls.getFireVector();
+        const fireMagnitude = Math.hypot(fire.x, fire.y);
+        isShooting = fireMagnitude > DEAD_ZONE;
+        if (isShooting) {
+          const AIM_DISTANCE = 2000;
+          worldPointer = new Phaser.Math.Vector2(this.player.sprite.x + fire.x * AIM_DISTANCE, this.player.sprite.y + fire.y * AIM_DISTANCE);
+        }
       }
     }
 

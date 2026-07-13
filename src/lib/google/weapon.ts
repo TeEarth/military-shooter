@@ -3,7 +3,7 @@ import { PLAYER_CONFIG } from "../../../config/player";
 
 const SHEET = "Weapons";
 
-export type WeaponUnlockType = "FREE" | "STAGE" | "PURCHASE" | "DIAMOND" | "TICKET";
+export type WeaponUnlockType = "FREE" | "STAGE" | "PURCHASE" | "DIAMOND" | "TICKET" | "FARM_WAVE";
 export type FireMode = "single" | "burst" | "spread" | "aoe" | "lob";
 
 export interface WeaponRow {

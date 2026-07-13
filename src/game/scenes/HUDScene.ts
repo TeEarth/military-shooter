@@ -26,6 +26,9 @@ interface HudUpdatePayload {
   hideProgress: number;
   /** v14: true once fully hidden (enemies can't detect the player). */
   isHidden: boolean;
+  /** v24: boss stages only — undefined once the boss is dead/not a boss stage. */
+  bossHp?: number;
+  bossMaxHp?: number;
 }
 
 export class HUDScene extends Phaser.Scene {
@@ -50,17 +53,23 @@ export class HUDScene extends Phaser.Scene {
   /** v14: tree stealth hide-progress bar + "HIDDEN" label. */
   private hideBar!: Phaser.GameObjects.Graphics;
   private hideText!: Phaser.GameObjects.Text;
+  /** v24: big top-of-screen boss hp bar — only ever visible on boss stages. */
+  private bossBar!: Phaser.GameObjects.Graphics;
+  private bossNameText!: Phaser.GameObjects.Text;
+  private bossHpText!: Phaser.GameObjects.Text;
 
   constructor() {
     super({ key: "HUDScene" });
   }
 
   private isPvp = false;
+  private isJoystickScheme = false;
 
   create() {
     const { width, height } = this.scale;
     this.isMobile = Boolean(this.registry.get("isMobile"));
     this.isPvp = Boolean(this.registry.get("pvpMatchId"));
+    this.isJoystickScheme = this.registry.get("mobileControlScheme") !== "split";
 
     this.hpBar = this.add.graphics();
     this.shieldBar = this.add.graphics();
@@ -129,6 +138,17 @@ export class HUDScene extends Phaser.Scene {
     this.farmWaveBannerText = this.add.text(width / 2, height / 2 - 70, "", {
       fontFamily: "Orbitron, monospace", fontSize: "26px", color: "#4ade80", fontStyle: "bold",
     }).setOrigin(0.5).setDepth(60).setVisible(false);
+
+    // v24: big boss hp bar, top-center — set once and left alone unless a
+    // hud-update actually carries bossHp (see onHudUpdate), so it never shows
+    // on non-boss stages.
+    this.bossBar = this.add.graphics().setDepth(50);
+    this.bossNameText = this.add.text(width / 2, 26, "BOSS", {
+      fontFamily: "Orbitron, monospace", fontSize: "13px", color: "#ff6b6b", fontStyle: "bold", letterSpacing: 2,
+    } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setDepth(51).setVisible(false);
+    this.bossHpText = this.add.text(width / 2, 55, "", {
+      fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#ffffff", fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(51).setVisible(false);
 
     this.hideBar = this.add.graphics().setDepth(40);
     this.hideText = this.add.text(width / 2, height - 46, "", {
@@ -199,16 +219,18 @@ export class HUDScene extends Phaser.Scene {
    *  v16: desktop also has right-click-to-reload now (see GameScene.ts), so
    *  this button is mainly for mobile — plain "Reload" text instead of an
    *  emoji icon, per request.
-   *  v20: mobile now has a fire joystick sitting in the bottom-right corner
-   *  (mirroring the move stick — see MobileControls.ts), so the reload button
-   *  moves up to sit just above it instead of overlapping. Desktop keeps the
-   *  old bottom-right corner position since there's no fire stick there. */
+   *  v20/v24: mobile's "joystick" control scheme has a fire stick sitting in
+   *  the bottom-right corner (see MobileControls.ts), so the reload button
+   *  moves up to sit just above it there. The "split" scheme (tap anywhere on
+   *  the right half to aim/fire) has no bottom-right widget at all, so this
+   *  stays in the plain corner position, same as desktop. */
   private createReloadButton(width: number, height: number) {
     const radius = 30;
+    const raised = this.isMobile && this.isJoystickScheme;
     // Fire stick: center (width-130, height-130), base radius 80 — its top
     // edge is at height-210. Leave a small gap above that for this button.
-    const cx = this.isMobile ? width - 130 : width - 56;
-    const cy = this.isMobile ? height - 210 - radius - 14 : height - 56;
+    const cx = raised ? width - 130 : width - 56;
+    const cy = raised ? height - 210 - radius - 14 : height - 56;
 
     const circle = this.add.circle(cx, cy, radius, 0x1a1a2e, 0.85)
       .setStrokeStyle(2, 0xc5a97d)
@@ -236,6 +258,8 @@ export class HUDScene extends Phaser.Scene {
     this.waveText.setText(this.isPvp ? "DEFEAT YOUR OPPONENT" : data.isFarmStage ? `WAVE ${data.wave}` : "ELIMINATE ALL ENEMIES");
     this.reloadText.setVisible(data.isReloading && !data.outOfAmmo);
     this.outOfAmmoText.setVisible(data.outOfAmmo);
+
+    this.updateBossBar(data);
 
     this.hpBar.clear();
     this.hpBar.fillStyle(0x1a1a2e, 0.7);
@@ -267,6 +291,38 @@ export class HUDScene extends Phaser.Scene {
     }
 
     this.updateHideBar(data);
+  }
+
+  /** v24: big, unmissable hp bar for the boss itself — top-center, well above
+   *  the player's own small hp bar, "to show its scale" (per request). Hidden
+   *  whenever bossHp is undefined (every non-boss stage, and once the boss
+   *  itself is dead). */
+  private updateBossBar(data: HudUpdatePayload) {
+    this.bossBar.clear();
+    if (data.bossHp === undefined || data.bossMaxHp === undefined) {
+      this.bossNameText.setVisible(false);
+      this.bossHpText.setVisible(false);
+      return;
+    }
+
+    const { width } = this.scale;
+    const barWidth = Math.min(480, width - 60);
+    const barHeight = 22;
+    const x = width / 2 - barWidth / 2;
+    const y = 44;
+    const pct = Math.max(0, data.bossHp / data.bossMaxHp);
+
+    this.bossBar.fillStyle(0x1a1a2e, 0.85);
+    this.bossBar.fillRect(x - 3, y - 3, barWidth + 6, barHeight + 6);
+    this.bossBar.lineStyle(2, 0xff6b6b, 0.9);
+    this.bossBar.strokeRect(x - 3, y - 3, barWidth + 6, barHeight + 6);
+    this.bossBar.fillStyle(0x2a0a08, 1);
+    this.bossBar.fillRect(x, y, barWidth, barHeight);
+    this.bossBar.fillStyle(0xc0392b, 1);
+    this.bossBar.fillRect(x, y, barWidth * pct, barHeight);
+
+    this.bossNameText.setVisible(true);
+    this.bossHpText.setText(`${Math.ceil(data.bossHp).toLocaleString()} / ${data.bossMaxHp.toLocaleString()}`).setVisible(true);
   }
 
   /** v14: shown only while inside a tree's stealth radius and progressing

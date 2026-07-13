@@ -91,7 +91,7 @@ export class GameScene extends Phaser.Scene {
   private hideTimer = 0;
   private isHidden = false;
   private playerHitThisFrame = false;
-  private static readonly HIDE_DURATION_MS = 1500;
+  private static readonly HIDE_DURATION_MS = 1000;
   /** Generous "in the bush" radius — bigger than the tiny bullet-pass-through
    *  hitbox, since this is a gameplay zone, not a pixel-precise collision. */
   private static readonly TREE_STEALTH_RADIUS = COVER_SIZES.tree.width * 0.7;
@@ -267,9 +267,25 @@ export class GameScene extends Phaser.Scene {
     const types: CoverType[] = ["sandbag", "crate", "tree", "wall", "house", "camp_tent"];
     const coverCount = Math.max(10, Math.floor(worldWidth / 160));
 
+    // v24: the old placement formula (evenly-spaced X plus independent random Y,
+    // both with ±60 jitter) could place two covers close enough to overlap —
+    // which reads as "one invisible solid blob" bigger than either sprite,
+    // exactly the reported "stuck on an empty-looking corner" bug. Each new
+    // cover now retries against a minimum center-to-center distance from
+    // every already-placed one before accepting a spot.
+    const MIN_COVER_SPACING = 90;
+    const placedCenters: { x: number; y: number }[] = [];
+
     for (let i = 0; i < coverCount; i++) {
-      const x = 350 + i * (worldWidth - 700) / coverCount + Phaser.Math.Between(-60, 60);
-      const y = Phaser.Math.Between(120, worldHeight - 120);
+      let x = 0, y = 0;
+      for (let attempt = 0; attempt < 8; attempt++) {
+        x = 350 + i * (worldWidth - 700) / coverCount + Phaser.Math.Between(-60, 60);
+        y = Phaser.Math.Between(120, worldHeight - 120);
+        const tooClose = placedCenters.some((c) => Phaser.Math.Distance.Between(x, y, c.x, c.y) < MIN_COVER_SPACING);
+        if (!tooClose) break;
+      }
+      placedCenters.push({ x, y });
+
       const type = Phaser.Utils.Array.GetRandom(types);
       const { width, height } = COVER_SIZES[type];
       const cover = new CoverObject(this, x, y, width, height, type, this.covers, this.failedAssetKeys);
@@ -626,18 +642,25 @@ export class GameScene extends Phaser.Scene {
       moveUp = move.y < -DEAD_ZONE;
       moveDown = move.y > DEAD_ZONE;
 
-      // v20: bottom-right fire stick — drag it in a direction to aim and fire
-      // that way (relative to the player), same interaction as the move stick,
-      // replacing the old tap-anywhere-on-the-right-half targeting.
-      const fire = this.mobileControls.getFireVector();
-      const fireMagnitude = Math.hypot(fire.x, fire.y);
-      isShooting = fireMagnitude > DEAD_ZONE;
-      if (isShooting) {
-        const AIM_DISTANCE = 2000;
-        worldPointer = new Phaser.Math.Vector2(
-          this.player.sprite.x + fire.x * AIM_DISTANCE,
-          this.player.sprite.y + fire.y * AIM_DISTANCE
-        );
+      // v24: scheme "split" — tap-and-hold anywhere on the right half aims AND
+      // fires at that exact screen point (converted to world space). Scheme
+      // "joystick" — drag the bottom-right stick in a direction to aim/fire
+      // that way instead.
+      if (this.registry.get("mobileControlScheme") === "split") {
+        const aimPoint = this.mobileControls.getAimScreenPoint();
+        isShooting = aimPoint !== null;
+        if (aimPoint) worldPointer = this.cameras.main.getWorldPoint(aimPoint.x, aimPoint.y);
+      } else {
+        const fire = this.mobileControls.getFireVector();
+        const fireMagnitude = Math.hypot(fire.x, fire.y);
+        isShooting = fireMagnitude > DEAD_ZONE;
+        if (isShooting) {
+          const AIM_DISTANCE = 2000;
+          worldPointer = new Phaser.Math.Vector2(
+            this.player.sprite.x + fire.x * AIM_DISTANCE,
+            this.player.sprite.y + fire.y * AIM_DISTANCE
+          );
+        }
       }
     }
 
@@ -685,6 +708,8 @@ export class GameScene extends Phaser.Scene {
       stageHeight: this.stageData.height,
       hideProgress: Math.min(1, this.hideTimer / GameScene.HIDE_DURATION_MS),
       isHidden: this.isHidden,
+      bossHp: this.isBossStage && this.bossEnemy && !this.bossEnemy.isDead ? this.bossEnemy.getHp() : undefined,
+      bossMaxHp: this.isBossStage && this.bossEnemy ? this.bossEnemy.getMaxHp() : undefined,
     });
 
     // Consumed above (as "hit this frame") — reset for the next physics step.

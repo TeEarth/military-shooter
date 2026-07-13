@@ -293,7 +293,12 @@ export default function CharacterHubClient(props: Props) {
   // stage-met as "owned" here was the Double Pistol bug: the equip button showed
   // immediately, but the server rejected the equip since it was never granted.
   const isWeaponOwned = ownedWeaponIds.includes(selectedWeapon.id) || selectedWeapon.unlockType === "FREE";
-  const weaponStageOk = selectedWeapon.unlockType !== "STAGE" || props.currentStage >= selectedWeapon.unlockValue;
+  const weaponStageOk =
+    (selectedWeapon.unlockType !== "STAGE" || props.currentStage >= selectedWeapon.unlockValue) &&
+    // v24: "FARM_WAVE" — unlocked once the player's ALL-TIME best farm wave
+    // (any multiverse's farm stage — farmStageMaxWave is a single global
+    // field, never per-stage, see src/lib/db/player.ts) reaches unlockValue.
+    (selectedWeapon.unlockType !== "FARM_WAVE" || props.farmStageMaxWave >= selectedWeapon.unlockValue);
   const isWeaponActive = selectedWeapon.id === equippedWeaponId;
 
   return (
@@ -457,8 +462,11 @@ export default function CharacterHubClient(props: Props) {
             {selectedWeapon.unlockType === "STAGE" && !weaponStageOk && (
               <p className="text-red-400 text-sm mb-3">Unlocks after clearing Stage {selectedWeapon.unlockValue}</p>
             )}
+            {selectedWeapon.unlockType === "FARM_WAVE" && !weaponStageOk && (
+              <p className="text-red-400 text-sm mb-3">Unlocks after reaching wave {selectedWeapon.unlockValue} in any Farm stage (currently best wave {props.farmStageMaxWave})</p>
+            )}
 
-            {!isWeaponOwned && weaponStageOk && (selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "DIAMOND" || selectedWeapon.unlockType === "TICKET" || selectedWeapon.unlockType === "STAGE") && (
+            {!isWeaponOwned && weaponStageOk && (selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "DIAMOND" || selectedWeapon.unlockType === "TICKET" || selectedWeapon.unlockType === "STAGE" || selectedWeapon.unlockType === "FARM_WAVE") && (
               <button onClick={() => buyWeapon(selectedWeapon)} disabled={loading} className="btn-military">
                 {loading ? "..." : `${CURRENCY_ICON[selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "STAGE" ? "coin" : selectedWeapon.unlockType === "DIAMOND" ? "diamond" : "ticket"]} ${(selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "STAGE" ? selectedWeapon.priceCoin : selectedWeapon.unlockType === "DIAMOND" ? selectedWeapon.priceDiamond : selectedWeapon.priceTicket).toLocaleString()}`}
               </button>

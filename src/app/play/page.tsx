@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getAllStages } from "@/lib/google/stage";
 import { getPlayerById } from "@/lib/db/player";
 import { getCompletedStageIds } from "@/lib/db/stageProgress";
-import { getBossStageConfig, getBossEncounterCount, scaledBossHp } from "@/lib/db/bossStage";
+import { getBossPacing, getBossConfigForEncounter, getBossEncounterCount } from "@/lib/db/bossStage";
 import StageSelectClient from "@/components/play/StageSelectClient";
 
 export default async function PlayPage() {
@@ -25,16 +25,17 @@ export default async function PlayPage() {
   // multiverse 1 is always unlocked, so this starts at 1 with zero clears.
   let unlockedMultiverse = 1;
   try {
-    const [bossConfig, bossEncounterCount] = await Promise.all([
-      getBossStageConfig(),
+    const [pacing, bossEncounterCount] = await Promise.all([
+      getBossPacing(),
       getBossEncounterCount(player.id),
     ]);
-    const tiersUnlocked = Math.floor(completedStageIds.length / bossConfig.occursEveryNStages);
+    const tiersUnlocked = Math.floor(completedStageIds.length / pacing);
     const bossEncounterNumber = bossEncounterCount + 1;
+    const bossConfig = await getBossConfigForEncounter(bossEncounterNumber);
     boss = {
       available: bossEncounterCount < tiersUnlocked,
       encounterNumber: bossEncounterNumber,
-      hp: scaledBossHp(bossConfig, bossEncounterNumber),
+      hp: bossConfig.hp,
     };
     unlockedMultiverse = 1 + bossEncounterCount;
   } catch {

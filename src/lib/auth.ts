@@ -62,4 +62,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   pages: {
     signIn: "/login",
   },
+  // v24: NEXTAUTH_URL is pinned to one specific domain (military-shooter.vercel.app),
+  // but Vercel serves this project on several aliases (military-shooter-kappa.vercel.app,
+  // the per-deploy *.vercel.app URL, etc.) — Auth.js v5 refuses any request whose
+  // actual Host header doesn't match NEXTAUTH_URL unless the host is explicitly
+  // trusted, which was surfacing as a generic "Configuration" error on every
+  // domain except the one exact NEXTAUTH_URL value. trustHost: true is the
+  // standard fix for platforms (Vercel included) that serve one app on multiple
+  // domains — same as this project's `/api/auth/[...nextauth]` route already
+  // trusting the platform-provided host.
+  trustHost: true,
 });

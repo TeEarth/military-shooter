@@ -82,6 +82,12 @@ export async function POST(req: NextRequest) {
     if (weapon.unlockType === "STAGE" && player.currentStage < weapon.unlockValue) {
       return NextResponse.json({ error: `Unlocks after clearing Stage ${weapon.unlockValue}` }, { status: 400 });
     }
+    // v24: FARM_WAVE (e.g. Rasor Gun) — unlocked by the player's all-time best
+    // farm wave, from ANY multiverse's farm stage (farmStageMaxWave is a
+    // single global field — see src/lib/db/player.ts).
+    if (weapon.unlockType === "FARM_WAVE" && player.farmStageMaxWave < weapon.unlockValue) {
+      return NextResponse.json({ error: `Unlocks after reaching wave ${weapon.unlockValue} in any Farm stage` }, { status: 400 });
+    }
 
     const price = priceFor(currency, weapon);
     if (price <= 0) return NextResponse.json({ error: `Not purchasable with ${currency}` }, { status: 400 });

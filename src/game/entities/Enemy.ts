@@ -266,4 +266,6 @@ export class Enemy {
   }
 
   getCoinReward() { return this.data.coinReward; }
+  getHp() { return this.hp; }
+  getMaxHp() { return this.maxHp; }
 }

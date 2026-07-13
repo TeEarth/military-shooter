@@ -119,11 +119,11 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
               className={`w-full text-left p-3 border text-sm ${controlScheme === "split" ? "border-military-tan bg-military-dark" : "border-military-steel"}`}
             >
               <div className="flex items-center justify-between">
-                <span className="font-bold">Layout 1 — Tap to aim + FIRE button</span>
+                <span className="font-bold">Layout 1 — Tap to aim &amp; fire</span>
                 {controlScheme === "split" && <span className="text-military-gold text-xs">✓ ACTIVE</span>}
               </div>
               <p className="text-xs text-military-steel mt-1">
-                Touch anywhere on the right half of the screen to turn your gun that way. A separate FIRE button (top-left, under the minimap) shoots.
+                Touch anywhere on the right half of the screen to aim AND fire at that exact spot. Release to stop.
               </p>
             </button>
             <button

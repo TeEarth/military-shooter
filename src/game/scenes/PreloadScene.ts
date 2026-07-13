@@ -72,7 +72,14 @@ export class PreloadScene extends Phaser.Scene {
     }
 
     // Bullet sprite is chosen per-weapon (round/razor/rocket/grenade), not per-character.
-    if (character?.bulletSprite) this.load.svg("bullet_sprite", character.bulletSprite, { width: 24, height: 24 });
+    // v24: the plain round bullet (used by most weapons) is loaded at half the
+    // size of the special-shaped ones (rocket/grenade/razor) — it was reading
+    // as oversized next to the actual gun/character art.
+    if (character?.bulletSprite) {
+      const isRoundBullet = character.bulletSprite.endsWith("bullet_round.svg");
+      const size = isRoundBullet ? 12 : 24;
+      this.load.svg("bullet_sprite", character.bulletSprite, { width: size, height: size });
+    }
 
     // One image per distinct enemy type appearing in this session (story spawns + farm roster),
     // also loaded directly at final display size for the same reason as the player.

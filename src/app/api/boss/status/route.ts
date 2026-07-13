@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getCompletedStageIds } from "@/lib/db/stageProgress";
-import { getBossStageConfig, getBossEncounterCount, scaledBossHp } from "@/lib/db/bossStage";
+import { getBossPacing, getBossConfigForEncounter, getBossEncounterCount } from "@/lib/db/bossStage";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const [config, bossEncounterCount, completedStageIds] = await Promise.all([
-    getBossStageConfig(),
+  const [pacing, bossEncounterCount, completedStageIds] = await Promise.all([
+    getBossPacing(),
     getBossEncounterCount(session.user.id),
     getCompletedStageIds(session.user.id),
   ]);
 
   const stagesCleared = completedStageIds.length;
-  const tiersUnlocked = Math.floor(stagesCleared / config.occursEveryNStages);
+  const tiersUnlocked = Math.floor(stagesCleared / pacing);
   const available = bossEncounterCount < tiersUnlocked;
   const encounterNumber = bossEncounterCount + 1;
 
@@ -23,9 +23,9 @@ export async function GET() {
     data: {
       available,
       encounterNumber,
-      hp: available ? scaledBossHp(config, encounterNumber) : null,
+      hp: available ? (await getBossConfigForEncounter(encounterNumber)).hp : null,
       stagesCleared,
-      nextUnlockAt: (bossEncounterCount + 1) * config.occursEveryNStages,
+      nextUnlockAt: (bossEncounterCount + 1) * pacing,
     },
   });
 }

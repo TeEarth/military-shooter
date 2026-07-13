@@ -10,7 +10,7 @@ import { getRemainingAmmo } from "@/lib/db/weaponAmmo";
 import { isStageCompleted } from "@/lib/db/stageProgress";
 import { computeFullStats, statsToLoadout } from "@/lib/stats";
 import { parseStageNumber, templateStageId, stageStatMultiplier, extraEnemyCount } from "@/lib/stageTemplate";
-import { getBossStageConfig, getBossEncounterCount, scaledBossHp } from "@/lib/db/bossStage";
+import { getBossPacing, getBossConfigForEncounter, getBossEncounterCount } from "@/lib/db/bossStage";
 import { getCompletedStageIds } from "@/lib/db/stageProgress";
 
 const DEFAULT_WEAPON_ID = "pistol";
@@ -158,18 +158,19 @@ export async function POST(req: NextRequest) {
 }
 
 async function startBossStage(playerId: string) {
-  const [config, bossEncounterCount, stagesCleared] = await Promise.all([
-    getBossStageConfig(),
+  const [pacing, bossEncounterCount, stagesCleared] = await Promise.all([
+    getBossPacing(),
     getBossEncounterCount(playerId),
     getCompletedStageIds(playerId).then((ids) => ids.length),
   ]);
 
-  const tiersUnlocked = Math.floor(stagesCleared / config.occursEveryNStages);
+  const tiersUnlocked = Math.floor(stagesCleared / pacing);
   if (bossEncounterCount >= tiersUnlocked) {
     return NextResponse.json({ error: "No boss stage available yet — clear more story stages first." }, { status: 400 });
   }
 
   const encounterNumber = bossEncounterCount + 1;
+  const config = await getBossConfigForEncounter(encounterNumber);
   const bossWeaponBase = await getWeaponById(config.weaponId);
   if (!bossWeaponBase) return NextResponse.json({ error: "Boss weapon not found" }, { status: 404 });
 
@@ -195,20 +196,18 @@ async function startBossStage(playerId: string) {
   const width = 1280;
   const height = 720;
 
-  // v17: boss re-armed with Double Pistol — its real Weapons-sheet stats are
-  // used directly (no more instant-kill damage override), just scaled by
-  // encounter number the same way every other repeat-encounter stat scales
-  // (compounding +growthPercent% per encounter, same formula as scaledBossHp).
-  const encounterScale = Math.pow(1 + config.growthPercent / 100, encounterNumber - 1);
+  // v24: each multiverse's boss row carries its own explicit damageMultiplier
+  // (e.g. Multiverse 2's boss hits 3x harder) instead of a single compounding
+  // growthPercent formula shared by every encounter — see getBossConfigForEncounter.
   const bossWeapon = {
     ...bossWeaponBase,
-    damage: Math.round(bossWeaponBase.damage * encounterScale),
+    damage: Math.round(bossWeaponBase.damage * config.damageMultiplier),
   };
 
   const bossEnemy = {
     id: "boss",
     weaponId: config.weaponId,
-    hp: scaledBossHp(config, encounterNumber),
+    hp: config.hp,
     coinReward: 0,
     sprite: "/assets/sprites/enemy/enemy_boss.svg",
     immobile: false,
@@ -217,9 +216,10 @@ async function startBossStage(playerId: string) {
     spawnY: height / 2,
   };
 
-  // v17: the boss calls in a fresh pistol-wielding minion once a minute (see
-  // GameScene.ts's spawnBossMinion) — enemyRoster[0] is that minion's template.
-  const minionTemplate = await getEnemyById("enemy_pistol");
+  // v17/v24: the boss calls in a fresh minion once every 15s (see
+  // GameScene.ts's spawnBossMinion) — enemyRoster[0] is that minion's
+  // template, which type varies per multiverse (see config.minionEnemyId).
+  const minionTemplate = await getEnemyById(config.minionEnemyId);
   const minionWeapon = minionTemplate ? await getWeaponById(minionTemplate.weaponId) : null;
   const enemyRoster = minionTemplate && minionWeapon ? [{ ...minionTemplate, weapon: minionWeapon }] : [];
 
@@ -230,9 +230,10 @@ async function startBossStage(playerId: string) {
     stageData: {
       id: `boss_${encounterNumber}`,
       name: `Boss Encounter #${encounterNumber}`,
-      // v17: boss arena is a bare rock/stone map — no cover anywhere (see
-      // GameScene.ts's createCovers() short-circuit for isBossStage).
-      background: "/assets/sprites/background/rock_terrain.svg",
+      // v17: boss arena has no cover anywhere (see GameScene.ts's
+      // createCovers() short-circuit for isBossStage) — v24: background is
+      // now per-multiverse (e.g. Multiverse 2's boss fights on sand).
+      background: config.background,
       width,
       height,
       rewardCoin: 0,
