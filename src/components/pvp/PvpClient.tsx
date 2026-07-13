@@ -195,6 +195,18 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
     setPhase("idle");
   }
 
+  /** v25: there was previously no way to leave an in-progress match — the
+   *  Back to Home / Cancel buttons only ever rendered in the pre-"playing"
+   *  overlay, which stops rendering entirely once phase is "playing". This
+   *  tears down the Phaser game directly and navigates home; the match row
+   *  itself is left "active" (the opponent's own win/loss detection or a
+   *  future timeout is what resolves it), same as any other disconnect. */
+  function exitMatch() {
+    gameRef.current?.destroy(true);
+    gameRef.current = null;
+    router.push("/home");
+  }
+
   // v25 fix: the game container must ALWAYS be mounted, not just when
   // phase === "playing" — startMatch() needs containerRef.current to exist
   // the moment it finishes loading (while phase is still "loading"), but a
@@ -207,6 +219,15 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
   return (
     <div className="w-screen h-screen bg-military-darker relative overflow-hidden">
       <div id="pvp-container" ref={containerRef} className="w-full h-full" />
+
+      {phase === "playing" && (
+        <button
+          onClick={exitMatch}
+          className="absolute top-2 left-2 z-10 bg-military-darker/80 border border-military-steel text-military-steel hover:text-white text-xs px-3 py-1.5"
+        >
+          ✕ EXIT
+        </button>
+      )}
 
       {phase !== "playing" && (
         <div className="absolute inset-0 flex items-center justify-center p-6">

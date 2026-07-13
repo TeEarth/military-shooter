@@ -92,6 +92,13 @@ export async function POST(req: NextRequest) {
   const ROCKET_HP_MULTIPLIER_STAGE = "stage10";
   const rocketHpMultiplier = lookupId === ROCKET_HP_MULTIPLIER_STAGE ? 5 : 1;
 
+  // v25: stage20's own PDF description calls out enemy #10 (Rasor Gun) getting
+  // 5x hp and 2x damage on that specific map — same "tied to the template"
+  // pattern as stage10's rocket multiplier above.
+  const RASOR_BOOST_STAGE = "stage20";
+  const rasorHpMultiplier = lookupId === RASOR_BOOST_STAGE ? 5 : 1;
+  const rasorDamageMultiplier = lookupId === RASOR_BOOST_STAGE ? 2 : 1;
+
   const baseEnemies = (
     await Promise.all(
       spawns.map(async (s) => {
@@ -99,11 +106,12 @@ export async function POST(req: NextRequest) {
         if (!enemy) return null;
         const enemyWeapon = await getWeaponById(enemy.weaponId);
         if (!enemyWeapon) return null;
-        const hpMultiplier = enemy.id === "enemy_rocket" ? rocketHpMultiplier : 1;
+        const hpMultiplier = enemy.id === "enemy_rocket" ? rocketHpMultiplier : enemy.id === "enemy_rasor_gun" ? rasorHpMultiplier : 1;
+        const specialDamageMultiplier = enemy.id === "enemy_rasor_gun" ? rasorDamageMultiplier : 1;
         return {
           ...enemy,
           hp: Math.round(enemy.hp * multiplier * hpMultiplier),
-          weapon: { ...enemyWeapon, damage: Math.round(enemyWeapon.damage * multiplier * enemy.damageMultiplier) },
+          weapon: { ...enemyWeapon, damage: Math.round(enemyWeapon.damage * multiplier * enemy.damageMultiplier * specialDamageMultiplier) },
           spawnX: s.spawnX,
           spawnY: s.spawnY,
         };

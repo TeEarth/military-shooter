@@ -42,6 +42,7 @@ export class PvpScene extends Phaser.Scene {
   private myId = "";
 
   private channel!: RealtimeChannel;
+  private channelReady = false;
   private lastBroadcast = 0;
   private isFiring = false;
   private matchEnded = false;
@@ -148,7 +149,22 @@ export class PvpScene extends Phaser.Scene {
       if (this.player.isDead) this.handleLoss();
     });
 
-    this.channel.subscribe();
+    // v25 fix: broadcastState()/reportHit() used to call channel.send()
+    // unconditionally from the very first update() tick — but subscribe() is
+    // async (a real WebSocket handshake), so almost every early send() landed
+    // before the channel actually joined. supabase-js silently falls back to
+    // a one-off REST POST in that case (see console: "Realtime send() is
+    // automatically falling back to REST API"), which does not reliably fan
+    // out to the other player's still-connecting WebSocket subscription —
+    // this is exactly why opponents looked frozen/unresponsive and hits
+    // never seemed to land. channelReady now gates every send() until
+    // subscribe()'s callback actually reports "SUBSCRIBED".
+    this.channel.subscribe((status) => {
+      this.channelReady = status === "SUBSCRIBED";
+      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+        console.error(`[PvP] realtime channel ${status.toLowerCase()}`);
+      }
+    });
   }
 
   /** Bullet directly overlapping the opponent's rendered position on THIS
@@ -187,7 +203,7 @@ export class PvpScene extends Phaser.Scene {
   /** Broadcasts a hit against the opponent — THEY apply it to their own real
    *  hp and echo the result back in their next state snapshot. */
   private reportHit(damage: number) {
-    if (this.remotePlayer.isDead) return;
+    if (this.remotePlayer.isDead || !this.channelReady) return;
     this.channel.send({ type: "broadcast", event: "hit", payload: { targetId: this.opponent.id, damage } });
   }
 
@@ -264,6 +280,7 @@ export class PvpScene extends Phaser.Scene {
   }
 
   private broadcastState() {
+    if (!this.channelReady) return;
     const now = this.time.now;
     if (now - this.lastBroadcast < BROADCAST_INTERVAL_MS) return;
     this.lastBroadcast = now;
