@@ -203,12 +203,30 @@ export class PvpScene extends Phaser.Scene {
     if (isMiss || damage <= 0) {
       sfx.play("miss");
       this.showFloatingText(this.remotePlayer.sprite.x, this.remotePlayer.sprite.y, "MISS", "#999999");
+      this.debugLogOpponentSprite("miss");
       return;
     }
 
     sfx.play("hit_enemy");
     this.showFloatingText(this.remotePlayer.sprite.x, this.remotePlayer.sprite.y, `-${damage}`, "#f39c12");
     this.reportHit(damage);
+    this.debugLogOpponentSprite("hit");
+  }
+
+  /** TEMP DEBUG (v25): logs the opponent sprite's actual render state right
+   *  at impact, and again next frame, to catch what changes at the exact
+   *  instant it visually disappears. Remove once root cause is confirmed. */
+  private debugLogOpponentSprite(kind: "miss" | "hit") {
+    const s = this.remotePlayer.sprite;
+    const dump = () => ({
+      kind, visible: s.visible, alpha: s.alpha, active: s.active,
+      textureKey: s.texture?.key, frameName: s.frame?.name,
+      inDisplayList: this.children.exists(s), depth: s.depth,
+      x: Math.round(s.x), y: Math.round(s.y),
+      bodyEnable: (s.body as Phaser.Physics.Arcade.Body)?.enable,
+    });
+    console.error("[OPP-DEBUG t+0]", dump());
+    this.time.delayedCall(200, () => console.error("[OPP-DEBUG t+200ms]", dump()));
   }
 
   /** Broadcasts a hit against the opponent — THEY apply it to their own real
