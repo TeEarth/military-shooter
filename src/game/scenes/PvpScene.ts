@@ -118,7 +118,23 @@ export class PvpScene extends Phaser.Scene {
       this.mobileControls = new MobileControls(this, this.registry.get("mobileControlScheme"));
     }
 
-    this.physics.add.overlap(this.bullets, this.remotePlayer.sprite, (bulletObj) => {
+    // v25 REAL root cause of "opponent vanishes on any hit/miss", finally
+    // confirmed: for a GROUP-vs-single-SPRITE overlap, Phaser invokes the
+    // callback as (sprite, groupMember) — the single sprite comes FIRST,
+    // regardless of the order they were registered in. GameScene's own
+    // enemyBullets-vs-player overlap already knew this (its callback is
+    // named `(_playerObj, bulletObj)`), but this one took the first arg as
+    // the bullet — so every bullet contact was actually flagging and
+    // DESTROYING this.remotePlayer.sprite itself, not the bullet. That's
+    // why the opponent's body vanished instantly on every shot with every
+    // weapon (their sprite was literally destroyed), why a later
+    // applySnapshot crashed on the destroyed sprite's missing body, and why
+    // no amount of deferring the destroy helped — we were deferring the
+    // destruction of the wrong object. Resolved defensively by identity
+    // check rather than positionally, so it keeps working even if Phaser's
+    // internal arg order ever changes.
+    this.physics.add.overlap(this.bullets, this.remotePlayer.sprite, (a, b) => {
+      const bulletObj = a === this.remotePlayer.sprite ? b : a;
       this.onBulletHitOpponent(bulletObj as Phaser.Physics.Arcade.Image);
     });
 
