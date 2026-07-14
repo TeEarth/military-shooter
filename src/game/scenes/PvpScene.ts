@@ -188,7 +188,24 @@ export class PvpScene extends Phaser.Scene {
     const explosionRadius = Number(bullet.getData("explosionRadius") ?? PLAYER_CONFIG.aoeRadius);
     const impactX = bullet.x;
     const impactY = bullet.y;
-    bullet.destroy();
+    // v25 fix (confirmed via console: opponent sprite came back active:false,
+    // visible:false immediately inside this very callback): this overlap is
+    // `this.bullets` (a group) vs `this.remotePlayer.sprite` (a single, bare
+    // sprite, not a group) — Phaser dispatches that specific shape as
+    // collideSpriteVsGroup, which is still iterating the bullets group's
+    // members when this callback runs. Calling bullet.destroy() SYNCHRONOUSLY
+    // in here mutates the very group Phaser's own collision loop is mid-
+    // iteration over, and that corrupted the OTHER object in the pairing
+    // (remotePlayer.sprite) instead of just the bullet — exactly the
+    // "opponent vanishes on any hit/miss" bug. GameScene's equivalent
+    // (bullets vs the ENEMY GROUP) never hit this because that's a
+    // group-vs-group overlap, a different, unaffected code path in Phaser.
+    // Deactivating here is safe (stops it being processed again + hides it
+    // immediately); the actual destroy() is deferred to next tick, after
+    // Phaser's own physics step has finished with it.
+    bullet.setActive(false).setVisible(false);
+    (bullet.body as Phaser.Physics.Arcade.Body).enable = false;
+    this.time.delayedCall(0, () => bullet.destroy());
 
     if (isAoe) {
       sfx.play("explosion");
@@ -203,30 +220,12 @@ export class PvpScene extends Phaser.Scene {
     if (isMiss || damage <= 0) {
       sfx.play("miss");
       this.showFloatingText(this.remotePlayer.sprite.x, this.remotePlayer.sprite.y, "MISS", "#999999");
-      this.debugLogOpponentSprite("miss");
       return;
     }
 
     sfx.play("hit_enemy");
     this.showFloatingText(this.remotePlayer.sprite.x, this.remotePlayer.sprite.y, `-${damage}`, "#f39c12");
     this.reportHit(damage);
-    this.debugLogOpponentSprite("hit");
-  }
-
-  /** TEMP DEBUG (v25): logs the opponent sprite's actual render state right
-   *  at impact, and again next frame, to catch what changes at the exact
-   *  instant it visually disappears. Remove once root cause is confirmed. */
-  private debugLogOpponentSprite(kind: "miss" | "hit") {
-    const s = this.remotePlayer.sprite;
-    const dump = () => ({
-      kind, visible: s.visible, alpha: s.alpha, active: s.active,
-      textureKey: s.texture?.key, frameName: s.frame?.name,
-      inDisplayList: this.children.exists(s), depth: s.depth,
-      x: Math.round(s.x), y: Math.round(s.y),
-      bodyEnable: (s.body as Phaser.Physics.Arcade.Body)?.enable,
-    });
-    console.error("[OPP-DEBUG t+0]", dump());
-    this.time.delayedCall(200, () => console.error("[OPP-DEBUG t+200ms]", dump()));
   }
 
   /** Broadcasts a hit against the opponent — THEY apply it to their own real
