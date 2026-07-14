@@ -46,6 +46,10 @@ export class PvpScene extends Phaser.Scene {
   private lastBroadcast = 0;
   private isFiring = false;
   private matchEnded = false;
+  /** v25: bullets that overlapped remotePlayer.sprite this physics step,
+   *  queued here instead of being processed (destroyed, etc.) immediately —
+   *  see onBulletHitOpponent for why. */
+  private pendingOpponentHits: Phaser.Physics.Arcade.Image[] = [];
 
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key };
@@ -177,55 +181,67 @@ export class PvpScene extends Phaser.Scene {
 
   /** Bullet directly overlapping the opponent's rendered position on THIS
    *  client — this is what makes THIS client authoritative over "did I land
-   *  a hit", while the opponent's own client stays authoritative over their hp. */
+   *  a hit", while the opponent's own client stays authoritative over their hp.
+   *
+   *  v25 fix (confirmed via a real browser console capture): this overlap is
+   *  `this.bullets` (a group) vs `this.remotePlayer.sprite` (a single, bare
+   *  sprite, not a group) — Phaser dispatches that specific shape as
+   *  collideSpriteVsGroup, which is still mid-iteration over the bullets
+   *  group's members when this callback runs. ANY mutation here — even just
+   *  disabling the bullet's own body, which was the first attempted fix —
+   *  was enough to corrupt the OTHER object in the pairing
+   *  (remotePlayer.sprite ended up with its body reference nulled out,
+   *  crashing a later applySnapshot call with "Cannot set properties of
+   *  undefined"). GameScene's equivalent overlap (bullets vs the ENEMY
+   *  GROUP, not a single sprite) never hits this, since group-vs-group is a
+   *  different, unaffected internal Phaser path.
+   *
+   *  The only fully safe fix: touch NOTHING mutable here. Only read plain
+   *  data off the bullet and flag it so this same bullet is never queued
+   *  twice, then queue it for real processing (destroy, damage, effects —
+   *  everything) in update(), which Phaser guarantees runs only after the
+   *  physics step (and this entire collision pass) has fully finished. */
   private onBulletHitOpponent(bullet: Phaser.Physics.Arcade.Image) {
     if (!bullet.active || bullet.getData("hasHit")) return;
     bullet.setData("hasHit", true);
+    this.pendingOpponentHits.push(bullet);
+  }
 
-    const damage = Number(bullet.getData("damage") ?? 0);
-    const isMiss = bullet.getData("isMiss") === true;
-    const isAoe = bullet.getData("isAoe") === true;
-    const explosionRadius = Number(bullet.getData("explosionRadius") ?? PLAYER_CONFIG.aoeRadius);
-    const impactX = bullet.x;
-    const impactY = bullet.y;
-    // v25 fix (confirmed via console: opponent sprite came back active:false,
-    // visible:false immediately inside this very callback): this overlap is
-    // `this.bullets` (a group) vs `this.remotePlayer.sprite` (a single, bare
-    // sprite, not a group) — Phaser dispatches that specific shape as
-    // collideSpriteVsGroup, which is still iterating the bullets group's
-    // members when this callback runs. Calling bullet.destroy() SYNCHRONOUSLY
-    // in here mutates the very group Phaser's own collision loop is mid-
-    // iteration over, and that corrupted the OTHER object in the pairing
-    // (remotePlayer.sprite) instead of just the bullet — exactly the
-    // "opponent vanishes on any hit/miss" bug. GameScene's equivalent
-    // (bullets vs the ENEMY GROUP) never hit this because that's a
-    // group-vs-group overlap, a different, unaffected code path in Phaser.
-    // Deactivating here is safe (stops it being processed again + hides it
-    // immediately); the actual destroy() is deferred to next tick, after
-    // Phaser's own physics step has finished with it.
-    bullet.setActive(false).setVisible(false);
-    (bullet.body as Phaser.Physics.Arcade.Body).enable = false;
-    this.time.delayedCall(0, () => bullet.destroy());
+  /** Runs after the physics step is fully done for this frame (see
+   *  onBulletHitOpponent's doc) — safe to destroy bullets and mutate
+   *  anything here. */
+  private processPendingOpponentHits() {
+    if (this.pendingOpponentHits.length === 0) return;
+    const bullets = this.pendingOpponentHits;
+    this.pendingOpponentHits = [];
 
-    if (isAoe) {
-      sfx.play("explosion");
-      // v25 fix: see the identical fix on the lob-detonate handler above —
-      // this circle was never cleaned up either.
-      const explosion = this.add.circle(impactX, impactY, explosionRadius, 0xff8800, 0.35).setDepth(15);
-      this.tweens.add({ targets: explosion, alpha: 0, scale: 1.3, duration: 300, onComplete: () => explosion.destroy() });
-      if (damage > 0) this.reportHit(damage);
-      return;
+    for (const bullet of bullets) {
+      const damage = Number(bullet.getData("damage") ?? 0);
+      const isMiss = bullet.getData("isMiss") === true;
+      const isAoe = bullet.getData("isAoe") === true;
+      const explosionRadius = Number(bullet.getData("explosionRadius") ?? PLAYER_CONFIG.aoeRadius);
+      const impactX = bullet.x;
+      const impactY = bullet.y;
+      bullet.destroy();
+
+      if (isAoe) {
+        sfx.play("explosion");
+        const explosion = this.add.circle(impactX, impactY, explosionRadius, 0xff8800, 0.35).setDepth(15);
+        this.tweens.add({ targets: explosion, alpha: 0, scale: 1.3, duration: 300, onComplete: () => explosion.destroy() });
+        if (damage > 0) this.reportHit(damage);
+        continue;
+      }
+
+      if (isMiss || damage <= 0) {
+        sfx.play("miss");
+        this.showFloatingText(this.remotePlayer.sprite.x, this.remotePlayer.sprite.y, "MISS", "#999999");
+        continue;
+      }
+
+      sfx.play("hit_enemy");
+      this.showFloatingText(this.remotePlayer.sprite.x, this.remotePlayer.sprite.y, `-${damage}`, "#f39c12");
+      this.reportHit(damage);
     }
-
-    if (isMiss || damage <= 0) {
-      sfx.play("miss");
-      this.showFloatingText(this.remotePlayer.sprite.x, this.remotePlayer.sprite.y, "MISS", "#999999");
-      return;
-    }
-
-    sfx.play("hit_enemy");
-    this.showFloatingText(this.remotePlayer.sprite.x, this.remotePlayer.sprite.y, `-${damage}`, "#f39c12");
-    this.reportHit(damage);
   }
 
   /** Broadcasts a hit against the opponent — THEY apply it to their own real
@@ -242,6 +258,10 @@ export class PvpScene extends Phaser.Scene {
 
   update(_time: number, delta: number) {
     if (this.matchEnded) return;
+
+    // Physics/collision for this frame has already fully finished by the
+    // time update() runs (see onBulletHitOpponent's doc) — safe to process now.
+    this.processPendingOpponentHits();
 
     let moveLeft = this.cursors.left.isDown || this.wasd.A.isDown;
     let moveRight = this.cursors.right.isDown || this.wasd.D.isDown;
