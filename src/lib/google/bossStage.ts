@@ -32,11 +32,6 @@ export interface BossStageRow {
   /** Used only as a fallback multiplier for encounters past the highest
    *  configured multiverse row (see getBossConfigForEncounter below). */
   growthPercent: number;
-  /** How many total story stages (across every multiverse) must be cleared
-   *  before this multiverse's boss unlocks — only multiverse=1's value is
-   *  actually used (see getBossPacing); pacing is a single global constant,
-   *  not per-boss, but lives on each row for the same simple sheet shape. */
-  occursEveryNStages: number;
   /** v29: minion-summon cadence in ms for this multiverse's boss — blank
    *  cell defaults to 15000 (the original hardcoded interval every boss used
    *  before this became configurable). */
@@ -52,7 +47,6 @@ function rowToBossStage(row: Record<string, string>): BossStageRow {
     damageMultiplier: Number(row.damageMultiplier) || 1,
     background: row.background || DEFAULT_BACKGROUND,
     growthPercent: Number(row.growthPercent || 10),
-    occursEveryNStages: Number(row.occursEveryNStages || 10),
     summonIntervalMs: Number(row.summonIntervalMs) || 15000,
   };
 }
@@ -61,13 +55,6 @@ export async function getAllBossStageConfigs(): Promise<BossStageRow[]> {
   const rows = await getConfigRows(BOSS_STAGE_SHEET);
   if (rows.length === 0) throw new Error("BossStage config not seeded");
   return rows.map(rowToBossStage).sort((a, b) => a.multiverse - b.multiverse);
-}
-
-/** Global pacing constant (stages-cleared-per-boss-unlock) — always read from
- *  the multiverse=1 row regardless of which encounter is being checked. */
-export async function getBossPacing(): Promise<number> {
-  const configs = await getAllBossStageConfigs();
-  return (configs.find((c) => c.multiverse === 1) ?? configs[0]).occursEveryNStages;
 }
 
 /** Resolves the exact stats for a given boss encounter number. Encounter N

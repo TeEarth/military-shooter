@@ -1,7 +1,7 @@
 import { getSupabaseClient } from "../supabase/client";
 // BossStage config is game-balance data — still Google Sheets. Only the
 // per-player bossEncounterCount below lives in Supabase.
-export { getAllBossStageConfigs, getBossPacing, getBossConfigForEncounter, type BossStageRow } from "../google/bossStage";
+export { getAllBossStageConfigs, getBossConfigForEncounter, type BossStageRow } from "../google/bossStage";
 
 const TABLE = "player_boss_progress";
 

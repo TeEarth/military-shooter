@@ -10,7 +10,7 @@ import { getRemainingAmmo } from "@/lib/db/weaponAmmo";
 import { isStageCompleted } from "@/lib/db/stageProgress";
 import { computeFullStats, statsToLoadout } from "@/lib/stats";
 import { parseStageNumber, templateStageId, stageStatMultiplier, extraEnemyCount } from "@/lib/stageTemplate";
-import { getBossPacing, getBossConfigForEncounter, getBossEncounterCount } from "@/lib/db/bossStage";
+import { getBossConfigForEncounter, getBossEncounterCount } from "@/lib/db/bossStage";
 import { getCompletedStageIds } from "@/lib/db/stageProgress";
 
 const DEFAULT_WEAPON_ID = "pistol";
@@ -166,18 +166,26 @@ export async function POST(req: NextRequest) {
 }
 
 async function startBossStage(playerId: string) {
-  const [pacing, bossEncounterCount, stagesCleared] = await Promise.all([
-    getBossPacing(),
+  const [bossEncounterCount, completedStageIds] = await Promise.all([
     getBossEncounterCount(playerId),
-    getCompletedStageIds(playerId).then((ids) => ids.length),
+    getCompletedStageIds(playerId),
   ]);
 
-  const tiersUnlocked = Math.floor(stagesCleared / pacing);
-  if (bossEncounterCount >= tiersUnlocked) {
-    return NextResponse.json({ error: "No boss stage available yet — clear more story stages first." }, { status: 400 });
+  // v31 fix: this used to derive "is a boss available" from a generic
+  // stages-cleared-count / pacing formula (Math.floor(stagesCleared / 10)),
+  // which could drift out of sync with which multiverse the player actually
+  // just finished (e.g. it kept resolving encounter 1's — Multiverse 1's —
+  // config even after Multiverse 2's stages were cleared, so the "boss"
+  // fought there was still Multiverse 1's map/stats). Locking the next boss
+  // encounter directly to "has the exact milestone stage (stage10, stage20,
+  // stage30, ...) been cleared" removes that drift entirely — encounter N
+  // always requires stage(N*10) specifically, matching one boss per multiverse.
+  const encounterNumber = bossEncounterCount + 1;
+  const requiredStageId = `stage${encounterNumber * 10}`;
+  if (!completedStageIds.includes(requiredStageId)) {
+    return NextResponse.json({ error: `Clear ${requiredStageId} first to unlock this boss.` }, { status: 400 });
   }
 
-  const encounterNumber = bossEncounterCount + 1;
   const config = await getBossConfigForEncounter(encounterNumber);
   const bossWeaponBase = await getWeaponById(config.weaponId);
   if (!bossWeaponBase) return NextResponse.json({ error: "Boss weapon not found" }, { status: 404 });
