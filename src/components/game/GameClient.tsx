@@ -165,7 +165,11 @@ export default function GameClient() {
   }
 
   return (
-    <div className="w-screen h-screen bg-military-darker flex items-center justify-center overflow-hidden">
+    <div className="w-screen h-[100dvh] bg-military-darker flex items-center justify-center overflow-hidden">
+      {/* v29 fix: h-screen (100vh) doesn't account for mobile browser chrome
+       *  (address bar showing/hiding) — the container kept resizing under the
+       *  fixed 100vh box, which read as the game "zooming" in/out on phones.
+       *  100dvh tracks the actual visible viewport instead. */}
       {loading && (
         <div className="absolute flex flex-col items-center gap-3">
           <div className="w-10 h-10 border-2 border-military-steel border-t-military-tan rounded-full animate-spin" />

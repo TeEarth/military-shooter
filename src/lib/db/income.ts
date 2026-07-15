@@ -1,7 +1,4 @@
 import { getSupabaseClient } from "../supabase/client";
-// WithdrawalRequest is NOT in the migrated table list (admin-processed,
-// stays editable via Google Sheets) — only PlayerIncome's balance moves here.
-import { appendRow, findRows, findRow, updateRow, readSheetRaw } from "../google/sheet";
 import { getPlayerById, updatePlayer } from "./player";
 
 /** v16: 100 THB/day withdrawal cap — same lazy reset-on-read pattern this
@@ -14,7 +11,7 @@ function todayUtc(): string {
 }
 
 const TABLE = "player_income";
-const WITHDRAWAL_REQUEST_SHEET = "WithdrawalRequest";
+const WITHDRAWAL_TABLE = "withdrawal_requests";
 
 export interface PlayerIncomeRow {
   playerId: string;
@@ -95,34 +92,59 @@ export async function requestWithdrawal(playerId: string, amount: number, phone:
   await updatePlayer(playerId, { dailyWithdrawnBaht: withdrawnToday + amount, dailyWithdrawnDate: today });
 
   const request: WithdrawalRequestRow = { id: genId("wd"), playerId, amount, phone: phone.trim(), status: "pending", requestedAt: new Date().toISOString() };
-  await appendRow(WITHDRAWAL_REQUEST_SHEET, request as unknown as Record<string, string | number | boolean>);
+  const { error: insertError } = await supabase.from(WITHDRAWAL_TABLE).insert({
+    id: request.id,
+    player_id: request.playerId,
+    amount: request.amount,
+    phone: request.phone,
+    status: request.status,
+    requested_at: request.requestedAt,
+  });
+  if (insertError) throw new Error(`requestWithdrawal (insert): ${insertError.message}`);
   return request;
 }
 
-function rowToWithdrawal(r: Record<string, string>): WithdrawalRequestRow {
-  return { id: r.id, playerId: r.playerId, amount: Number(r.amount || 0), phone: r.phone || "", status: r.status || "pending", requestedAt: r.requestedAt || "" };
+function rowToWithdrawal(r: Record<string, unknown>): WithdrawalRequestRow {
+  return {
+    id: String(r.id),
+    playerId: String(r.player_id),
+    amount: Number(r.amount || 0),
+    phone: String(r.phone || ""),
+    status: String(r.status || "pending"),
+    requestedAt: String(r.requested_at || ""),
+  };
 }
 
 export async function getWithdrawalRequests(playerId: string): Promise<WithdrawalRequestRow[]> {
-  const rows = await findRows(WITHDRAWAL_REQUEST_SHEET, (r) => r.playerId === playerId);
-  return rows.map(rowToWithdrawal).sort((a, b) => (a.requestedAt < b.requestedAt ? 1 : -1));
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.from(WITHDRAWAL_TABLE).select("*").eq("player_id", playerId).order("requested_at", { ascending: false });
+  if (error) throw new Error(`getWithdrawalRequests: ${error.message}`);
+  return (data ?? []).map(rowToWithdrawal);
 }
 
 /** Admin-only: every withdrawal request across every player, newest first. */
 export async function getAllWithdrawalRequests(): Promise<WithdrawalRequestRow[]> {
-  const { rows } = await readSheetRaw(WITHDRAWAL_REQUEST_SHEET);
-  return rows.map(rowToWithdrawal).sort((a, b) => (a.requestedAt < b.requestedAt ? 1 : -1));
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.from(WITHDRAWAL_TABLE).select("*").order("requested_at", { ascending: false });
+  if (error) throw new Error(`getAllWithdrawalRequests: ${error.message}`);
+  return (data ?? []).map(rowToWithdrawal);
 }
 
 export async function getWithdrawalRequestById(requestId: string): Promise<WithdrawalRequestRow | null> {
-  const found = await findRow(WITHDRAWAL_REQUEST_SHEET, (r) => r.id === requestId);
-  return found ? rowToWithdrawal(found.row) : null;
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.from(WITHDRAWAL_TABLE).select("*").eq("id", requestId).maybeSingle();
+  if (error) throw new Error(`getWithdrawalRequestById: ${error.message}`);
+  return data ? rowToWithdrawal(data) : null;
 }
 
 /** Admin marks a withdrawal as paid out (after manually sending the TrueMoney transfer). */
 export async function markWithdrawalProcessed(requestId: string): Promise<void> {
-  const found = await findRow(WITHDRAWAL_REQUEST_SHEET, (r) => r.id === requestId);
-  if (!found) throw new Error("Withdrawal request not found");
-  if (found.row.status === "processed") throw new Error("Withdrawal request already processed");
-  await updateRow(WITHDRAWAL_REQUEST_SHEET, found.rowIndex, { status: "processed" });
+  const supabase = getSupabaseClient();
+  const { data: existing, error: findError } = await supabase.from(WITHDRAWAL_TABLE).select("status").eq("id", requestId).maybeSingle();
+  if (findError) throw new Error(`markWithdrawalProcessed (find): ${findError.message}`);
+  if (!existing) throw new Error("Withdrawal request not found");
+  if (existing.status === "processed") throw new Error("Withdrawal request already processed");
+
+  const { error } = await supabase.from(WITHDRAWAL_TABLE).update({ status: "processed" }).eq("id", requestId);
+  if (error) throw new Error(`markWithdrawalProcessed (update): ${error.message}`);
 }

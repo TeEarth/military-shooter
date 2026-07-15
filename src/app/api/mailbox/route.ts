@@ -15,10 +15,11 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { index, action } = await req.json();
+  const id = String(index);
 
   if (action === "claim") {
     try {
-      const result = await claimMail(session.user.id, index);
+      const result = await claimMail(session.user.id, id);
       return NextResponse.json({ success: true, result });
     } catch (e) {
       return NextResponse.json({ error: (e as Error).message }, { status: 400 });
@@ -28,7 +29,7 @@ export async function POST(req: NextRequest) {
   if (action === "approve_withdrawal") {
     if (!session.user.isAdmin) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     try {
-      const result = await approveWithdrawalMail(session.user.id, index);
+      const result = await approveWithdrawalMail(session.user.id, id);
       return NextResponse.json({ success: true, result });
     } catch (e) {
       return NextResponse.json({ error: (e as Error).message }, { status: 400 });

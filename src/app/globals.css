@@ -18,10 +18,33 @@
   box-sizing: border-box;
 }
 
+html, body {
+  /* v29: blocks the mobile Safari/Chrome bounce-scroll gesture page-wide —
+   *  safe everywhere since it doesn't affect scrolling within elements. */
+  overscroll-behavior: none;
+}
+
 body {
   background-color: var(--military-darker);
   color: white;
   font-family: "Orbitron", monospace;
+}
+
+/* v29: PvP entry-fee payment flourish (see PvpClient.tsx's "paying" phase) —
+ *  ticket icon pops in, holds, then settles back down. */
+@keyframes pvp-pay-flourish {
+  0% { transform: scale(0.4); opacity: 0; }
+  40% { transform: scale(1.3); opacity: 1; }
+  70% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* v29: touch-action:none only on the actual game canvases (not page-wide,
+ *  which would break normal scrolling on Inventory/Mailbox/etc.) — combined
+ *  with viewport's user-scalable=no, this stops a stray multi-touch during
+ *  gameplay from triggering pinch-zoom/pan mid-match. */
+#game-container, #pvp-container {
+  touch-action: none;
 }
 
 .btn-military {

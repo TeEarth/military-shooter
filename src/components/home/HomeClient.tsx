@@ -25,7 +25,7 @@ interface VipProgress {
 
 const MENU_ITEMS = [
   { href: "/play", label: "PLAY", icon: "⚔️", primary: true },
-  { href: "/pvp", label: "PVP", icon: "🔫" },
+  { href: "/pvp", label: "PVP", icon: "🔫", primary: true, subtitle: "Costs 5 🎟️ per round" },
   { href: "/character", label: "CHARACTER", icon: "🪖" },
   { href: "/inventory", label: "INVENTORY", icon: "🎒" },
   { href: "/gacha", label: "GACHA", icon: "🏪" },
@@ -322,7 +322,9 @@ export default function HomeClient({ player, characterSprite, characterName, equ
                 onClick={() => sfx.play("ui_click")}
                 className={`relative card-military card-themed-glow flex flex-col items-center justify-center transition-all duration-200 ${
                   item.primary
-                    ? "col-span-3 bg-military-green border-military-tan hover:bg-military-olive text-xl py-6"
+                    ? item.href === "/pvp"
+                      ? "col-span-3 bg-military-danger border-red-400 hover:bg-red-700 text-xl py-6"
+                      : "col-span-3 bg-military-green border-military-tan hover:bg-military-olive text-xl py-6"
                     : "p-4"
                 }`}
               >
@@ -333,6 +335,9 @@ export default function HomeClient({ player, characterSprite, characterName, equ
                 )}
                 <span className="text-2xl mb-1">{item.icon}</span>
                 <span className="text-xs tracking-wider">{item.label}</span>
+                {"subtitle" in item && item.subtitle && (
+                  <span className="text-military-tan/80 text-[11px] mt-1">{item.subtitle}</span>
+                )}
               </Link>
             ))}
           </div>

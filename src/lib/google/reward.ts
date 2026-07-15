@@ -1,11 +1,10 @@
-import { getCachedSheet, invalidateSheetCache } from "./cache";
-import { appendRow, readSheetRaw, updateRow, deleteRowsWhere, parseBool } from "./sheet";
+import { getSupabaseClient } from "../supabase/client";
 import { addCurrency } from "../db/player";
 import { getStageById } from "./stage";
 import { grantEquipmentToPlayer, unlockCharacterForPlayer } from "../db/inventory";
 import { addGreenBanknotes, markWithdrawalProcessed, getWithdrawalRequestById } from "../db/income";
 
-const MAIL_SHEET = "Mail";
+const MAIL_TABLE = "mailbox";
 /** v22: mail older than this (and already claimed) is auto-purged so the
  *  mailbox doesn't accumulate clutter forever — unclaimed rewards are NEVER
  *  auto-deleted no matter how old, since that would silently destroy
@@ -34,53 +33,63 @@ export async function grantStageCompletionReward(playerId: string, stageId: stri
 // ---------- Mail ----------
 
 export interface MailItem {
-  index: number; // data row index within the Mail sheet, used to claim
+  id: string; // mailbox row id, used to claim
   playerId: string;
   title: string;
   message: string;
   reward: string; // format: "type:amountOrId" e.g. "coin:100", "equipment:helmet_common"
   claimed: boolean;
-  /** ISO timestamp of when this mail was sent — blank for mail sent before
-   *  v22 added this column. */
+  /** ISO timestamp of when this mail was sent. */
   sentAt: string;
 }
 
+function rowToMail(r: Record<string, unknown>): MailItem {
+  return {
+    id: String(r.id),
+    playerId: String(r.player_id),
+    title: String(r.title || ""),
+    message: String(r.message || ""),
+    reward: String(r.reward || ""),
+    claimed: Boolean(r.claimed),
+    sentAt: String(r.sent_at || ""),
+  };
+}
+
 /** Deletes every already-claimed mail row older than MAIL_EXPIRY_MS, across
- *  every player — called before every mailbox read so the sheet never grows
- *  unbounded. Rows with no sentAt (pre-v22) or unclaimed rows are left alone. */
+ *  every player — called before every mailbox read so the table never grows
+ *  unbounded. Unclaimed rows are never touched. */
 async function purgeExpiredMail(): Promise<void> {
-  const now = Date.now();
-  const removed = await deleteRowsWhere(MAIL_SHEET, (r) => {
-    if (!parseBool(r.claimed)) return false;
-    if (!r.sentAt) return false;
-    const sentTime = Date.parse(r.sentAt);
-    if (Number.isNaN(sentTime)) return false;
-    return now - sentTime > MAIL_EXPIRY_MS;
-  });
-  if (removed > 0) invalidateSheetCache(MAIL_SHEET);
+  const supabase = getSupabaseClient();
+  const cutoff = new Date(Date.now() - MAIL_EXPIRY_MS).toISOString();
+  const { error } = await supabase.from(MAIL_TABLE).delete().eq("claimed", true).lt("sent_at", cutoff);
+  if (error) throw new Error(`purgeExpiredMail: ${error.message}`);
 }
 
 export async function getMailForPlayer(playerId: string): Promise<MailItem[]> {
   await purgeExpiredMail();
-  const { rows } = await getCachedSheet(MAIL_SHEET);
-  return rows
-    .map((row, index) => ({ index, playerId: row.playerId, title: row.title, message: row.message, reward: row.reward, claimed: parseBool(row.claimed), sentAt: row.sentAt || "" }))
-    .filter((m) => m.playerId === playerId)
-    // Newest first — sentAt is an ISO string, so plain string comparison sorts
-    // chronologically; blank (pre-v22) timestamps sort last.
-    .sort((a, b) => (b.sentAt || "").localeCompare(a.sentAt || ""));
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.from(MAIL_TABLE).select("*").eq("player_id", playerId).order("sent_at", { ascending: false });
+  if (error) throw new Error(`getMailForPlayer: ${error.message}`);
+  return (data ?? []).map(rowToMail);
 }
 
 export async function sendMail(playerId: string, title: string, message: string, reward: string): Promise<void> {
-  await appendRow(MAIL_SHEET, { playerId, title, message, reward, claimed: false, sentAt: new Date().toISOString() });
-  invalidateSheetCache(MAIL_SHEET);
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from(MAIL_TABLE).insert({ player_id: playerId, title, message, reward, claimed: false, sent_at: new Date().toISOString() });
+  if (error) throw new Error(`sendMail: ${error.message}`);
 }
 
-export async function claimMail(playerId: string, index: number): Promise<{ coin: number; exp: number; ticket: number; diamond: number; banknote: number; itemGranted?: string }> {
-  const { rows } = await readSheetRaw(MAIL_SHEET);
-  const row = rows[index];
+async function getMailById(id: string): Promise<MailItem | null> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.from(MAIL_TABLE).select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(`getMailById: ${error.message}`);
+  return data ? rowToMail(data) : null;
+}
+
+export async function claimMail(playerId: string, id: string): Promise<{ coin: number; exp: number; ticket: number; diamond: number; banknote: number; itemGranted?: string }> {
+  const row = await getMailById(id);
   if (!row || row.playerId !== playerId) throw new Error("Mail not found");
-  if (parseBool(row.claimed)) throw new Error("Already claimed");
+  if (row.claimed) throw new Error("Already claimed");
 
   const [type, value] = row.reward.split(":");
   const result = { coin: 0, exp: 0, ticket: 0, diamond: 0, banknote: 0, itemGranted: undefined as string | undefined };
@@ -97,8 +106,9 @@ export async function claimMail(playerId: string, index: number): Promise<{ coin
     case "character": await unlockCharacterForPlayer(playerId, value); result.itemGranted = value; break;
   }
 
-  await updateRow(MAIL_SHEET, index, { claimed: true });
-  invalidateSheetCache(MAIL_SHEET);
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from(MAIL_TABLE).update({ claimed: true }).eq("id", id);
+  if (error) throw new Error(`claimMail (update): ${error.message}`);
   return result;
 }
 
@@ -108,11 +118,10 @@ export async function claimMail(playerId: string, index: number): Promise<{ coin
  * by hand. Marks the request processed, checks this admin-mailbox entry off,
  * and mails the original requester a confirmation.
  */
-export async function approveWithdrawalMail(adminId: string, index: number): Promise<{ playerId: string; amount: number }> {
-  const { rows } = await readSheetRaw(MAIL_SHEET);
-  const row = rows[index];
+export async function approveWithdrawalMail(adminId: string, id: string): Promise<{ playerId: string; amount: number }> {
+  const row = await getMailById(id);
   if (!row || row.playerId !== adminId) throw new Error("Mail not found");
-  if (parseBool(row.claimed)) throw new Error("Already handled");
+  if (row.claimed) throw new Error("Already handled");
 
   const [type, requestId] = row.reward.split(":");
   if (type !== "withdrawal") throw new Error("Not a withdrawal request");
@@ -121,8 +130,9 @@ export async function approveWithdrawalMail(adminId: string, index: number): Pro
   if (!request) throw new Error("Withdrawal request not found");
 
   await markWithdrawalProcessed(requestId);
-  await updateRow(MAIL_SHEET, index, { claimed: true });
-  invalidateSheetCache(MAIL_SHEET);
+  const supabase = getSupabaseClient();
+  const { error } = await supabase.from(MAIL_TABLE).update({ claimed: true }).eq("id", id);
+  if (error) throw new Error(`approveWithdrawalMail (update): ${error.message}`);
 
   await sendMail(
     request.playerId,

@@ -26,14 +26,12 @@ export class PvpOverScene extends Phaser.Scene {
       color: "#c5a97d",
     }).setOrigin(0.5);
 
-    if (data.won) {
-      this.add.text(width / 2, height / 2 - 10, "+30 🪙  +2 🎟️", {
-        fontFamily: "Orbitron, monospace",
-        fontSize: "16px",
-        color: "#4ade80",
-        fontStyle: "bold",
-      }).setOrigin(0.5);
-    }
+    this.add.text(width / 2, height / 2 - 10, data.won ? "+10 🎟️" : "+10 💎", {
+      fontFamily: "Orbitron, monospace",
+      fontSize: "16px",
+      color: "#4ade80",
+      fontStyle: "bold",
+    }).setOrigin(0.5);
 
     this.add.text(width / 2, height / 2 + 60, "[ HOME ]", {
       fontFamily: "Orbitron, monospace",

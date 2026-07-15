@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 
 interface MailItem {
-  index: number;
+  id: string;
   playerId: string;
   title: string;
   message: string;
@@ -26,15 +26,15 @@ export default function MailboxClient({ items }: { items: MailItem[] }) {
   const [mail, setMail] = useState(items);
   const [loading, setLoading] = useState(false);
 
-  async function handleAction(index: number, action: "claim" | "approve_withdrawal") {
+  async function handleAction(id: string, action: "claim" | "approve_withdrawal") {
     setLoading(true);
     const res = await fetch("/api/mailbox", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ index, action }),
+      body: JSON.stringify({ index: id, action }),
     });
     const data = await res.json();
-    if (data.success) setMail((prev) => prev.map((m) => m.index === index ? { ...m, claimed: true } : m));
+    if (data.success) setMail((prev) => prev.map((m) => m.id === id ? { ...m, claimed: true } : m));
     setLoading(false);
   }
 
@@ -51,7 +51,7 @@ export default function MailboxClient({ items }: { items: MailItem[] }) {
           const [type, value] = item.reward.split(":");
           const isWithdrawal = type === "withdrawal";
           return (
-            <div key={item.index} className={`card-military flex items-start gap-4 ${!item.claimed ? "border-military-tan" : ""}`}>
+            <div key={item.id} className={`card-military flex items-start gap-4 ${!item.claimed ? "border-military-tan" : ""}`}>
               <span className="text-3xl">{ICON_FOR_TYPE[type] ?? "📦"}</span>
               <div className="flex-1">
                 <div className="flex items-baseline justify-between gap-2">
@@ -62,10 +62,10 @@ export default function MailboxClient({ items }: { items: MailItem[] }) {
                 {!isWithdrawal && value && <p className="text-military-gold text-sm mt-1">+{value} {type}</p>}
               </div>
               {!item.claimed && isWithdrawal && (
-                <button onClick={() => handleAction(item.index, "approve_withdrawal")} disabled={loading} className="btn-military text-xs whitespace-nowrap">✓ MARK PAID</button>
+                <button onClick={() => handleAction(item.id, "approve_withdrawal")} disabled={loading} className="btn-military text-xs whitespace-nowrap">✓ MARK PAID</button>
               )}
               {!item.claimed && !isWithdrawal && (
-                <button onClick={() => handleAction(item.index, "claim")} disabled={loading} className="btn-military text-xs">CLAIM</button>
+                <button onClick={() => handleAction(item.id, "claim")} disabled={loading} className="btn-military text-xs">CLAIM</button>
               )}
               {item.claimed && <span className="text-green-400 text-xs">{isWithdrawal ? "PAID" : "CLAIMED"}</span>}
             </div>

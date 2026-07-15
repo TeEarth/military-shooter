@@ -174,11 +174,12 @@ export class GameScene extends Phaser.Scene {
         if (this.isBossStage && spawn.id === "boss") this.bossEnemy = enemy;
       }
 
-      // v17: boss calls in a fresh pistol-wielding minion once a minute —
-      // enemyRoster[0] is the pistol template the start route attaches for
-      // boss stages specifically (see startBossStage() in game/start/route.ts).
+      // v17/v29: boss calls in a fresh minion on a per-multiverse cadence
+      // (see BossStage.summonIntervalMs, defaults to 15000) — enemyRoster[0]
+      // is the minion template the start route attaches for boss stages
+      // specifically (see startBossStage() in game/start/route.ts).
       if (this.isBossStage) {
-        this.time.addEvent({ delay: 15000, loop: true, callback: () => this.spawnBossMinion(), callbackScope: this });
+        this.time.addEvent({ delay: this.stageData.bossSummonIntervalMs ?? 15000, loop: true, callback: () => this.spawnBossMinion(), callbackScope: this });
       }
 
       // v25: story/boss stage enemies are all placed and visible immediately

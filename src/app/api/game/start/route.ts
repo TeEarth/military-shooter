@@ -247,6 +247,7 @@ async function startBossStage(playerId: string) {
       rewardCoin: 0,
       rewardExp: 0,
       isRepeatable: false,
+      bossSummonIntervalMs: config.summonIntervalMs,
     },
     enemies: [bossEnemy],
     enemyRoster,

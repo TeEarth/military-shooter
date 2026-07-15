@@ -37,6 +37,10 @@ export interface BossStageRow {
    *  actually used (see getBossPacing); pacing is a single global constant,
    *  not per-boss, but lives on each row for the same simple sheet shape. */
   occursEveryNStages: number;
+  /** v29: minion-summon cadence in ms for this multiverse's boss — blank
+   *  cell defaults to 15000 (the original hardcoded interval every boss used
+   *  before this became configurable). */
+  summonIntervalMs: number;
 }
 
 function rowToBossStage(row: Record<string, string>): BossStageRow {
@@ -49,6 +53,7 @@ function rowToBossStage(row: Record<string, string>): BossStageRow {
     background: row.background || DEFAULT_BACKGROUND,
     growthPercent: Number(row.growthPercent || 10),
     occursEveryNStages: Number(row.occursEveryNStages || 10),
+    summonIntervalMs: Number(row.summonIntervalMs) || 15000,
   };
 }
 

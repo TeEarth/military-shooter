@@ -1,10 +1,25 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SessionProvider } from "./providers";
 
 export const metadata: Metadata = {
   title: "Military Shooter 2D",
   description: "2D Military Shooter Game",
+};
+
+// Locks pinch-zoom/double-tap-zoom on mobile/tablet — without this, touch
+// controls during gameplay (multi-finger taps for move+shoot) kept
+// accidentally triggering the browser's native pinch-zoom gesture, breaking
+// the Phaser Scale.FIT layout mid-match. viewport-fit=cover also pulls the
+// canvas under the notch/home-indicator on iPhones/iPads instead of leaving
+// letterboxed bars there.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  minimumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
