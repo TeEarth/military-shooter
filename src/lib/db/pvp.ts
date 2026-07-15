@@ -73,6 +73,16 @@ export async function joinQueue(playerId: string, username: string): Promise<Pvp
   return rowToMatch(match);
 }
 
+/** Whether this player already has a waiting row in the queue — used so the
+ *  client's every-3s re-POST while waiting for an opponent (see PvpClient's
+ *  polling in findMatch()) doesn't re-charge the entry fee on every tick. */
+export async function isPlayerQueued(playerId: string): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  const { data, error } = await supabase.from(QUEUE_TABLE).select("player_id").eq("player_id", playerId).maybeSingle();
+  if (error) throw new Error(`isPlayerQueued: ${error.message}`);
+  return !!data;
+}
+
 export async function leaveQueue(playerId: string): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase.from(QUEUE_TABLE).delete().eq("player_id", playerId);

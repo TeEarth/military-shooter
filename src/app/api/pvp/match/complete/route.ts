@@ -3,10 +3,11 @@ import { auth } from "@/lib/auth";
 import { getMatchById, completeMatch } from "@/lib/db/pvp";
 import { addCurrency } from "@/lib/db/player";
 
-// Flat reward for winning a PvP match — small on purpose (this is a casual
-// hobby-project mode, not the main coin economy).
-const PVP_WIN_COIN = 30;
-const PVP_WIN_TICKET = 2;
+// v29: PvP now costs a 5-ticket entry fee (see /api/pvp/queue), so payouts
+// were reworked around that — winner nets +5 tickets after the fee, and the
+// loser gets a diamond consolation instead of walking away with nothing.
+const PVP_WIN_TICKET = 10;
+const PVP_LOSS_DIAMOND = 10;
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -29,7 +30,9 @@ export async function POST(req: NextRequest) {
   // paid out twice even though both clients call this endpoint.
   const wonRace = await completeMatch(matchId, winnerId);
   if (wonRace) {
-    await addCurrency(winnerId, { coin: PVP_WIN_COIN, ticket: PVP_WIN_TICKET });
+    const loserId = winnerId === match.player1Id ? match.player2Id : match.player1Id;
+    await addCurrency(winnerId, { ticket: PVP_WIN_TICKET });
+    await addCurrency(loserId, { diamond: PVP_LOSS_DIAMOND });
   }
 
   return NextResponse.json({ success: true, rewarded: wonRace });

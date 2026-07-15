@@ -343,10 +343,10 @@ export class PvpScene extends Phaser.Scene {
     });
   }
 
-  private broadcastState() {
+  private broadcastState(force = false) {
     if (!this.channelReady) return;
     const now = this.time.now;
-    if (now - this.lastBroadcast < BROADCAST_INTERVAL_MS) return;
+    if (!force && now - this.lastBroadcast < BROADCAST_INTERVAL_MS) return;
     this.lastBroadcast = now;
 
     const snap: RemoteSnapshot = {
@@ -377,6 +377,14 @@ export class PvpScene extends Phaser.Scene {
 
   private handleLoss() {
     if (this.matchEnded) return;
+    // v29 fix: this fires from the "hit" broadcast handler, not from update() —
+    // as soon as matchEnded flips true, update()'s top-of-function
+    // `if (this.matchEnded) return;` guard means broadcastState() never runs
+    // again on this client. Without forcing one last send here, the final
+    // isDead:true snapshot could simply never reach the winner (especially
+    // since the throttled broadcastState() may not have been due to fire yet),
+    // leaving their client stuck thinking the match is still live.
+    this.broadcastState(true);
     this.matchEnded = true;
     this.reportMatchResult(this.opponent.id);
     this.endMatch(false);

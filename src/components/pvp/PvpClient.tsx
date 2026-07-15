@@ -219,7 +219,10 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
             <p className="text-military-steel text-sm">Playing as {username}</p>
 
             {phase === "idle" && (
-              <button onClick={findMatch} className="btn-gold w-full py-3">FIND MATCH</button>
+              <div className="space-y-3">
+                <p className="text-military-steel text-xs">Entry: 5 🎟️ · Win: +10 🎟️ · Loss: +10 💎</p>
+                <button onClick={findMatch} className="btn-gold w-full py-3">FIND MATCH</button>
+              </div>
             )}
 
             {phase === "searching" && (
