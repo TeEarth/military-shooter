@@ -15,7 +15,7 @@ interface PvpMatch {
   createdAt: string;
 }
 
-type Phase = "idle" | "paying" | "searching" | "loading" | "playing" | "error";
+type Phase = "idle" | "searching" | "loading" | "playing" | "error";
 
 export default function PvpClient({ playerId, username }: { playerId: string; username: string }) {
   const router = useRouter();
@@ -134,18 +134,6 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
     }
   }
 
-  // v29: the user wanted the 5-ticket entry fee to read as a distinct,
-  // visible "pay first, then you're allowed to search" step rather than a
-  // silent deduction buried inside the queue POST — the actual charge still
-  // happens server-side in findMatch()'s /api/pvp/queue call (that's the
-  // real source of truth for balance/insufficient-tickets), this just shows
-  // the payment flourish before triggering it.
-  function payTicketAndFindMatch() {
-    setError("");
-    setPhase("paying");
-    setTimeout(() => { findMatch(); }, 900);
-  }
-
   async function findMatch() {
     setError("");
     setPhase("searching");
@@ -164,9 +152,17 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
       }
 
       // Still waiting — listen for the match Realtime will insert for us.
+      // v29 fix: the topic used to be a fixed `pvp-lobby-${playerId}`, so
+      // cancelling and searching again quickly could call `.channel()` with
+      // the SAME topic before the previous channel's removeChannel() had
+      // actually finished unsubscribing — supabase-js returns the cached,
+      // already-subscribed channel object for a topic still in its registry,
+      // and calling `.on()` on an already-subscribed channel throws "cannot
+      // add postgres_changes callbacks ... after subscribe()". A unique
+      // topic per search attempt guarantees a fresh channel object every time.
       const supabase = getBrowserSupabaseClient();
       const channel = supabase
-        .channel(`pvp-lobby-${playerId}`)
+        .channel(`pvp-lobby-${playerId}-${Date.now()}`)
         .on("postgres_changes", { event: "INSERT", schema: "public", table: "pvp_matches", filter: `player1_id=eq.${playerId}` }, (payload) => {
           startMatch((payload.new as PvpMatch).id);
         })
@@ -232,16 +228,8 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
 
             {phase === "idle" && (
               <div className="space-y-3">
-                <p className="text-military-steel text-xs">Win: +10 🎟️ · Loss: +10 💎</p>
-                <button onClick={payTicketAndFindMatch} className="btn-gold w-full py-3">PAY 5 🎟️ TO ENTER</button>
-              </div>
-            )}
-
-            {phase === "paying" && (
-              <div className="space-y-3 py-2">
-                <div className="text-5xl animate-[pvp-pay-flourish_0.9s_ease-out]">🎟️</div>
-                <p className="text-military-tan text-sm font-bold">-5 tickets</p>
-                <p className="text-military-steel text-xs">Processing entry fee...</p>
+                <p className="text-military-steel text-xs">Entry: 5 🎟️ (charged only once matched) · Win: +10 🎟️ · Loss: +10 💎</p>
+                <button onClick={findMatch} className="btn-gold w-full py-3">FIND MATCH</button>
               </div>
             )}
 
@@ -255,8 +243,9 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
 
             {phase === "loading" && (
               <div className="space-y-3">
-                <div className="w-10 h-10 mx-auto border-2 border-military-steel border-t-military-tan rounded-full animate-spin" />
-                <p className="text-military-tan text-sm">Opponent found — loading match...</p>
+                <div className="text-4xl animate-[pvp-pay-flourish_0.9s_ease-out]">🎟️</div>
+                <p className="text-military-tan text-sm font-bold">-5 tickets</p>
+                <p className="text-military-steel text-sm">Opponent found — loading match...</p>
               </div>
             )}
 

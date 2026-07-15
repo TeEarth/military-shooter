@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPlayerById } from "@/lib/db/player";
-import { getMatchById } from "@/lib/db/pvp";
+import { getPlayerById, addCurrency } from "@/lib/db/player";
+import { getMatchById, chargeMatchEntryFeeOnce } from "@/lib/db/pvp";
+
+const PVP_ENTRY_TICKET_COST = 5;
 import { getCharacterById } from "@/lib/google/character";
 import { getWeaponById } from "@/lib/google/weapon";
 import { getEquippedWeaponId } from "@/lib/db/inventory";
@@ -38,6 +40,21 @@ export async function POST(req: NextRequest) {
 
   const [player, opponent] = await Promise.all([getPlayerById(session.user.id), getPlayerById(opponentId)]);
   if (!player) return NextResponse.json({ error: "Player not found" }, { status: 404 });
+
+  // v29: the 5-ticket entry fee is charged HERE (once a match genuinely
+  // exists), not at queue-join — cancelling before an opponent is found now
+  // costs nothing. Balance is checked BEFORE flipping the charged flag so an
+  // insufficient-balance rejection never gets permanently (and incorrectly)
+  // marked as "already charged" — chargeMatchEntryFeeOnce() only runs once we
+  // know the deduction can actually succeed, and is itself idempotent per
+  // player per match so a duplicate/retried call never re-charges.
+  if (player.ticket < PVP_ENTRY_TICKET_COST) {
+    return NextResponse.json({ error: `Need ${PVP_ENTRY_TICKET_COST} tickets to play PvP` }, { status: 400 });
+  }
+  const feeOwed = await chargeMatchEntryFeeOnce(matchId, isPlayer1);
+  if (feeOwed) {
+    await addCurrency(player.id, { ticket: -PVP_ENTRY_TICKET_COST });
+  }
 
   const [character, equippedWeaponId, opponentCharacter, opponentWeaponId] = await Promise.all([
     getCharacterById(player.currentCharacter),

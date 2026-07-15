@@ -73,16 +73,6 @@ export async function joinQueue(playerId: string, username: string): Promise<Pvp
   return rowToMatch(match);
 }
 
-/** Whether this player already has a waiting row in the queue — used so the
- *  client's every-3s re-POST while waiting for an opponent (see PvpClient's
- *  polling in findMatch()) doesn't re-charge the entry fee on every tick. */
-export async function isPlayerQueued(playerId: string): Promise<boolean> {
-  const supabase = getSupabaseClient();
-  const { data, error } = await supabase.from(QUEUE_TABLE).select("player_id").eq("player_id", playerId).maybeSingle();
-  if (error) throw new Error(`isPlayerQueued: ${error.message}`);
-  return !!data;
-}
-
 export async function leaveQueue(playerId: string): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase.from(QUEUE_TABLE).delete().eq("player_id", playerId);
@@ -128,6 +118,28 @@ export async function getMatchById(matchId: string): Promise<PvpMatch | null> {
   const { data, error } = await supabase.from(MATCH_TABLE).select("*").eq("id", matchId).maybeSingle();
   if (error) throw new Error(`getMatchById: ${error.message}`);
   return data ? rowToMatch(data) : null;
+}
+
+/**
+ * Charges the PvP entry fee exactly once per player per match — called from
+ * /api/pvp/match/start (once a match genuinely exists), not at queue-join
+ * time, so cancelling before an opponent is found never costs anything.
+ * Idempotent via the `.eq(feeColumn, false)` guard, same race-proofing
+ * pattern as completeMatch()'s `.eq("status", "active")`: a retried/duplicate
+ * call for a player who's already been charged for this match is a no-op
+ * (returns false) instead of charging twice.
+ */
+export async function chargeMatchEntryFeeOnce(matchId: string, isPlayer1: boolean): Promise<boolean> {
+  const supabase = getSupabaseClient();
+  const feeColumn = isPlayer1 ? "player1_fee_charged" : "player2_fee_charged";
+  const { data, error } = await supabase
+    .from(MATCH_TABLE)
+    .update({ [feeColumn]: true })
+    .eq("id", matchId)
+    .eq(feeColumn, false)
+    .select("id");
+  if (error) throw new Error(`chargeMatchEntryFeeOnce: ${error.message}`);
+  return (data?.length ?? 0) > 0;
 }
 
 /**

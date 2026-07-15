@@ -31,6 +31,11 @@ export class MobileControls {
    *  the visible base so thumbs don't need pixel-perfect placement. */
   private readonly grabRadius = 110;
 
+  /** scheme "split" only — the move stick floats to wherever the left-half
+   *  touch actually landed (see handleDown) instead of a small fixed circle,
+   *  so the whole left half of the screen is walkable, not just one exact
+   *  spot. "joystick" scheme keeps the original fixed corner. */
+  private readonly isFloatingMove: boolean;
   private moveCenter: { x: number; y: number };
   private moveBase: Phaser.GameObjects.Arc;
   private moveKnob: Phaser.GameObjects.Arc;
@@ -57,6 +62,7 @@ export class MobileControls {
   constructor(scene: Phaser.Scene, scheme: ControlScheme = "joystick") {
     this.scene = scene;
     this.scheme = scheme;
+    this.isFloatingMove = scheme === "split";
     const { width, height } = scene.scale;
 
     this.moveCenter = { x: 130, y: height - 130 };
@@ -73,9 +79,17 @@ export class MobileControls {
         .setScrollFactor(0).setDepth(DEPTH).setStrokeStyle(2, 0xff4444, 0.35);
       this.aimKnob = scene.add.circle(this.aimCenter.x, this.aimCenter.y, this.knobRadius, 0xc0392b, 0.5)
         .setScrollFactor(0).setDepth(DEPTH + 1);
+    } else {
+      // v29 fix: scheme "split" now has a FLOATING move stick — hidden until
+      // a left-half touch actually lands (see handleDown), instead of a
+      // persistent stick glued to one small fixed corner that a thumb had to
+      // land on pixel-perfectly.
+      this.moveBase.setVisible(false);
+      this.moveKnob.setVisible(false);
     }
     // scheme "split" has no visible widget on the right side at all — the
-    // whole right half of the screen is itself the aim/fire surface.
+    // whole screen (outside HUD buttons and the active move touch) is itself
+    // the aim/fire surface.
 
     this.onDown = (p) => this.handleDown(p);
     this.onMove = (p) => this.handleMove(p);
@@ -87,18 +101,50 @@ export class MobileControls {
     scene.input.on("pointerupoutside", this.onUp);
   }
 
-  private handleDown(pointer: Phaser.Input.Pointer) {
-    if (this.movePointerId === null && Phaser.Math.Distance.Between(pointer.x, pointer.y, this.moveCenter.x, this.moveCenter.y) <= this.grabRadius) {
-      this.movePointerId = pointer.id;
-      this.updateStick(pointer.x, pointer.y, this.moveCenter, this.moveKnob, (v) => (this.moveVector = v));
-      return;
-    }
+  /** v29: fixed screen-space zones the HUD's own buttons occupy (Pause/Exit,
+   *  Refill top-right; Reload bottom-right) — kept in sync by hand with
+   *  HUDScene's button positions since they live on a separate scene with no
+   *  shared hit-test. A tap landing in one of these must never also register
+   *  as a move/fire touch underneath the button. */
+  private isInHudButtonZone(x: number, y: number): boolean {
+    const { width, height } = this.scene.scale;
+    // Pause/Exit + Refill cluster, top-right.
+    if (x >= width - 100 && y <= 118) return true;
+    // Reload button — bottom-right plain corner for "split" scheme (the
+    // "joystick" scheme's raised reload sits just above its own fire stick,
+    // which handleDown already reserves via the aimCenter grab check).
+    if (!this.isFloatingMove) return false;
+    return Phaser.Math.Distance.Between(x, y, width - 56, height - 56) <= 44;
+  }
 
-    if (this.scheme === "split") {
-      if (this.aimPointerId === null && pointer.x >= this.scene.scale.width / 2) {
+  private handleDown(pointer: Phaser.Input.Pointer) {
+    if (this.isInHudButtonZone(pointer.x, pointer.y)) return;
+
+    if (this.isFloatingMove) {
+      // Left half, nothing else already claimed as the move touch — anchor a
+      // fresh floating joystick right where the thumb landed, anywhere in
+      // that half (not just one exact fixed spot).
+      if (this.movePointerId === null && pointer.x < this.scene.scale.width / 2) {
+        this.movePointerId = pointer.id;
+        this.moveCenter = { x: pointer.x, y: pointer.y };
+        this.moveBase.setPosition(pointer.x, pointer.y).setVisible(true);
+        this.moveKnob.setPosition(pointer.x, pointer.y).setVisible(true);
+        this.moveVector = { x: 0, y: 0 };
+        return;
+      }
+
+      // Everything else not already the move touch or a HUD button — aim
+      // and fire toward wherever this touch landed.
+      if (this.aimPointerId === null) {
         this.aimPointerId = pointer.id;
         this.aimScreenPoint = { x: pointer.x, y: pointer.y };
       }
+      return;
+    }
+
+    if (this.movePointerId === null && Phaser.Math.Distance.Between(pointer.x, pointer.y, this.moveCenter.x, this.moveCenter.y) <= this.grabRadius) {
+      this.movePointerId = pointer.id;
+      this.updateStick(pointer.x, pointer.y, this.moveCenter, this.moveKnob, (v) => (this.moveVector = v));
       return;
     }
 
@@ -120,7 +166,12 @@ export class MobileControls {
     if (pointer.id === this.movePointerId) {
       this.movePointerId = null;
       this.moveVector = { x: 0, y: 0 };
-      this.moveKnob.setPosition(this.moveCenter.x, this.moveCenter.y);
+      if (this.isFloatingMove) {
+        this.moveBase.setVisible(false);
+        this.moveKnob.setVisible(false);
+      } else {
+        this.moveKnob.setPosition(this.moveCenter.x, this.moveCenter.y);
+      }
     }
     if (pointer.id === this.aimPointerId) {
       this.aimPointerId = null;
