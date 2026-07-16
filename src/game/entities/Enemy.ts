@@ -16,6 +16,7 @@ type AIState = "patrol" | "chase" | "shoot" | "approach";
 export class Enemy {
   scene: Phaser.Scene;
   sprite: Phaser.Physics.Arcade.Image;
+  private weaponSprite?: Phaser.GameObjects.Image;
   private enemyBullets: Phaser.Physics.Arcade.Group;
   data: EnemySpawn;
 
@@ -77,6 +78,16 @@ export class Enemy {
     this.sprite.setCollideWorldBounds(true);
     group.add(this.sprite);
 
+    // v31 fix: previously every enemy showed the same generic gun shape
+    // baked into its body art, so a shotgunner and a sniper looked
+    // identical — this shows the REAL weapon it's carrying, same
+    // `weapon_sprite_${weaponId}` asset/key the player itself uses (see
+    // PreloadScene, which loads one per distinct enemy weaponId in the roster).
+    const weaponKey = `weapon_sprite_${this.data.weaponId}`;
+    if (scene.textures.exists(weaponKey) && !failedAssetKeys?.has(weaponKey)) {
+      this.weaponSprite = scene.add.image(x, y, weaponKey).setOrigin(0.5, 0.7).setDepth(this.sprite.depth + 1);
+    }
+
     this.patrolTarget = new Phaser.Math.Vector2(x, y);
     this.pickNewPatrolTarget();
 
@@ -108,6 +119,7 @@ export class Enemy {
       const margin = UNIT_DISPLAY_SIZE / 2;
       this.sprite.x = Phaser.Math.Clamp(this.sprite.x, margin, this.worldWidth - margin);
       this.sprite.y = Phaser.Math.Clamp(this.sprite.y, margin, this.worldHeight - margin);
+      this.syncWeaponSprite();
       this.updateHpBar();
       return;
     }
@@ -140,10 +152,16 @@ export class Enemy {
       case "chase":
         this.moveToward(playerX, playerY, ENEMY_CONFIG.chaseSpeed);
         break;
-      case "shoot":
+      case "shoot": {
         body.setVelocity(0, 0);
+        // v31 fix: standing still to shoot never updated facing before, so a
+        // stationary enemy (or a turret) kept whatever rotation it last had
+        // from movement — now it visibly turns to face the player it's firing at.
+        const aimAngle = Phaser.Math.Angle.Between(this.sprite.x, this.sprite.y, playerX, playerY);
+        this.sprite.setRotation(aimAngle + Math.PI / 2);
         this.tryShoot(playerX, playerY);
         break;
+      }
       case "approach":
         this.moveToward(playerX, playerY, ENEMY_CONFIG.approachSpeed);
         this.tryShoot(playerX, playerY);
@@ -162,7 +180,17 @@ export class Enemy {
     this.sprite.x = Phaser.Math.Clamp(this.sprite.x, margin, this.worldWidth - margin);
     this.sprite.y = Phaser.Math.Clamp(this.sprite.y, margin, this.worldHeight - margin);
 
+    this.syncWeaponSprite();
     this.updateHpBar();
+  }
+
+  /** Keeps the weapon overlay glued to the body's current position/rotation
+   *  every frame — same convention as Player.ts's own weaponSprite. */
+  private syncWeaponSprite() {
+    if (!this.weaponSprite) return;
+    this.weaponSprite.setPosition(this.sprite.x, this.sprite.y);
+    this.weaponSprite.setRotation(this.sprite.rotation);
+    this.weaponSprite.setVisible(true);
   }
 
   private moveToward(tx: number, ty: number, speed: number) {
@@ -252,6 +280,10 @@ export class Enemy {
     this.sprite.setAlpha(0.3);
     this.hpBar.destroy();
     this.scene.tweens.add({ targets: this.sprite, alpha: 0, duration: 800, onComplete: () => this.sprite.destroy() });
+    if (this.weaponSprite) {
+      const weaponSprite = this.weaponSprite;
+      this.scene.tweens.add({ targets: weaponSprite, alpha: 0, duration: 800, onComplete: () => weaponSprite.destroy() });
+    }
   }
 
   private updateHpBar() {

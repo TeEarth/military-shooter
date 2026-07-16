@@ -84,11 +84,23 @@ export class PreloadScene extends Phaser.Scene {
     // One image per distinct enemy type appearing in this session (story spawns + farm roster),
     // also loaded directly at final display size for the same reason as the player.
     const seenEnemySprites = new Set<string>();
+    // Seeded with the player's own weapon (already queued above) so an enemy
+    // carrying the same weapon never queues a duplicate load for that key.
+    const seenEnemyWeapons = new Set<string>(character?.weaponId ? [character.weaponId] : []);
     const allEnemyRefs = [...enemySpawns, ...enemyRoster];
     for (const enemy of allEnemyRefs) {
       if (enemy.sprite && !seenEnemySprites.has(enemy.id)) {
         seenEnemySprites.add(enemy.id);
         this.load.svg(`enemy_sprite_${enemy.id}`, enemy.sprite, { width: UNIT_DISPLAY_SIZE, height: UNIT_DISPLAY_SIZE });
+      }
+      // v31 fix: enemies previously all showed the same generic gun shape
+      // baked into their body art, with no way to tell a shotgunner from a
+      // sniper by sight — loading the real weapon sprite here (same asset/key
+      // convention as the player's own `weapon_sprite_${weaponId}`, see
+      // Enemy.ts) lets Enemy.ts show the actual weapon it's carrying.
+      if (enemy.weaponId && !seenEnemyWeapons.has(enemy.weaponId)) {
+        seenEnemyWeapons.add(enemy.weaponId);
+        this.load.svg(`weapon_sprite_${enemy.weaponId}`, getWeaponSprite(enemy.weaponId), { width: 20, height: 40 });
       }
     }
 
