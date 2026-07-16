@@ -1,13 +1,13 @@
 <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-  <defs>
+  <defs><filter id="fxOutline" x="-40%" y="-40%" width="180%" height="180%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="fxn"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="fxn" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="fxrough"></feDisplacementMap><feDropShadow in="fxrough" dx="0" dy="0" stdDeviation="1.3" flood-color="#8a5c1e" flood-opacity="0.85"></feDropShadow></filter><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
     <radialGradient id="coin" cx="38%" cy="30%" r="75%">
       <stop offset="0%" stop-color="#fff6d0"></stop>
       <stop offset="45%" stop-color="#f0c840"></stop>
       <stop offset="100%" stop-color="#a87c10"></stop>
     </radialGradient>
-  </defs>
-  <circle cx="16" cy="16" r="13" fill="url(#coin)" stroke="#8a5c1e" stroke-width="2"></circle>
-  <circle cx="16" cy="16" r="9" fill="none" stroke="#8a5c1e" stroke-width="1.5" opacity="0.7"></circle>
+  </defs><g filter="url(#fxOutline)">
+  <circle cx="16" cy="16" r="13" fill="url(#coin)"></circle>
+  <circle cx="16" cy="16" r="9" fill="none" stroke="#8a5c1e" stroke-width="5.5" opacity="0.28" filter="url(#fxBlur)"></circle>
   <ellipse cx="12" cy="11" rx="3.5" ry="2" fill="#fff" opacity="0.5"></ellipse>
   <text x="16" y="21" font-size="14" text-anchor="middle" fill="#8a5c1e" font-family="sans-serif" font-weight="bold">$</text>
-</svg>
+</g></svg>

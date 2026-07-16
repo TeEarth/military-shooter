@@ -1,5 +1,5 @@
 <svg viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
-  <defs>
+  <defs><filter id="fxOutline" x="-40%" y="-40%" width="180%" height="180%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="fxn"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="fxn" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="fxrough"></feDisplacementMap><feDropShadow in="fxrough" dx="0" dy="0" stdDeviation="1.3" flood-color="#5c4008" flood-opacity="0.85"></feDropShadow></filter><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
     <radialGradient id="ticketGoldTop" cx="38%" cy="32%" r="68%">
       <stop offset="0%" stop-color="#fffbe6"></stop>
       <stop offset="35%" stop-color="#fff2b0"></stop>
@@ -10,12 +10,14 @@
       <stop offset="0%" stop-color="#8a6a18"></stop>
       <stop offset="100%" stop-color="#5c4008"></stop>
     </linearGradient>
-  </defs>
-  <ellipse cx="40" cy="72" rx="26" ry="6" fill="#000" opacity="0.25"></ellipse>
+  </defs><g filter="url(#fxOutline)">
+  <ellipse cx="40" cy="72" rx="26" ry="6" fill="#000" opacity="0.25" filter="url(#fxBlur)"></ellipse>
   <circle cx="40" cy="36" r="30" fill="url(#ticketBottom)"></circle>
   <path d="M10 36 A30 30 0 0 0 70 36 Z" fill="url(#ticketGoldTop)"></path>
   <ellipse cx="26" cy="20" rx="8" ry="4" fill="#fff" opacity="0.4"></ellipse>
   <circle cx="40" cy="36" r="30" fill="none" stroke="#5c4008" stroke-width="3"></circle>
-  <circle cx="40" cy="36" r="8" fill="#fff7d6" stroke="#5c4008" stroke-width="2"></circle>
+  <circle cx="40" cy="36" r="8" fill="#fff7d6"></circle>
   <path d="M40 6 L43 14 L51 14 L44.5 19 L47 27 L40 22 L33 27 L35.5 19 L29 14 L37 14 Z" fill="#fff7d6" opacity="0.95" stroke="#c99a2a" stroke-width="0.4"></path>
-</svg>
+<circle cx="40" cy="36" r="34" fill="none" stroke="#ffe98a" stroke-width="4" opacity="0.22" filter="url(#fxBlur)"></circle>
+    <g fill="#fff7d6" opacity="0.85"><path d="M14 50 l1.6 4.2 l4.2 1.6 l-4.2 1.6 l-1.6 4.2 l-1.6 -4.2 l-4.2 -1.6 l4.2 -1.6 Z"></path><path d="M66 54 l1.4 3.8 l3.8 1.4 l-3.8 1.4 l-1.4 3.8 l-1.4 -3.8 l-3.8 -1.4 l3.8 -1.4 Z"></path></g>
+    </g></svg>

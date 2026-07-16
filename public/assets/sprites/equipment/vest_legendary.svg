@@ -1,13 +1,13 @@
 <svg viewBox="0 0 64 72" xmlns="http://www.w3.org/2000/svg">
-  <defs><radialGradient id="vLeg" cx="40%" cy="28%" r="78%">
+  <defs><filter id="fxOutline" x="-40%" y="-40%" width="180%" height="180%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="fxn"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="fxn" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="fxrough"></feDisplacementMap><feDropShadow in="fxrough" dx="0" dy="0" stdDeviation="1.3" flood-color="#7a4d06" flood-opacity="0.85"></feDropShadow></filter><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter><radialGradient id="vLeg" cx="40%" cy="28%" r="78%">
     <stop offset="0%" stop-color="#fffbe6"></stop>
     <stop offset="40%" stop-color="#fff2b0"></stop>
     <stop offset="70%" stop-color="#f0c020"></stop>
     <stop offset="100%" stop-color="#a06a08"></stop>
-  </radialGradient></defs>
+  </radialGradient><filter id="fxGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"></feTurbulence><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.9 0 0 0 0"></feColorMatrix></filter></defs><g filter="url(#fxOutline)">
   <ellipse cx="32" cy="64" rx="24" ry="7" fill="#a06a08" opacity="0.35"></ellipse>
-  <path d="M14 14 Q32 4 50 14 L54 56 Q32 66 10 56 Z" fill="url(#vLeg)" stroke="#7a4d06" stroke-width="2.5"></path>
+  <path d="M14 14 Q32 4 50 14 L54 56 Q32 66 10 56 Z" fill="url(#vLeg)"></path>
   <ellipse cx="22" cy="20" rx="8" ry="11" fill="#fff" opacity="0.35"></ellipse>
   <path d="M32 18 L36 30 L48 32 L38 40 L41 52 L32 45 L23 52 L26 40 L16 32 L28 30 Z" fill="#fff7d6" opacity="0.95" stroke="#c99a2a" stroke-width="0.5"></path>
   <path d="M14 14 Q32 4 50 14 L54 56 Q32 66 10 56 Z" fill="none" stroke="#fff2b0" stroke-width="2" opacity="0.9"></path>
-</svg>
+<rect x="0" y="0" width="64" height="72" filter="url(#fxGrain)" opacity="0.11" style="mix-blend-mode:overlay" pointer-events="none"></rect></g></svg>

@@ -1,5 +1,5 @@
 <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-  <defs>
+  <defs><filter id="fxOutline" x="-40%" y="-40%" width="180%" height="180%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="fxn"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="fxn" scale="2" xChannelSelector="R" yChannelSelector="G" result="fxrough"></feDisplacementMap><feDropShadow in="fxrough" dx="0" dy="0" stdDeviation="1.3" flood-color="#1c1e20" flood-opacity="0.85"></feDropShadow></filter><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
     <linearGradient id="steel" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#9aa0a4"></stop>
       <stop offset="50%" stop-color="#6d7276"></stop>
@@ -24,19 +24,19 @@
       <stop offset="55%" stop-color="#000" stop-opacity="0"></stop>
       <stop offset="100%" stop-color="#000" stop-opacity="0.4"></stop>
     </radialGradient>
-  </defs>
-  <ellipse cx="64" cy="100" rx="36" ry="10" fill="#000" opacity="0.32"></ellipse>
-  <rect x="30" y="86" width="68" height="16" rx="4" fill="url(#steel)" stroke="#1c1e20" stroke-width="2"></rect>
+  <filter id="fxGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"></feTurbulence><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.9 0 0 0 0"></feColorMatrix></filter></defs><g filter="url(#fxOutline)">
+  <ellipse cx="64" cy="100" rx="36" ry="10" fill="#000" opacity="0.32" filter="url(#fxBlur)"></ellipse>
+  <rect x="30" y="86" width="68" height="16" rx="4" fill="url(#steel)"></rect>
   <rect x="30" y="86" width="68" height="4" rx="2" fill="#fff" opacity="0.15"></rect>
   <circle cx="40" cy="94" r="5" fill="#232527"></circle>
   <circle cx="88" cy="94" r="5" fill="#232527"></circle>
-  <circle cx="64" cy="64" r="32" fill="url(#steel)" stroke="#2a2c2e" stroke-width="3"></circle>
+  <circle cx="64" cy="64" r="32" fill="url(#steel)"></circle>
   <circle cx="64" cy="64" r="32" fill="url(#ao)"></circle>
   <ellipse cx="52" cy="50" rx="14" ry="9" fill="#fff" opacity="0.14"></ellipse>
   <path d="M40 46 L88 46" stroke="#2a2c2e" stroke-width="3" opacity="0.7"></path>
   <path d="M36 64 L92 64" stroke="#2a2c2e" stroke-width="3" opacity="0.7"></path>
   <path d="M40 82 L88 82" stroke="#2a2c2e" stroke-width="3" opacity="0.7"></path>
-  <circle cx="64" cy="64" r="14" fill="url(#dome)" stroke="#232527" stroke-width="2"></circle>
+  <circle cx="64" cy="64" r="14" fill="url(#dome)"></circle>
   <circle cx="64" cy="64" r="5" fill="url(#lens)"></circle>
   <circle cx="62" cy="62" r="1.4" fill="#fff" opacity="0.8"></circle>
   <rect x="56" y="16" width="16" height="34" rx="2" fill="url(#barrel)"></rect>
@@ -44,7 +44,7 @@
   <circle cx="59" cy="18" r="2.4" fill="#050606"></circle>
   <circle cx="64" cy="16" r="2.4" fill="#050606"></circle>
   <circle cx="69" cy="18" r="2.4" fill="#050606"></circle>
-  <rect x="52" y="46" width="24" height="12" rx="3" fill="url(#steel)" stroke="#1c1e20" stroke-width="1.5"></rect>
-  <rect x="30" y="56" width="12" height="16" rx="2" fill="url(#steel)" stroke="#1c1e20" stroke-width="1.5"></rect>
-  <rect x="86" y="56" width="12" height="16" rx="2" fill="url(#steel)" stroke="#1c1e20" stroke-width="1.5"></rect>
-</svg>
+  <rect x="52" y="46" width="24" height="12" rx="3" fill="url(#steel)"></rect>
+  <rect x="30" y="56" width="12" height="16" rx="2" fill="url(#steel)"></rect>
+  <rect x="86" y="56" width="12" height="16" rx="2" fill="url(#steel)"></rect>
+<rect x="0" y="0" width="128" height="128" filter="url(#fxGrain)" opacity="0.14" style="mix-blend-mode:overlay" pointer-events="none"></rect></g></svg>
