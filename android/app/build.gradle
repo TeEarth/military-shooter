@@ -1,5 +1,17 @@
 apply plugin: 'com.android.application'
 
+// Release signing — keystore.properties holds only PATHS (no secrets itself);
+// the actual keystore file and its password live outside this repo entirely
+// (see keystore.properties for where) and are read straight off disk at
+// build time, so the password never needs to appear in this file, in git,
+// or in any build log.
+def keystorePropertiesFile = rootProject.file("keystore.properties")
+def keystoreProperties = new Properties()
+def hasReleaseSigning = keystorePropertiesFile.exists()
+if (hasReleaseSigning) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
 android {
     namespace "com.militaryshooter.game"
     compileSdk rootProject.ext.compileSdkVersion
@@ -16,8 +28,19 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    signingConfigs {
+        release {
+            if (hasReleaseSigning) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword file(keystoreProperties['passwordFile']).text.trim()
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword file(keystoreProperties['passwordFile']).text.trim()
+            }
+        }
+    }
     buildTypes {
         release {
+            if (hasReleaseSigning) signingConfig signingConfigs.release
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
