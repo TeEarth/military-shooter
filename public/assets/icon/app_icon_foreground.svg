@@ -1,0 +1,29 @@
+<svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <radialGradient id="helmet" cx="34%" cy="26%" r="78%">
+      <stop offset="0%" stop-color="#9ba88d"></stop>
+      <stop offset="52%" stop-color="#4a6030"></stop>
+      <stop offset="100%" stop-color="#2c3a1d"></stop>
+    </radialGradient>
+  </defs>
+
+  <!-- transparent background — adaptive icon composites this over
+       @color/ic_launcher_background. Content kept inside the ~66% safe-zone
+       circle so it doesn't get clipped by circular/squircle launcher masks. -->
+
+  <!-- crosshair accent, sized to stay within the safe zone -->
+  <circle cx="512" cy="512" r="330" fill="none" stroke="#c5a97d" stroke-width="10" opacity="0.4"></circle>
+  <line x1="512" y1="150" x2="512" y2="230" stroke="#c5a97d" stroke-width="16" opacity="0.6"></line>
+  <line x1="512" y1="794" x2="512" y2="874" stroke="#c5a97d" stroke-width="16" opacity="0.6"></line>
+  <line x1="150" y1="512" x2="230" y2="512" stroke="#c5a97d" stroke-width="16" opacity="0.6"></line>
+  <line x1="794" y1="512" x2="874" y2="512" stroke="#c5a97d" stroke-width="16" opacity="0.6"></line>
+
+  <!-- helmet -->
+  <circle cx="512" cy="512" r="210" fill="url(#helmet)" stroke="#1c2711" stroke-width="14"></circle>
+  <path d="M330 450 A182 182 0 0 1 694 450" fill="#1c2711" opacity="0.32"></path>
+  <ellipse cx="435" cy="400" rx="58" ry="34" fill="#fff" opacity="0.35"></ellipse>
+
+  <!-- visor -->
+  <ellipse cx="512" cy="516" rx="76" ry="35" fill="#100a08" opacity="0.72"></ellipse>
+  <ellipse cx="484" cy="505" rx="17" ry="9" fill="#fff" opacity="0.42"></ellipse>
+</svg>
