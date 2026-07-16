@@ -1,9 +1,9 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <defs><filter id="fxOutline" x="-40%" y="-40%" width="180%" height="180%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="fxn"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="fxn" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="fxrough"></feDisplacementMap><feDropShadow in="fxrough" dx="0" dy="0" stdDeviation="1.3" flood-color="#43494e" flood-opacity="0.85"></feDropShadow></filter><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter><radialGradient id="h" cx="38%" cy="30%" r="78%">
+  <defs><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter><radialGradient id="h" cx="38%" cy="30%" r="78%">
       <stop offset="0%" stop-color="#c4cacf"></stop>
       <stop offset="55%" stop-color="#9aa4ac"></stop>
       <stop offset="100%" stop-color="#646b70"></stop>
-    </radialGradient><filter id="fxGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"></feTurbulence><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.9 0 0 0 0"></feColorMatrix></filter></defs><g filter="url(#fxOutline)">
+    </radialGradient></defs>
   <ellipse cx="32" cy="54" rx="20" ry="6" fill="#000" opacity="0.3" filter="url(#fxBlur)"></ellipse>
   <circle cx="32" cy="30" r="24" fill="url(#h)"></circle>
   <path d="M10 28 A22 22 0 0 1 54 28" fill="#43494e" opacity="0.35"></path>
@@ -13,4 +13,4 @@
   <circle cx="44" cy="20" r="2" fill="#2a2e32"></circle>
   <rect x="20" y="28" width="24" height="6" rx="2" fill="#5c6469"></rect>
   <circle cx="32" cy="30" r="24" fill="none" stroke="#d4e0ea" stroke-width="5.2" opacity="0.24" filter="url(#fxBlur)"></circle>
-<rect x="0" y="0" width="64" height="64" filter="url(#fxGrain)" opacity="0.11" style="mix-blend-mode:overlay" pointer-events="none"></rect></g></svg>
+</svg>

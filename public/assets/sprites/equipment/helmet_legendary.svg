@@ -1,12 +1,12 @@
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
-  <defs><filter id="fxOutline" x="-40%" y="-40%" width="180%" height="180%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="fxn"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="fxn" scale="2.6" xChannelSelector="R" yChannelSelector="G" result="fxrough"></feDisplacementMap><feDropShadow in="fxrough" dx="0" dy="0" stdDeviation="1.3" flood-color="#7a4d06" flood-opacity="0.85"></feDropShadow></filter><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
+  <defs><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
     <radialGradient id="hLeg" cx="40%" cy="30%" r="72%">
       <stop offset="0%" stop-color="#fffbe6"></stop>
       <stop offset="40%" stop-color="#fff2b0"></stop>
       <stop offset="70%" stop-color="#f0c020"></stop>
       <stop offset="100%" stop-color="#a06a08"></stop>
     </radialGradient>
-  <filter id="fxGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"></feTurbulence><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.9 0 0 0 0"></feColorMatrix></filter></defs><g filter="url(#fxOutline)">
+  </defs>
   <ellipse cx="32" cy="54" rx="22" ry="7" fill="#a06a08" opacity="0.35"></ellipse>
   <circle cx="32" cy="30" r="25" fill="url(#hLeg)"></circle>
   <ellipse cx="24" cy="17" rx="9" ry="5.5" fill="#fff" opacity="0.5"></ellipse>
@@ -14,4 +14,4 @@
   <circle cx="32" cy="30" r="25" fill="none" stroke="#fff2b0" stroke-width="6.0" opacity="0.36" filter="url(#fxBlur)"></circle>
   <circle cx="32" cy="30" r="30" fill="none" stroke="#ffe98a" stroke-width="5.0" opacity="0.20" filter="url(#fxBlur)"></circle>
   <circle cx="32" cy="30" r="34" fill="none" stroke="#ffe98a" stroke-width="4.6" opacity="0.12" filter="url(#fxBlur)"></circle>
-<rect x="0" y="0" width="64" height="64" filter="url(#fxGrain)" opacity="0.11" style="mix-blend-mode:overlay" pointer-events="none"></rect></g></svg>
+</svg>

@@ -1,5 +1,5 @@
 <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <defs><filter id="fxBlur2" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6"></feGaussianBlur></filter><filter id="fxOutline" x="-40%" y="-40%" width="180%" height="180%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="fxn"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="fxn" scale="1.2" xChannelSelector="R" yChannelSelector="G" result="fxrough"></feDisplacementMap><feDropShadow in="fxrough" dx="0" dy="0" stdDeviation="1.3" flood-color="#7a6a48" flood-opacity="0.85"></feDropShadow></filter><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
+  <defs><filter id="fxBlur2" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6"></feGaussianBlur></filter><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
     <linearGradient id="baseGrass" x1="0%" y1="0%" x2="60%" y2="100%">
       <stop offset="0%" stop-color="#566f42"></stop>
       <stop offset="50%" stop-color="#465f34"></stop>
@@ -16,7 +16,7 @@
       <stop offset="60%" stop-color="#000000" stop-opacity="0"></stop>
       <stop offset="100%" stop-color="#000000" stop-opacity="0.34"></stop>
     </radialGradient>
-  <filter id="fxGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"></feTurbulence><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.9 0 0 0 0"></feColorMatrix></filter></defs><g filter="url(#fxOutline)">
+  </defs>
 
   <rect width="512" height="512" fill="url(#baseGrass)"></rect>
 
@@ -28,7 +28,7 @@
 
   
   <path d="M-10 265 Q160 215 260 275 T522 245" stroke="#7a6a48" stroke-width="27.6" fill="none" opacity="0.20" stroke-linecap="round"></path>
-  <path d="M453.6 418.6 L469.8 422.3 L483.0 428.1 L456.3 440.3 L473.1 452.9 L462.4 467.4 L489.3 497.0" stroke="#241f1a" stroke-width="1.7" fill="none" opacity="0.16" stroke-linecap="round"></path><path d="M69.1 335.3 L48.9 331.8 L37.7 331.5 L47.9 303.9 L50.7 319.4 L46.6 333.5 L23.9 357.9" stroke="#241f1a" stroke-width="1.2" fill="none" opacity="0.15" stroke-linecap="round"></path><path d="M449.4 95.5 L465.1 82.5 L437.0 111.3 L418.1 121.0 L444.7 109.4" stroke="#241f1a" stroke-width="1.4" fill="none" opacity="0.14" stroke-linecap="round"></path><path d="M32.4 214.1 L54.9 206.7 L54.2 186.0 L80.8 192.6 L70.1 194.7 L73.9 212.3 L78.1 228.1" stroke="#241f1a" stroke-width="1.8" fill="none" opacity="0.19" stroke-linecap="round"></path><path d="M321.8 158.3 L326.3 139.7 L325.8 110.8 L298.2 108.5 L290.7 95.0 L318.1 68.9" stroke="#241f1a" stroke-width="1.0" fill="none" opacity="0.18" stroke-linecap="round"></path>
+  
 
   
   <ellipse cx="122.0" cy="69.8" rx="6.3" ry="4.4" fill="#3a352e" opacity="0.61"></ellipse><ellipse cx="232.6" cy="415.2" rx="6.4" ry="4.5" fill="#5a5a52" opacity="0.74"></ellipse><ellipse cx="72.9" cy="118.9" rx="4.8" ry="3.3" fill="#3a352e" opacity="0.56"></ellipse><ellipse cx="440.8" cy="168.6" rx="5.1" ry="3.6" fill="#6b5230" opacity="0.50"></ellipse><ellipse cx="408.8" cy="110.7" rx="3.2" ry="2.3" fill="#5a5a52" opacity="0.51"></ellipse><ellipse cx="111.2" cy="496.6" rx="2.4" ry="1.7" fill="#3a352e" opacity="0.79"></ellipse><ellipse cx="289.2" cy="38.6" rx="2.5" ry="1.7" fill="#6b5230" opacity="0.78"></ellipse><ellipse cx="128.8" cy="274.2" rx="2.0" ry="1.4" fill="#8a9a6a" opacity="0.81"></ellipse><ellipse cx="48.9" cy="332.7" rx="3.7" ry="2.6" fill="#3a352e" opacity="0.75"></ellipse><ellipse cx="221.6" cy="234.6" rx="3.7" ry="2.6" fill="#3a352e" opacity="0.69"></ellipse>
@@ -38,4 +38,4 @@
 
   <rect width="512" height="512" fill="#808080" filter="url(#bump)" opacity="0.14" style="mix-blend-mode:overlay"></rect>
   <rect width="512" height="512" fill="url(#vignette)"></rect>
-<rect x="0" y="0" width="512" height="512" filter="url(#fxGrain)" opacity="0.1" style="mix-blend-mode:overlay" pointer-events="none"></rect></g></svg>
+</svg>

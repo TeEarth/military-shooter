@@ -1,5 +1,5 @@
 <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-  <defs><filter id="fxOutline" x="-40%" y="-40%" width="180%" height="180%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="fxn"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="fxn" scale="2" xChannelSelector="R" yChannelSelector="G" result="fxrough"></feDisplacementMap><feDropShadow in="fxrough" dx="0" dy="0" stdDeviation="1.3" flood-color="#1c1e20" flood-opacity="0.85"></feDropShadow></filter><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
+  <defs><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
     <linearGradient id="steel" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#9aa0a4"></stop>
       <stop offset="50%" stop-color="#6d7276"></stop>
@@ -24,7 +24,7 @@
       <stop offset="55%" stop-color="#000" stop-opacity="0"></stop>
       <stop offset="100%" stop-color="#000" stop-opacity="0.4"></stop>
     </radialGradient>
-  <filter id="fxGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"></feTurbulence><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.9 0 0 0 0"></feColorMatrix></filter></defs><g filter="url(#fxOutline)">
+  </defs>
   <ellipse cx="64" cy="100" rx="36" ry="10" fill="#000" opacity="0.32" filter="url(#fxBlur)"></ellipse>
   <rect x="30" y="86" width="68" height="16" rx="4" fill="url(#steel)"></rect>
   <rect x="30" y="86" width="68" height="4" rx="2" fill="#fff" opacity="0.15"></rect>
@@ -47,4 +47,4 @@
   <rect x="52" y="46" width="24" height="12" rx="3" fill="url(#steel)"></rect>
   <rect x="30" y="56" width="12" height="16" rx="2" fill="url(#steel)"></rect>
   <rect x="86" y="56" width="12" height="16" rx="2" fill="url(#steel)"></rect>
-<rect x="0" y="0" width="128" height="128" filter="url(#fxGrain)" opacity="0.14" style="mix-blend-mode:overlay" pointer-events="none"></rect></g></svg>
+</svg>

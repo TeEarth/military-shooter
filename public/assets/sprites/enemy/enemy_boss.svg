@@ -1,5 +1,5 @@
 <svg viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
-  <defs><filter id="fxOutline" x="-40%" y="-40%" width="180%" height="180%"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="7" result="fxn"></feTurbulence><feDisplacementMap in="SourceGraphic" in2="fxn" scale="2" xChannelSelector="R" yChannelSelector="G" result="fxrough"></feDisplacementMap><feDropShadow in="fxrough" dx="0" dy="0" stdDeviation="1.3" flood-color="#050101" flood-opacity="0.85"></feDropShadow></filter><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
+  <defs><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
     <radialGradient id="bossBody" cx="36%" cy="30%" r="75%">
       <stop offset="0%" stop-color="#a69595"></stop>
       <stop offset="55%" stop-color="#3a1414"></stop>
@@ -28,7 +28,7 @@
       <stop offset="50%" stop-color="#d4af37"></stop>
       <stop offset="100%" stop-color="#8a6a1a"></stop>
     </linearGradient>
-  <filter id="fxGrain" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" seed="3" result="n"></feTurbulence><feColorMatrix in="n" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.9 0 0 0 0"></feColorMatrix></filter></defs><g filter="url(#fxOutline)">
+  </defs>
   <ellipse cx="64" cy="104" rx="42" ry="12" fill="#000" opacity="0.35" filter="url(#fxBlur)"></ellipse>
   <ellipse cx="64" cy="78" rx="26" ry="21" fill="#1c0d0d"></ellipse>
   <ellipse cx="64" cy="78" rx="26" ry="21" fill="url(#ao)"></ellipse>
@@ -49,4 +49,4 @@
   <circle cx="30" cy="66" r="11" fill="url(#bossArm)"></circle>
   <circle cx="98" cy="66" r="11" fill="url(#bossArm)"></circle>
   <circle cx="64" cy="64" r="38" fill="none" stroke="#ff8a6a" stroke-width="5.5" opacity="0.12" filter="url(#fxBlur)"></circle>
-<rect x="0" y="0" width="128" height="128" filter="url(#fxGrain)" opacity="0.14" style="mix-blend-mode:overlay" pointer-events="none"></rect></g></svg>
+</svg>
