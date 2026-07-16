@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Military Shooter 2D</string>
+    <string name="title_activity_main">Military Shooter 2D</string>
+    <string name="package_name">com.militaryshooter.game</string>
+    <string name="custom_url_scheme">com.militaryshooter.game</string>
+</resources>
