@@ -27,6 +27,16 @@
       <stop offset="55%" stop-color="#000" stop-opacity="0"></stop>
       <stop offset="100%" stop-color="#000" stop-opacity="0.38"></stop>
     </radialGradient>
+    <linearGradient id="g_stock" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9c9283"></stop>
+      <stop offset="45%" stop-color="#5a4a30"></stop>
+      <stop offset="100%" stop-color="#362c1d"></stop>
+    </linearGradient>
+    <linearGradient id="g_grip" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7f7f7f"></stop>
+      <stop offset="45%" stop-color="#2a2a2a"></stop>
+      <stop offset="100%" stop-color="#191919"></stop>
+    </linearGradient>
   </defs>
 
   <ellipse cx="64" cy="102" rx="34" ry="10" fill="#000" opacity="0.3" filter="url(#fxBlur)"></ellipse>
@@ -46,9 +56,18 @@
   <ellipse cx="64" cy="48" rx="9" ry="4" fill="#100a08" opacity="0.65"></ellipse>
   <ellipse cx="61" cy="47" rx="2" ry="1" fill="#fff" opacity="0.45"></ellipse>
 
-  <rect x="60" y="94" width="8" height="30" rx="3" fill="url(#gun)"></rect>
-  <rect x="58" y="88" width="12" height="10" rx="2" fill="#3a3a3a"></rect>
-  <rect x="61" y="96" width="2" height="24" fill="#8a8a8a" opacity="0.5"></rect>
+  <g transform="translate(64,94) rotate(180) scale(0.5) translate(-15,-81)">
+    <rect x="12" y="0" width="6" height="42" rx="1.5" fill="url(#gun)"></rect>
+    <circle cx="15" cy="4" r="2.2" fill="#0a0a0a"></circle>
+    <path d="M9 42 L21 42 L23 62 L7 62 Z" fill="url(#g_stock)"></path>
+    <path d="M10 30 Q15 20 20 30 L20 40 L10 40 Z" fill="#2a2a2a"></path>
+    <rect x="12" y="36" width="6" height="8" fill="#1a1a1a"></rect>
+    <path d="M13 62 L21 62 L19 92 Q17 96 15 92 Z" fill="url(#gun)"></path>
+    <rect x="9" y="62" width="12" height="10" rx="1" fill="#2f2a24"></rect>
+    <rect x="17" y="70" width="9" height="22" rx="2" fill="url(#g_grip)"></rect>
+    <path d="M11 74 Q15 80 11 86" stroke="#1a1a1a" stroke-width="1.6" fill="none"></path>
+    <rect x="6" y="80" width="8" height="24" rx="2" fill="url(#g_stock)"></rect>
+  </g>
 
   <circle cx="38" cy="66" r="9" fill="url(#arm)"></circle>
   <circle cx="90" cy="66" r="9" fill="url(#arm)"></circle>

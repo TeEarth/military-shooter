@@ -28,6 +28,21 @@
       <stop offset="50%" stop-color="#d4af37"></stop>
       <stop offset="100%" stop-color="#8a6a1a"></stop>
     </linearGradient>
+    <linearGradient id="g_bl" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#9f9f9f"></stop>
+      <stop offset="42%" stop-color="#2a2a2a"></stop>
+      <stop offset="100%" stop-color="#131313"></stop>
+    </linearGradient>
+    <linearGradient id="g_body" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#929292"></stop>
+      <stop offset="45%" stop-color="#4a4a4a"></stop>
+      <stop offset="100%" stop-color="#2c2c2c"></stop>
+    </linearGradient>
+    <linearGradient id="g_grip" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7f7f7f"></stop>
+      <stop offset="45%" stop-color="#2a2a2a"></stop>
+      <stop offset="100%" stop-color="#191919"></stop>
+    </linearGradient>
   </defs>
   <ellipse cx="64" cy="104" rx="42" ry="12" fill="#000" opacity="0.35" filter="url(#fxBlur)"></ellipse>
   <ellipse cx="64" cy="78" rx="26" ry="21" fill="#1c0d0d"></ellipse>
@@ -44,8 +59,25 @@
   <circle cx="72" cy="44" r="3" fill="url(#eyeGlow)"></circle>
   <circle cx="55" cy="43" r="1" fill="#fff" opacity="0.8"></circle>
   <circle cx="71" cy="43" r="1" fill="#fff" opacity="0.8"></circle>
-  <rect x="59" y="96" width="10" height="24" rx="2" fill="#1a1a1a"></rect>
-  <rect x="60" y="98" width="2" height="18" fill="#3a3a3a" opacity="0.6"></rect>
+
+  <g transform="translate(64,98) rotate(180) scale(0.78) translate(-22,-89)">
+    <g fill="url(#g_bl)">
+      <rect x="8" y="0" width="5" height="44" rx="2"></rect>
+      <rect x="15" y="0" width="5" height="44" rx="2"></rect>
+      <rect x="22" y="0" width="5" height="44" rx="2"></rect>
+      <rect x="29" y="0" width="5" height="44" rx="2"></rect>
+    </g>
+    <rect x="6" y="2" width="30" height="4" rx="2" fill="#1a1a1a"></rect>
+    <circle cx="22" cy="46" r="12" fill="url(#g_bl)"></circle>
+    <circle cx="19" cy="42" r="2.6" fill="#fff" opacity="0.25"></circle>
+    <rect x="10" y="56" width="24" height="24" rx="3" fill="url(#g_body)"></rect>
+    <rect x="12" y="60" width="20" height="2" fill="#1a1a1a" opacity="0.6"></rect>
+    <rect x="12" y="66" width="20" height="2" fill="#1a1a1a" opacity="0.6"></rect>
+    <rect x="34" y="58" width="12" height="16" rx="2" fill="#3a3a3a"></rect>
+    <path d="M34 66 Q28 66 24 62" stroke="#5a5a5a" stroke-width="2" fill="none"></path>
+    <rect x="16" y="80" width="12" height="18" rx="2" fill="url(#g_grip)"></rect>
+  </g>
+
   <circle cx="30" cy="66" r="11" fill="url(#bossArm)"></circle>
   <circle cx="98" cy="66" r="11" fill="url(#bossArm)"></circle>
   <circle cx="64" cy="64" r="38" fill="none" stroke="#ff8a6a" stroke-width="5.5" opacity="0.12" filter="url(#fxBlur)"></circle>

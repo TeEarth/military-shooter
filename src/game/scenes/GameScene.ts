@@ -760,7 +760,7 @@ export class GameScene extends Phaser.Scene {
       for (const enemy of this.enemies) {
         // v14: while hidden in a tree, enemies have no idea where the player
         // is — forced to "patrol" regardless of distance/line-of-sight.
-        if (!enemy.isDead) enemy.update(this.player.sprite.x, this.player.sprite.y, this.isHidden);
+        if (!enemy.isDead) enemy.update(this.player.sprite.x, this.player.sprite.y, this.isHidden, delta);
       }
     }
 

@@ -5,6 +5,7 @@ import type { CombatLoadout } from "@/types/loadout";
 import { COVER_SPRITE_PATHS, COVER_SIZES } from "@/game/entities/CoverObject";
 import { UNIT_DISPLAY_SIZE } from "../../../config/player";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
+import { bulletDisplaySize } from "@/lib/bulletOrientation";
 
 export class PreloadScene extends Phaser.Scene {
   private progressBar!: Phaser.GameObjects.Graphics;
@@ -72,13 +73,13 @@ export class PreloadScene extends Phaser.Scene {
     }
 
     // Bullet sprite is chosen per-weapon (round/razor/rocket/grenade), not per-character.
-    // v24: the plain round bullet (used by most weapons) is loaded at half the
-    // size of the special-shaped ones (rocket/grenade/razor) — it was reading
-    // as oversized next to the actual gun/character art.
+    // v34: loaded at each sprite's own aspect ratio (see bulletOrientation.ts)
+    // instead of forcing every bullet into the same square texture — a
+    // squished elongated sprite is exactly what made travel direction
+    // unreadable regardless of how it's rotated.
     if (character?.bulletSprite) {
-      const isRoundBullet = character.bulletSprite.endsWith("bullet_round.svg");
-      const size = isRoundBullet ? 12 : 24;
-      this.load.svg("bullet_sprite", character.bulletSprite, { width: size, height: size });
+      const { width, height } = bulletDisplaySize(character.bulletSprite);
+      this.load.svg("bullet_sprite", character.bulletSprite, { width, height });
     }
 
     // One image per distinct enemy type appearing in this session (story spawns + farm roster),

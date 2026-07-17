@@ -27,6 +27,16 @@
       <stop offset="55%" stop-color="#000" stop-opacity="0"></stop>
       <stop offset="100%" stop-color="#000" stop-opacity="0.38"></stop>
     </radialGradient>
+    <linearGradient id="g_tube" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#89927f"></stop>
+      <stop offset="45%" stop-color="#3a4a2a"></stop>
+      <stop offset="100%" stop-color="#232c19"></stop>
+    </linearGradient>
+    <linearGradient id="g_grip" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#897f76"></stop>
+      <stop offset="45%" stop-color="#3a2a1a"></stop>
+      <stop offset="100%" stop-color="#231910"></stop>
+    </linearGradient>
   </defs>
 
   <ellipse cx="64" cy="102" rx="34" ry="10" fill="#000" opacity="0.3" filter="url(#fxBlur)"></ellipse>
@@ -46,14 +56,23 @@
   <ellipse cx="64" cy="48" rx="9" ry="4" fill="#100a08" opacity="0.65"></ellipse>
   <ellipse cx="61" cy="47" rx="2" ry="1" fill="#fff" opacity="0.45"></ellipse>
 
-  <rect x="52" y="94" width="30" height="13" rx="6" fill="url(#gun)"></rect><path d="M82 94 L94 100.5 L82 107 Z" fill="#c0392b"></path><rect x="58" y="107" width="8" height="14" rx="2" fill="#1c1c1c"></rect>
+  <g transform="translate(64,94) rotate(180) scale(0.62) translate(-21,-56)">
+    <rect x="10" y="4" width="20" height="66" rx="9" fill="url(#g_tube)"></rect>
+    <rect x="12" y="8" width="3" height="58" fill="#7a9a5a" opacity="0.3"></rect>
+    <ellipse cx="20" cy="4" rx="11" ry="4" fill="#161616"></ellipse>
+    <ellipse cx="20" cy="70" rx="10" ry="4" fill="#0a0a0a" opacity="0.85"></ellipse>
+    <rect x="14" y="0" width="8" height="8" rx="2" fill="#1a1a1a"></rect>
+    <circle cx="18" cy="4" r="1.6" fill="#5ac8ff" opacity="0.7"></circle>
+    <path d="M30 30 Q40 34 36 46" stroke="#1a1a1a" stroke-width="4" fill="none"></path>
+    <rect x="16" y="70" width="10" height="22" rx="2" fill="url(#g_grip)"></rect>
+    <path d="M17 76 Q13 82 17 87" stroke="#1a1a1a" stroke-width="1.6" fill="none"></path>
+  </g>
 
   <circle cx="38" cy="66" r="9" fill="url(#arm)"></circle>
   <circle cx="90" cy="66" r="9" fill="url(#arm)"></circle>
   <ellipse cx="35" cy="63" rx="2" ry="1.2" fill="#fff" opacity="0.4"></ellipse>
   <ellipse cx="87" cy="63" rx="2" ry="1.2" fill="#fff" opacity="0.4"></ellipse>
 
-  <rect x="54" y="88" width="20" height="30" rx="8" fill="#3a2a3a"></rect><circle cx="64" cy="94" r="6" fill="#151015"></circle>
   <circle cx="64" cy="64" r="34" fill="none" stroke="#c090c0" stroke-width="5.5" opacity="0.17" filter="url(#fxBlur)"></circle>
   
 </svg>

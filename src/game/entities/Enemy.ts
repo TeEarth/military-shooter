@@ -4,6 +4,8 @@ import { ENEMY_CONFIG } from "../../../config/enemy";
 import { fireShots } from "./WeaponFire";
 import { UNIT_DISPLAY_SIZE } from "../../../config/player";
 import { bulletSpeedForWeapon } from "../../../config/game";
+import { RECOIL_KICK_PX, decayRecoil, spawnMuzzleEffect, reloadWiggle } from "./WeaponFx";
+import { sfx } from "@/lib/sfx";
 
 type AIState = "patrol" | "chase" | "shoot" | "approach";
 
@@ -27,7 +29,10 @@ export class Enemy {
   private state: AIState = "patrol";
   private magazine: number;
   private isReloading = false;
+  private reloadStartTime = 0;
   private lastFireTime = 0;
+  /** v34: same weapon-sprite recoil kick as Player.ts — see WeaponFx.ts. */
+  private recoilAmount = 0;
   private patrolTarget: Phaser.Math.Vector2;
   private hpBar!: Phaser.GameObjects.Graphics;
   private preferredRange: number;
@@ -105,8 +110,9 @@ export class Enemy {
     this.patrolTarget.set(x, y);
   }
 
-  update(playerX: number, playerY: number, playerHidden = false) {
+  update(playerX: number, playerY: number, playerHidden = false, deltaMs = 16) {
     if (this.isDead) return;
+    this.recoilAmount = decayRecoil(this.recoilAmount, deltaMs);
 
     // v14: tree stealth — a hidden player is invisible to enemy AI entirely,
     // regardless of distance. Falls back to whatever the enemy was doing
@@ -185,11 +191,22 @@ export class Enemy {
   }
 
   /** Keeps the weapon overlay glued to the body's current position/rotation
-   *  every frame — same convention as Player.ts's own weaponSprite. */
+   *  every frame — same convention as Player.ts's own weaponSprite. v34 adds
+   *  the same recoil kick + reload wiggle offset as Player.ts. */
   private syncWeaponSprite() {
     if (!this.weaponSprite) return;
-    this.weaponSprite.setPosition(this.sprite.x, this.sprite.y);
-    this.weaponSprite.setRotation(this.sprite.rotation);
+    const angle = this.sprite.rotation - Math.PI / 2;
+    let dx = -Math.cos(angle) * this.recoilAmount;
+    let dy = -Math.sin(angle) * this.recoilAmount;
+    let extraRotation = 0;
+    if (this.isReloading) {
+      const w = reloadWiggle(this.scene.time.now - this.reloadStartTime);
+      dx += w.dx;
+      dy += w.dy;
+      extraRotation = w.dRotation;
+    }
+    this.weaponSprite.setPosition(this.sprite.x + dx, this.sprite.y + dy);
+    this.weaponSprite.setRotation(this.sprite.rotation + extraRotation);
     this.weaponSprite.setVisible(true);
   }
 
@@ -238,6 +255,13 @@ export class Enemy {
       targetY,
       isPlayerBullet: false,
       ignoreCover: weapon.fireMode === "lob",
+      // v34: same weapon-kick + muzzle effect (shell/smoke/flash, picked from
+      // this enemy's actual weapon.sprite) as the player gets on every shot.
+      onShotFired: () => {
+        this.recoilAmount = RECOIL_KICK_PX;
+        const fireAngle = Phaser.Math.Angle.Between(this.sprite.x, this.sprite.y, targetX, targetY);
+        spawnMuzzleEffect(this.scene, this.sprite.x, this.sprite.y, fireAngle, weapon.sprite);
+      },
       stats: {
         damage: weapon.damage,
         fireMode: weapon.fireMode,
@@ -256,7 +280,14 @@ export class Enemy {
 
   private startReload() {
     this.isReloading = true;
-    this.scene.time.delayedCall(this.data.weapon.reloadTime * 1000, () => {
+    sfx.play("reload");
+    this.reloadStartTime = this.scene.time.now;
+    const reloadDurationMs = this.data.weapon.reloadTime * 1000;
+    // v34: mid-reload "mag seated" click — see Player.ts's startReload for why.
+    this.scene.time.delayedCall(reloadDurationMs * 0.55, () => {
+      if (this.isReloading) sfx.play("reload");
+    });
+    this.scene.time.delayedCall(reloadDurationMs, () => {
       this.magazine = this.data.weapon.magazineSize;
       this.isReloading = false;
     });

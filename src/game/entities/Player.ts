@@ -4,6 +4,7 @@ import { PLAYER_CONFIG, UNIT_DISPLAY_SIZE } from "../../../config/player";
 import { bulletSpeedForWeapon } from "../../../config/game";
 import { fireShots } from "./WeaponFire";
 import { sfx } from "@/lib/sfx";
+import { RECOIL_KICK_PX, decayRecoil, spawnMuzzleEffect, reloadWiggle } from "./WeaponFx";
 
 const HEAVY_AUTO_WEAPONS = new Set(["gatling", "ak47", "rasor_gun"]);
 const RIFLE_WEAPONS = new Set(["m16a1", "m16a4"]);
@@ -44,6 +45,9 @@ export class Player {
   private weaponSprite?: Phaser.GameObjects.Image;
   private reloadStartTime = 0;
   private reloadDurationMs = 0;
+  /** v34: current backward "kick" offset (px) applied to the weapon sprite
+   *  only — decays back to 0 every frame, see WeaponFx.ts. */
+  private recoilAmount = 0;
   private lastFootstepTime = 0;
   private lastDebugLogTime = 0;
 
@@ -138,9 +142,22 @@ export class Player {
 
     // Same rotation convention as the character body — the weapon SVG is
     // drawn muzzle-up/grip-down, matching char_sprite's default "facing up" pose.
+    this.recoilAmount = decayRecoil(this.recoilAmount, deltaMs);
     if (this.weaponSprite) {
-      this.weaponSprite.setPosition(this.sprite.x, this.sprite.y);
-      this.weaponSprite.setRotation(angle + Math.PI / 2);
+      // v34: recoil kicks the weapon straight back opposite the aim direction;
+      // reloading adds a small wiggle on top so it visibly moves the whole
+      // time a mag is being worked, not just at the start/end.
+      let dx = -Math.cos(angle) * this.recoilAmount;
+      let dy = -Math.sin(angle) * this.recoilAmount;
+      let extraRotation = 0;
+      if (this.isReloading) {
+        const w = reloadWiggle(this.scene.time.now - this.reloadStartTime);
+        dx += w.dx;
+        dy += w.dy;
+        extraRotation = w.dRotation;
+      }
+      this.weaponSprite.setPosition(this.sprite.x + dx, this.sprite.y + dy);
+      this.weaponSprite.setRotation(angle + Math.PI / 2 + extraRotation);
       this.weaponSprite.setVisible(true);
     }
 
@@ -270,10 +287,18 @@ export class Player {
       targetX: target.x,
       targetY: target.y,
       isPlayerBullet: true,
+      bulletSpritePath: this.loadout.bulletSprite,
       ignoreCover: this.loadout.fireMode === "lob",
       // v14: called once per actual round fired (not once per trigger pull),
       // so a 3-round burst weapon like M16A4 plays 3 consecutive gunshots.
-      onShotFired: shootSfx ? () => sfx.play(shootSfx) : undefined,
+      // v34: also kicks the weapon sprite back and spawns this weapon's
+      // muzzle effect (shell/smoke/flash) on every one of those rounds.
+      onShotFired: () => {
+        if (shootSfx) sfx.play(shootSfx);
+        this.recoilAmount = RECOIL_KICK_PX;
+        const fireAngle = Phaser.Math.Angle.Between(this.sprite.x, this.sprite.y, target.x, target.y);
+        spawnMuzzleEffect(this.scene, this.sprite.x, this.sprite.y, fireAngle, this.loadout.bulletSprite);
+      },
       stats: {
         damage: this.loadout.damage,
         fireMode: this.loadout.fireMode,
@@ -298,6 +323,13 @@ export class Player {
     sfx.play("reload");
     this.reloadStartTime = this.scene.time.now;
     this.reloadDurationMs = this.loadout.reloadTime * 1000;
+    // v34: a second "mag seated" click partway through — the reload sound is
+    // a quick two-click cue, but reloadDurationMs itself can run several
+    // seconds, so without this the gun visibly wiggles in silence for most
+    // of that time.
+    this.scene.time.delayedCall(this.reloadDurationMs * 0.55, () => {
+      if (this.isReloading) sfx.play("reload");
+    });
     this.scene.time.delayedCall(this.reloadDurationMs, () => {
       const needed = this.loadout.magazineSize - this.magazine;
       const filled = Math.min(needed, this.ammo);

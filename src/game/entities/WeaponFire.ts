@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import type { FireMode } from "@/types/loadout";
+import { bulletRotationOffset } from "@/lib/bulletOrientation";
 
 export interface FireStats {
   damage: number;
@@ -32,6 +33,12 @@ interface FireParams {
   ignoreCover?: boolean;
   /** Which side fired this shot — needed so the lob-arrival AoE event knows who to damage. */
   isPlayerBullet: boolean;
+  /** v34: real path of the equipped bulletSprite (e.g. ".../bullet_round.svg"),
+   *  used only to look up that sprite's drawn orientation (see
+   *  bulletOrientation.ts) so it visually faces its actual travel direction.
+   *  Omitted by Enemy.ts, which fires a plain generated circle with no
+   *  drawn "facing" to correct. */
+  bulletSpritePath?: string;
   /** v14: called once per actual shot fired (not once per trigger pull) — lets
    *  burst/spread/aoe weapons play their gunshot sfx once per round, timed
    *  with each staggered bullet spawn (e.g. M16A4's 3-round burst → 3 gunshots). */
@@ -55,9 +62,10 @@ function rollDamage(stats: FireStats, isHit: boolean): number {
  * weapon in the Weapons sheet.
  */
 export function fireShots(params: FireParams): number {
-  const { scene, group, textureKey, x, y, targetX, targetY, stats, ignoreCover, isPlayerBullet, onShotFired } = params;
+  const { scene, group, textureKey, x, y, targetX, targetY, stats, ignoreCover, isPlayerBullet, bulletSpritePath, onShotFired } = params;
   const baseAngle = Phaser.Math.Angle.Between(x, y, targetX, targetY);
   const halfArcRad = Phaser.Math.DegToRad(stats.spreadDegrees) / 2;
+  const rotationOffset = bulletSpritePath ? bulletRotationOffset(bulletSpritePath) : 0;
 
   const spawnBullet = (angleOffset: number, isAoe: boolean, isLob: boolean, delayMs: number) => {
     scene.time.delayedCall(delayMs, () => {
@@ -69,7 +77,7 @@ export function fireShots(params: FireParams): number {
 
       const angle = baseAngle + angleOffset;
       bullet.setVelocity(Math.cos(angle) * stats.bulletSpeed, Math.sin(angle) * stats.bulletSpeed);
-      bullet.setRotation(angle);
+      bullet.setRotation(angle + rotationOffset);
       bullet.setDepth(5);
 
       const isHit = Phaser.Math.FloatBetween(0, 100) < stats.accuracy;
@@ -134,7 +142,7 @@ export function fireShots(params: FireParams): number {
       bullet.setActive(true).setVisible(true);
       (bullet.body as Phaser.Physics.Arcade.Body).enable = true;
       bullet.setVelocity(Math.cos(baseAngle) * stats.bulletSpeed, Math.sin(baseAngle) * stats.bulletSpeed);
-      bullet.setRotation(baseAngle);
+      bullet.setRotation(baseAngle + rotationOffset);
       bullet.setDepth(5);
 
       const isHit = Phaser.Math.FloatBetween(0, 100) < stats.accuracy;

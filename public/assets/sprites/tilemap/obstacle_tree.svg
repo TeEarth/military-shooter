@@ -14,6 +14,7 @@
       <feDiffuseLighting in="n" lighting-color="#ffffff" surfaceScale="3" diffuseConstant="1.1" result="lit">
         <feDistantLight azimuth="235" elevation="55"></feDistantLight>
       </feDiffuseLighting>
+      <feComposite in="lit" in2="SourceGraphic" operator="in"></feComposite>
     </filter>
     <filter id="softBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2"></feGaussianBlur></filter>
   </defs>
