@@ -58,6 +58,8 @@ export default function GameClient() {
         const covers: { coverType: string; x: number; y: number; rotation?: number }[] = startRes.covers ?? [];
         const character: CombatLoadout = startRes.character;
         const weaponId: string = startRes.weaponId;
+        const spareLoadout: CombatLoadout | null = startRes.spareLoadout ?? null;
+        const perks = startRes.perks ?? { spareWeapon: false, regen: false, superShield: false, oneShot: false };
 
         const Phaser = PhaserModule.default;
         const { BootScene } = BootSceneModule;
@@ -111,6 +113,8 @@ export default function GameClient() {
         game.registry.set("enemyRoster", enemyRoster);
         game.registry.set("stageCovers", covers);
         game.registry.set("character", character);
+        game.registry.set("spareLoadout", spareLoadout);
+        game.registry.set("perks", perks);
         game.registry.set("onGameEnd", async (result: { kills: number; deaths: number; timeTaken: number; score: number; killCoin: number; completed: boolean; ammoUsed: number; farmWaveReached?: number }) => {
           await fetch("/api/game/complete", {
             method: "POST",

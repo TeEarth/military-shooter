@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { Player } from "@/game/entities/Player";
+import { Player, type PlayerPerks } from "@/game/entities/Player";
 import { Enemy } from "@/game/entities/Enemy";
 import { CoverObject, COVER_SIZES, type CoverType } from "@/game/entities/CoverObject";
 import { MobileControls } from "@/game/entities/MobileControls";
@@ -106,6 +106,8 @@ export class GameScene extends Phaser.Scene {
     const enemySpawns = (this.registry.get("enemySpawns") as EnemySpawn[]) ?? [];
     this.enemyRoster = (this.registry.get("enemyRoster") as EnemyData[]) ?? [];
     const character = this.registry.get("character") as CombatLoadout;
+    const spareLoadout = (this.registry.get("spareLoadout") as CombatLoadout | null) ?? null;
+    const perks = (this.registry.get("perks") as PlayerPerks | undefined) ?? { spareWeapon: false, regen: false, superShield: false, oneShot: false };
     this.failedAssetKeys = (this.registry.get("failedAssetKeys") as Set<string>) ?? new Set();
 
     this.isFarmStage = this.stageData.isRepeatable;
@@ -135,7 +137,7 @@ export class GameScene extends Phaser.Scene {
     // available — 0/undefined means "not designed", keep the old default.
     const spawnX = this.stageData.playerSpawnX || 120;
     const spawnY = this.stageData.playerSpawnY || worldHeight / 2;
-    this.player = new Player(this, spawnX, spawnY, this.bullets, character, this.failedAssetKeys);
+    this.player = new Player(this, spawnX, spawnY, this.bullets, character, this.failedAssetKeys, spareLoadout, perks);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
@@ -777,6 +779,7 @@ export class GameScene extends Phaser.Scene {
       maxAmmo: this.player.maxAmmo,
       isReloading: this.player.isReloading,
       reloadProgress: this.player.getReloadProgress(),
+      reloadSecondsRemaining: this.player.getReloadSecondsRemaining(),
       outOfAmmo: this.player.isOutOfAmmo(),
       kills: this.kills,
       score: this.score,
@@ -790,6 +793,13 @@ export class GameScene extends Phaser.Scene {
       isHidden: this.isHidden,
       bossHp: this.isBossStage && this.bossEnemy && !this.bossEnemy.isDead ? this.bossEnemy.getHp() : undefined,
       bossMaxHp: this.isBossStage && this.bossEnemy ? this.bossEnemy.getMaxHp() : undefined,
+      perks: this.player.perks,
+      swapCooldownRemaining: this.player.getSwapCooldownRemaining(),
+      inactiveWeaponName: this.player.getInactiveWeaponName(),
+      regenCooldownRemaining: this.player.getRegenCooldownRemaining(),
+      shieldCooldownRemaining: this.player.getShieldCooldownRemaining(),
+      oneShotCooldownRemaining: this.player.getOneShotCooldownRemaining(),
+      oneShotArmed: this.player.isOneShotArmed(),
     });
 
     // Consumed above (as "hit this frame") — reset for the next physics step.
@@ -864,7 +874,7 @@ export class GameScene extends Phaser.Scene {
         score: this.score,
         killCoin: this.killCoin,
         completed,
-        ammoUsed: this.player.getAmmoUsed(),
+        ...this.buildAmmoUsagePayload(),
         farmWaveReached: this.isFarmStage ? this.highestWaveCleared : undefined,
       });
     }
@@ -904,6 +914,20 @@ export class GameScene extends Phaser.Scene {
     this.reloadRequested = true;
   }
 
+  /** v35: on-screen SWAP button (Spare Weapon perk) — no-op if the perk/spare
+   *  isn't set up or the swap is still on cooldown (Player.swapWeapon()
+   *  itself enforces that; this is just the entry point HUDScene calls). */
+  triggerSwapWeapon() {
+    if (this.stageEnded || this.scene.isPaused()) return;
+    this.player.swapWeapon();
+  }
+
+  /** v35: on-screen skull button (One Shot perk) — arms the next shot. */
+  triggerOneShot() {
+    if (this.stageEnded || this.scene.isPaused()) return;
+    this.player.armOneShot();
+  }
+
   /** Called by AmmoRefillScene after a successful refill to update the live Player instance. */
   setAmmo(remaining: number) {
     this.player.ammo = remaining;
@@ -926,9 +950,19 @@ export class GameScene extends Phaser.Scene {
         score: this.score,
         killCoin: this.killCoin,
         completed: false,
-        ammoUsed: this.player.getAmmoUsed(),
+        ...this.buildAmmoUsagePayload(),
         farmWaveReached: this.isFarmStage ? this.highestWaveCleared : undefined,
       });
     }
+  }
+
+  /** v35: ammoUsed for the main weapon, plus spareWeaponId/spareAmmoUsed if
+   *  the Spare Weapon perk's slot was ever actually swapped to this run —
+   *  /api/game/complete deducts both weapons' daily quotas separately. */
+  private buildAmmoUsagePayload() {
+    const [main, spare] = this.player.getAmmoUsageBreakdown();
+    return spare
+      ? { ammoUsed: main.ammoUsed, spareWeaponId: spare.weaponId, spareAmmoUsed: spare.ammoUsed }
+      : { ammoUsed: main.ammoUsed };
   }
 }

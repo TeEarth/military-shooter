@@ -19,6 +19,28 @@ function shootSfxForWeapon(weaponId: string): "shoot_pistol" | "shoot_rifle" | "
   return "shoot_pistol"; // pistol / double_pistol default
 }
 
+/** v35: which perks a player has purchased — see src/lib/perks.ts for the
+ *  catalog/descriptions. Gameplay behavior for all 4 lives entirely in this
+ *  file; cooldowns are in-memory per-session (never persisted), only
+ *  ownership itself is a DB flag. */
+export interface PlayerPerks {
+  spareWeapon: boolean;
+  regen: boolean;
+  superShield: boolean;
+  oneShot: boolean;
+}
+
+const REGEN_HP_THRESHOLD = 0.2;
+const REGEN_COOLDOWN_MS = 30_000;
+const SHIELD_EMPTY_TRIGGER_MS = 15_000;
+const SHIELD_COOLDOWN_MS = 60_000;
+const SHIELD_REFILL_FRACTION = 0.5;
+const ONE_SHOT_COOLDOWN_MS = 30_000;
+const ONE_SHOT_DAMAGE = 3000;
+const ONE_SHOT_AOE_DAMAGE = 1000;
+const ONE_SHOT_AOE_RADIUS_MULTIPLIER = 3;
+const SWAP_COOLDOWN_MS = 5_000;
+
 export class Player {
   scene: Phaser.Scene;
   sprite: Phaser.Physics.Arcade.Image;
@@ -43,6 +65,7 @@ export class Player {
   /** v10 #3: weapon layer shown in the player's hands, swapped per equipped
    *  weaponId — undefined only if that weapon's sprite failed to load. */
   private weaponSprite?: Phaser.GameObjects.Image;
+  private failedAssetKeys?: Set<string>;
   private reloadStartTime = 0;
   private reloadDurationMs = 0;
   /** v34: current backward "kick" offset (px) applied to the weapon sprite
@@ -51,10 +74,44 @@ export class Player {
   private lastFootstepTime = 0;
   private lastDebugLogTime = 0;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, bullets: Phaser.Physics.Arcade.Group, loadout: CombatLoadout, failedAssetKeys?: Set<string>) {
+  // v35: Spare Weapon perk — this.loadout/this.magazine/this.ammo/this.maxAmmo
+  // /this.ammoUsed always describe whichever weapon is currently ACTIVE;
+  // swapWeapon() saves the outgoing weapon's state into these "off" slots and
+  // restores the incoming one's, so shoot()/reload()/update() never need to
+  // know a swap even happened.
+  perks: PlayerPerks;
+  private mainLoadout: CombatLoadout;
+  private spareLoadout: CombatLoadout | null;
+  private usingSpare = false;
+  private offMagazine = 0;
+  private offAmmo = 0;
+  private offMaxAmmo = 0;
+  private offAmmoUsed = 0;
+  private lastSwapTime = -Infinity;
+
+  // v35: Regeneration / Super Shield perks — auto-triggered in update(), see
+  // maybeTriggerRegen/maybeTriggerShield below.
+  private regenCooldownUntil = -Infinity;
+  private shieldEmptySince: number | null = null;
+  private shieldCooldownUntil = -Infinity;
+
+  // v35: One Shot perk — armed by the HUD button (see armOneShot), consumed
+  // by the very next shoot() call regardless of how long after arming.
+  private oneShotArmed = false;
+  private oneShotCooldownUntil = -Infinity;
+
+  constructor(
+    scene: Phaser.Scene, x: number, y: number, bullets: Phaser.Physics.Arcade.Group, loadout: CombatLoadout,
+    failedAssetKeys?: Set<string>,
+    spareLoadout: CombatLoadout | null = null,
+    perks: PlayerPerks = { spareWeapon: false, regen: false, superShield: false, oneShot: false }
+  ) {
     this.scene = scene;
     this.bullets = bullets;
     this.loadout = loadout;
+    this.mainLoadout = loadout;
+    this.spareLoadout = perks.spareWeapon ? spareLoadout : null;
+    this.perks = perks;
 
     this.hp = loadout.hpMax;
     this.maxHp = loadout.hpMax;
@@ -63,6 +120,11 @@ export class Player {
     this.ammo = loadout.ammo;
     this.maxAmmo = loadout.ammo;
     this.magazine = loadout.magazineSize;
+    if (this.spareLoadout) {
+      this.offMagazine = this.spareLoadout.magazineSize;
+      this.offAmmo = this.spareLoadout.ammo;
+      this.offMaxAmmo = this.spareLoadout.ammo;
+    }
     this.lastRegenTick = scene.time.now;
 
     // Both the real SVG and the placeholder are generated/loaded at the exact
@@ -91,12 +153,21 @@ export class Player {
 
     this.laserSight = scene.add.graphics().setDepth(11);
 
-    // v10 #3: weapon sprite matching the equipped weaponId — pivoted low (0.7
-    // down the image, where the grip is drawn) so it rotates from roughly the
-    // character's hand rather than its own bounding-box center.
-    const weaponKey = `weapon_sprite_${loadout.weaponId}`;
-    if (scene.textures.exists(weaponKey) && !failedAssetKeys?.has(weaponKey)) {
-      this.weaponSprite = scene.add.image(x, y, weaponKey).setOrigin(0.5, 0.7).setDepth(this.sprite.depth + 1);
+    this.failedAssetKeys = failedAssetKeys;
+    this.syncWeaponSpriteTexture();
+  }
+
+  /** v10 #3 / v35: (re)creates the weapon overlay for whichever loadout is
+   *  currently active — pivoted low (0.7 down the image, where the grip is
+   *  drawn) so it rotates from roughly the character's hand rather than its
+   *  own bounding-box center. Called at construction and again on every
+   *  swapWeapon() so the on-screen gun always matches the active weapon. */
+  private syncWeaponSpriteTexture() {
+    this.weaponSprite?.destroy();
+    this.weaponSprite = undefined;
+    const weaponKey = `weapon_sprite_${this.loadout.weaponId}`;
+    if (this.scene.textures.exists(weaponKey) && !this.failedAssetKeys?.has(weaponKey)) {
+      this.weaponSprite = this.scene.add.image(this.sprite.x, this.sprite.y, weaponKey).setOrigin(0.5, 0.7).setDepth(this.sprite.depth + 1);
     }
   }
 
@@ -180,6 +251,8 @@ export class Player {
     }
 
     this.regenerate();
+    this.maybeTriggerRegenPerk();
+    this.maybeTriggerShieldPerk();
     this.updateLaserSight(angle, covers);
   }
 
@@ -260,6 +333,131 @@ export class Player {
     this.hp = Math.min(this.maxHp, this.hp + this.loadout.regenPer5s);
   }
 
+  /** v35: Regeneration perk — auto full-heal the instant HP drops below 20%,
+   *  30s cooldown before it can fire again. */
+  private maybeTriggerRegenPerk() {
+    if (!this.perks.regen || this.isDead) return;
+    const now = this.scene.time.now;
+    if (now < this.regenCooldownUntil) return;
+    if (this.hp / this.maxHp >= REGEN_HP_THRESHOLD) return;
+    this.hp = this.maxHp;
+    this.regenCooldownUntil = now + REGEN_COOLDOWN_MS;
+    sfx.play("pickup_item");
+    this.scene.tweens.add({ targets: this.sprite, tint: 0x4ade80, duration: 200, yoyo: true, onComplete: () => this.sprite.clearTint() });
+  }
+
+  /** v35: Super Shield perk — auto-refill to 50% of max shield once shield
+   *  has stayed at exactly 0 for 15 continuous seconds; 60s cooldown before
+   *  it can fire again. Resets its own timer the moment shield leaves 0
+   *  (regardless of why), since the perk is specifically about a *sustained*
+   *  empty shield, not a momentary dip. */
+  private maybeTriggerShieldPerk() {
+    if (!this.perks.superShield || this.isDead || this.shieldMax <= 0) return;
+    const now = this.scene.time.now;
+    if (this.shield > 0) {
+      this.shieldEmptySince = null;
+      return;
+    }
+    if (this.shieldEmptySince === null) {
+      this.shieldEmptySince = now;
+      return;
+    }
+    if (now < this.shieldCooldownUntil) return;
+    if (now - this.shieldEmptySince < SHIELD_EMPTY_TRIGGER_MS) return;
+
+    this.shield = Math.round(this.shieldMax * SHIELD_REFILL_FRACTION);
+    this.shieldCooldownUntil = now + SHIELD_COOLDOWN_MS;
+    this.shieldEmptySince = null;
+    sfx.play("pickup_item");
+    this.scene.tweens.add({ targets: this.sprite, tint: 0x60a5fa, duration: 200, yoyo: true, onComplete: () => this.sprite.clearTint() });
+  }
+
+  /** v35: seconds until Regeneration can trigger again, or -1 if it's ready
+   *  (or the perk isn't owned) — drives the HUD's status icon. */
+  getRegenCooldownRemaining(): number {
+    if (!this.perks.regen) return -1;
+    return Math.max(0, this.regenCooldownUntil - this.scene.time.now) / 1000;
+  }
+
+  /** v35: same as getRegenCooldownRemaining but for Super Shield. Returns 0
+   *  (ready) even while the 15s empty-shield timer is still counting down —
+   *  that timer isn't a "cooldown" the player caused, it's just waiting for
+   *  the trigger condition, so the HUD icon should read "ready" throughout. */
+  getShieldCooldownRemaining(): number {
+    if (!this.perks.superShield) return -1;
+    return Math.max(0, this.shieldCooldownUntil - this.scene.time.now) / 1000;
+  }
+
+  /** v35: One Shot perk — called by the HUD's skull button. Arms the very
+   *  next shot fired (regardless of delay) to deal ONE_SHOT_DAMAGE, or the
+   *  smaller ONE_SHOT_AOE_DAMAGE spread over a wider radius for AoE weapons.
+   *  Cooldown starts on the button press itself, not on the shot landing. */
+  armOneShot(): boolean {
+    if (!this.perks.oneShot || this.isDead) return false;
+    const now = this.scene.time.now;
+    if (now < this.oneShotCooldownUntil) return false;
+    this.oneShotArmed = true;
+    this.oneShotCooldownUntil = now + ONE_SHOT_COOLDOWN_MS;
+    sfx.play("ui_click");
+    return true;
+  }
+
+  getOneShotCooldownRemaining(): number {
+    if (!this.perks.oneShot) return -1;
+    return Math.max(0, this.oneShotCooldownUntil - this.scene.time.now) / 1000;
+  }
+
+  isOneShotArmed(): boolean {
+    return this.oneShotArmed;
+  }
+
+  /** v35: Spare Weapon perk — swaps the active loadout with the spare,
+   *  carrying over each weapon's own magazine/ammo state so nothing resets
+   *  just from switching (and switching back). No-op if the perk/spare isn't
+   *  set up, mid-reload (swapping away shouldn't cancel/hide an in-progress
+   *  reload silently), or still on cooldown. Returns whether it actually swapped. */
+  swapWeapon(): boolean {
+    if (!this.spareLoadout || this.isDead || this.isReloading) return false;
+    const now = this.scene.time.now;
+    if (now - this.lastSwapTime < SWAP_COOLDOWN_MS) return false;
+
+    const outgoingMagazine = this.magazine;
+    const outgoingAmmo = this.ammo;
+    const outgoingMaxAmmo = this.maxAmmo;
+    const outgoingAmmoUsed = this.ammoUsed;
+
+    this.loadout = this.usingSpare ? this.mainLoadout : this.spareLoadout;
+    this.magazine = this.offMagazine;
+    this.ammo = this.offAmmo;
+    this.maxAmmo = this.offMaxAmmo;
+    this.ammoUsed = this.offAmmoUsed;
+
+    this.offMagazine = outgoingMagazine;
+    this.offAmmo = outgoingAmmo;
+    this.offMaxAmmo = outgoingMaxAmmo;
+    this.offAmmoUsed = outgoingAmmoUsed;
+
+    this.usingSpare = !this.usingSpare;
+    this.lastSwapTime = now;
+    this.syncWeaponSpriteTexture();
+    sfx.play("reload");
+    return true;
+  }
+
+  /** v35: seconds until the next swap is allowed, or -1 if the perk/spare
+   *  weapon isn't set up at all. */
+  getSwapCooldownRemaining(): number {
+    if (!this.spareLoadout) return -1;
+    return Math.max(0, SWAP_COOLDOWN_MS - (this.scene.time.now - this.lastSwapTime)) / 1000;
+  }
+
+  /** Name of whichever weapon ISN'T currently active, for the HUD's swap
+   *  button label — or null if the perk/spare weapon isn't set up. */
+  getInactiveWeaponName(): string | null {
+    if (!this.spareLoadout) return null;
+    return this.usingSpare ? this.mainLoadout.name : this.spareLoadout.name;
+  }
+
   private shoot(target: Phaser.Math.Vector2) {
     const now = this.scene.time.now;
     const cooldown = 1000 / this.loadout.fireRate;
@@ -269,7 +467,12 @@ export class Player {
 
     const shootSfx = shootSfxForWeapon(this.loadout.weaponId);
 
-    const key = this.scene.textures.exists("bullet_sprite") ? "bullet_sprite" : "bullet_tex";
+    // v35: Spare Weapon perk — the active loadout can be either main or
+    // spare, each preloaded under its own fixed bullet texture key (see
+    // PreloadScene.ts) since Phaser can't swap an already-loaded texture's
+    // source mid-scene.
+    const preferredKey = this.usingSpare ? "bullet_sprite_spare" : "bullet_sprite";
+    const key = this.scene.textures.exists(preferredKey) ? preferredKey : "bullet_tex";
     if (!this.scene.textures.exists(key)) {
       const gfx = this.scene.add.graphics();
       gfx.fillStyle(0xf39c12, 1);
@@ -277,6 +480,15 @@ export class Player {
       gfx.generateTexture(key, 8, 8);
       gfx.destroy();
     }
+
+    // v35: One Shot perk — consumed here regardless of fireMode; AoE weapons
+    // (rocket/grenade) get a much wider but weaker blast instead of the flat
+    // per-target damage, per the perk's own description.
+    const isAoeWeapon = this.loadout.fireMode === "aoe" || this.loadout.fireMode === "lob";
+    const oneShotThisVolley = this.oneShotArmed;
+    if (oneShotThisVolley) this.oneShotArmed = false;
+    const damage = oneShotThisVolley ? (isAoeWeapon ? ONE_SHOT_AOE_DAMAGE : ONE_SHOT_DAMAGE) : this.loadout.damage;
+    const explosionRadius = oneShotThisVolley && isAoeWeapon ? this.loadout.explosionRadius * ONE_SHOT_AOE_RADIUS_MULTIPLIER : this.loadout.explosionRadius;
 
     const rounds = fireShots({
       scene: this.scene,
@@ -300,15 +512,17 @@ export class Player {
         spawnMuzzleEffect(this.scene, this.sprite.x, this.sprite.y, fireAngle, this.loadout.bulletSprite);
       },
       stats: {
-        damage: this.loadout.damage,
+        damage,
         fireMode: this.loadout.fireMode,
         projectileCount: this.loadout.projectileCount,
-        accuracy: this.loadout.accuracy,
-        criticalChance: this.loadout.criticalChance,
+        // v35: One Shot is a guaranteed flat hit, not subject to the normal
+        // accuracy/crit RNG on top of an already-fixed special damage number.
+        accuracy: oneShotThisVolley ? 100 : this.loadout.accuracy,
+        criticalChance: oneShotThisVolley ? 0 : this.loadout.criticalChance,
         criticalDamage: this.loadout.criticalDamage,
         spreadDegrees: this.loadout.spreadDegrees,
         bulletSpeed: bulletSpeedForWeapon(this.loadout.weaponId),
-        explosionRadius: this.loadout.explosionRadius,
+        explosionRadius,
       },
     });
 
@@ -344,10 +558,31 @@ export class Player {
     return Phaser.Math.Clamp((this.scene.time.now - this.reloadStartTime) / this.reloadDurationMs, 0, 1);
   }
 
+  /** v35: seconds left in the current reload (for the HUD's numeric
+   *  countdown), or -1 if not currently reloading. */
+  getReloadSecondsRemaining(): number {
+    if (!this.isReloading || this.reloadDurationMs <= 0) return -1;
+    const remainingMs = this.reloadDurationMs - (this.scene.time.now - this.reloadStartTime);
+    return Math.max(0, remainingMs) / 1000;
+  }
+
   getMagazine() { return this.magazine; }
   getMagazineSize() { return this.loadout.magazineSize; }
   getAmmoUsed() { return this.ammoUsed; }
   isOutOfAmmo() { return this.magazine <= 0 && this.ammo <= 0; }
+
+  /** v35: ammo consumption for BOTH weapons this run (main always, spare
+   *  only if it was ever swapped to) — game-complete reports usage per
+   *  weaponId since each has its own separate daily ammo quota. */
+  getAmmoUsageBreakdown(): { weaponId: string; ammoUsed: number }[] {
+    const mainUsed = this.usingSpare ? this.offAmmoUsed : this.ammoUsed;
+    const out = [{ weaponId: this.mainLoadout.weaponId, ammoUsed: mainUsed }];
+    if (this.spareLoadout) {
+      const spareUsed = this.usingSpare ? this.ammoUsed : this.offAmmoUsed;
+      out.push({ weaponId: this.spareLoadout.weaponId, ammoUsed: spareUsed });
+    }
+    return out;
+  }
 
   /** Armor is a flat percentage damage reduction, not a separate buffer. Shield
    *  (from equipped gear) absorbs damage before HP and never regenerates mid-stage. */

@@ -9,6 +9,7 @@ import type { PlayerPassiveRow } from "@/lib/db/passive";
 import { showRewardedAd } from "@/lib/ads-service";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
 import CurrencyBar from "@/components/ui/CurrencyBar";
+import { PERKS, PERK_ORDER, type PerkId } from "@/lib/perks";
 
 interface Props {
   allCharacters: CharacterRow[];
@@ -27,6 +28,7 @@ interface Props {
   ticket: number;
   exp: number;
   greenBanknote: number;
+  perks: { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean };
 }
 
 const PASSIVE_LABELS: Record<PassiveId, string> = {
@@ -53,12 +55,23 @@ const CHARACTER_THEME: Record<string, { from: string; to: string; glow: string }
 };
 const DEFAULT_THEME = { from: "#1a1a2e", to: "#0f0f1a", glow: "#c5a97d" };
 
+/** Perks tab card theming — each perk gets a color identity matching its
+ *  in-game HUD treatment (spare weapon=tan/gold like Reload/Swap, regen=green,
+ *  super shield=blue, one shot=fiery gold for the armed-skull glow). */
+const PERK_THEME: Record<PerkId, { from: string; glow: string }> = {
+  spare_weapon: { from: "#3a331a", glow: "#c5a97d" },
+  regen: { from: "#1a3a24", glow: "#4ade80" },
+  super_shield: { from: "#1a2a3a", glow: "#60a5fa" },
+  one_shot: { from: "#3a1a1a", glow: "#f39c12" },
+};
+
 function isCharacterUnlocked(char: CharacterRow, currentStage: number): boolean {
   return char.unlockType === "FREE" || (char.unlockType === "STAGE" && currentStage >= char.unlockValue);
 }
 
 export default function CharacterHubClient(props: Props) {
-  const [tab, setTab] = useState<"character" | "weapon" | "passive">("character");
+  const [tab, setTab] = useState<"character" | "weapon" | "passive" | "perks">("character");
+  const [perks, setPerks] = useState(props.perks);
   const [coin, setCoin] = useState(props.coin);
   const [diamond, setDiamond] = useState(props.diamond);
   const [ticket, setTicket] = useState(props.ticket);
@@ -282,6 +295,33 @@ export default function CharacterHubClient(props: Props) {
     }
   }
 
+  async function purchasePerk(perkId: PerkId) {
+    if (loading) return;
+    setLoading(true);
+    try {
+      const res = await fetch("/api/perk/purchase", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ perkId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setPerks((prev) => ({
+          ...prev,
+          spareWeapon: perkId === "spare_weapon" ? true : prev.spareWeapon,
+          regen: perkId === "regen" ? true : prev.regen,
+          superShield: perkId === "super_shield" ? true : prev.superShield,
+          oneShot: perkId === "one_shot" ? true : prev.oneShot,
+        }));
+        applyPlayerUpdate(data.updatedPlayer);
+        setMessage(`${PERKS[perkId].name} unlocked!`);
+      } else {
+        setMessage(data.error);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }
+
   const isCharOwned = ownedCharacterIds.includes(selectedCharacter.id) || isCharacterUnlocked(selectedCharacter, props.currentStage);
   const isCharActive = selectedCharacter.id === activeCharacterId;
   const specialOk = selectedCharacter.unlockType !== "SPECIAL" || (props.vipLevel >= selectedCharacter.vipRequirement && props.farmStageMaxWave > selectedCharacter.waveRequirement);
@@ -315,6 +355,7 @@ export default function CharacterHubClient(props: Props) {
         <button onClick={() => setTab("character")} className={`btn-military text-xs ${tab === "character" ? "" : "opacity-50"}`}>Character</button>
         <button onClick={() => setTab("weapon")} className={`btn-military text-xs ${tab === "weapon" ? "" : "opacity-50"}`}>Weapon</button>
         <button onClick={() => setTab("passive")} className={`btn-military text-xs ${tab === "passive" ? "" : "opacity-50"}`}>Passive</button>
+        <button onClick={() => setTab("perks")} className={`btn-military text-xs ${tab === "perks" ? "" : "opacity-50"}`}>Perks</button>
       </div>
 
       {message && <div className="max-w-6xl mx-auto mb-4 text-military-gold text-sm">{message}</div>}
@@ -532,6 +573,47 @@ export default function CharacterHubClient(props: Props) {
                   </button>
                 ) : (
                   <span className="text-military-steel text-xs">Not configured</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {tab === "perks" && (
+        <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+          {PERK_ORDER.map((perkId) => {
+            const def = PERKS[perkId];
+            const owned = perks[perkId === "spare_weapon" ? "spareWeapon" : perkId === "super_shield" ? "superShield" : perkId === "one_shot" ? "oneShot" : "regen"];
+            const theme = PERK_THEME[perkId];
+            return (
+              <div
+                key={perkId}
+                className="rounded-lg border p-4 relative overflow-hidden"
+                style={{
+                  borderColor: owned ? theme.glow : "#4a4e69",
+                  background: `linear-gradient(135deg, ${theme.from}, #0f0f1a 70%)`,
+                  boxShadow: owned ? `0 0 16px ${theme.glow}55` : undefined,
+                }}
+              >
+                <div className="flex items-start gap-3 mb-3">
+                  <span className="text-4xl leading-none" style={{ filter: owned ? `drop-shadow(0 0 6px ${theme.glow})` : undefined }}>{def.icon}</span>
+                  <div className="flex-1">
+                    <h3 className="font-black uppercase tracking-wide">{def.name}</h3>
+                    {owned && <span className="text-emerald-400 text-xs font-bold">✓ OWNED</span>}
+                  </div>
+                </div>
+                <p className="text-xs text-military-steel mb-4 leading-relaxed">{def.description}</p>
+                {owned ? (
+                  <div className="text-center text-emerald-400 text-xs font-bold uppercase tracking-widest py-1.5 border border-emerald-400/40 rounded">Unlocked</div>
+                ) : (
+                  <button
+                    onClick={() => purchasePerk(perkId)}
+                    disabled={loading || ticket < def.cost}
+                    className="btn-gold text-xs w-full py-1.5"
+                  >
+                    {loading ? "..." : `🎟️ ${def.cost.toLocaleString()}`}
+                  </button>
                 )}
               </div>
             );

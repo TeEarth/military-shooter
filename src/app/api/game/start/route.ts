@@ -12,8 +12,38 @@ import { computeFullStats, statsToLoadout } from "@/lib/stats";
 import { parseStageNumber, templateStageId, stageStatMultiplier, extraEnemyCount } from "@/lib/stageTemplate";
 import { getBossConfigForEncounter, getBossEncounterCount } from "@/lib/db/bossStage";
 import { getCompletedStageIds } from "@/lib/db/stageProgress";
+import type { Player } from "@/lib/db/player";
+import type { CombatLoadout } from "@/types/loadout";
 
 const DEFAULT_WEAPON_ID = "pistol";
+
+/** v35: builds the spare-weapon loadout (null if the perk isn't owned, no
+ *  spare is set, or the spare is stale-equal to the current main weapon —
+ *  e.g. after re-equipping the same weapon that used to be the spare) plus
+ *  the flat perk-ownership flags, shared by both stage-start paths below. */
+async function buildPerkPayload(player: Player, weaponId: string) {
+  const perks = {
+    spareWeapon: player.perkSpareWeapon,
+    regen: player.perkRegen,
+    superShield: player.perkSuperShield,
+    oneShot: player.perkOneShot,
+  };
+
+  let spareLoadout: CombatLoadout | null = null;
+  if (player.perkSpareWeapon && player.spareWeaponId && player.spareWeaponId !== weaponId) {
+    const [spareCharacter, spareWeapon] = await Promise.all([
+      getCharacterById(player.currentCharacter),
+      getWeaponById(player.spareWeaponId),
+    ]);
+    if (spareCharacter && spareWeapon) {
+      const spareStats = await computeFullStats(player.id, spareCharacter, spareWeapon);
+      const spareAmmo = await getRemainingAmmo(player.id, player.spareWeaponId, Math.round(spareStats.dailyAmmo.final));
+      spareLoadout = statsToLoadout(spareCharacter, spareWeapon, spareStats, spareAmmo);
+    }
+  }
+
+  return { perks, spareLoadout };
+}
 
 export async function POST(req: NextRequest) {
   const session = await auth();
@@ -153,6 +183,7 @@ export async function POST(req: NextRequest) {
   }
 
   const loadout = statsToLoadout(character, weapon, stats, remainingAmmo);
+  const { perks, spareLoadout } = await buildPerkPayload(player, weaponId);
 
   return NextResponse.json({
     success: true,
@@ -162,6 +193,8 @@ export async function POST(req: NextRequest) {
     covers,
     character: loadout,
     weaponId,
+    perks,
+    spareLoadout,
   });
 }
 
@@ -240,9 +273,12 @@ async function startBossStage(playerId: string) {
   const enemyRoster = minionTemplate && minionWeapon ? [{ ...minionTemplate, weapon: minionWeapon }] : [];
 
   const loadout = statsToLoadout(character, weapon, stats, remainingAmmo);
+  const { perks, spareLoadout } = await buildPerkPayload(player, weaponId);
 
   return NextResponse.json({
     success: true,
+    perks,
+    spareLoadout,
     stageData: {
       id: `boss_${encounterNumber}`,
       name: `Boss Encounter #${encounterNumber}`,

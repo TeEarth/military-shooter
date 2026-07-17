@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { stageId, weaponId, completed, kills, killCoin: rawKillCoin, farmWaveReached, ammoUsed } = await req.json();
+  const { stageId, weaponId, completed, kills, killCoin: rawKillCoin, farmWaveReached, ammoUsed, spareWeaponId, spareAmmoUsed } = await req.json();
 
   // Real currency earned from kills this run (per-enemy-type coinReward, summed
   // client-side in GameScene as each enemy dies) — previously this was computed
@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
 
   const tasks: Promise<unknown>[] = [];
   if (weaponId && ammoUsed > 0) tasks.push(deductWeaponAmmo(player.id, weaponId, ammoUsed));
+  // v35: Spare Weapon perk — ammo is tracked per-weapon (its own daily
+  // quota), so a run that swapped mid-fight reports usage for both.
+  if (spareWeaponId && spareAmmoUsed > 0) tasks.push(deductWeaponAmmo(player.id, spareWeaponId, spareAmmoUsed));
 
   // v9 #3: kill-count mission progress is purely cosmetic bookkeeping — it
   // doesn't affect this response's rewards or gate anything the client does

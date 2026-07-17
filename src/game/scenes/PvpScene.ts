@@ -330,6 +330,7 @@ export class PvpScene extends Phaser.Scene {
       maxAmmo: this.player.maxAmmo,
       isReloading: this.player.isReloading,
       reloadProgress: this.player.getReloadProgress(),
+      reloadSecondsRemaining: this.player.getReloadSecondsRemaining(),
       outOfAmmo: this.player.isOutOfAmmo(),
       kills: 0,
       score: 0,

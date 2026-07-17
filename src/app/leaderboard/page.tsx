@@ -1,6 +1,15 @@
 import { getLeaderboard } from "@/lib/db/leaderboard";
 import Link from "next/link";
 
+// v35 fix: this page has no per-user session/cookie read (unlike most other
+// pages, which call auth() and so get Next.js's automatic dynamic-rendering
+// opt-out for free) — without this, Next.js statically prerendered it ONCE
+// at build time and served that same frozen snapshot (empty, since nobody
+// had a weekly wave yet at build time) to every visitor forever, regardless
+// of how many real farm runs got recorded afterward. This is exactly why
+// leaderboard entries never appeared.
+export const dynamic = "force-dynamic";
+
 const REWARD_LABEL = ["+20 💵", "+10 💵", "+5 💵"];
 const RANK_MEDAL = ["🥇", "🥈", "🥉"];
 

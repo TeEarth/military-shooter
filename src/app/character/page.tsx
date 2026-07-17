@@ -45,6 +45,12 @@ export default async function CharacterPage() {
       ticket={player.ticket}
       exp={player.exp}
       greenBanknote={income.greenBanknoteBalance}
+      perks={{
+        spareWeapon: player.perkSpareWeapon,
+        regen: player.perkRegen,
+        superShield: player.perkSuperShield,
+        oneShot: player.perkOneShot,
+      }}
     />
   );
 }

@@ -82,6 +82,20 @@ export class PreloadScene extends Phaser.Scene {
       this.load.svg("bullet_sprite", character.bulletSprite, { width, height });
     }
 
+    // v35: Spare Weapon perk — preloads the swap slot's own gun art (already
+    // keyed by weaponId, so no collision with the main weapon) and a SECOND
+    // fixed-key bullet texture (Player.ts's shoot() can't dynamically load a
+    // texture mid-fight, so both possible bullet types must already be in
+    // the texture cache before the stage starts).
+    const spareLoadout = this.registry.get("spareLoadout") as CombatLoadout | null;
+    if (spareLoadout?.weaponId) {
+      this.load.svg(`weapon_sprite_${spareLoadout.weaponId}`, getWeaponSprite(spareLoadout.weaponId), { width: 20, height: 40 });
+    }
+    if (spareLoadout?.bulletSprite) {
+      const { width, height } = bulletDisplaySize(spareLoadout.bulletSprite);
+      this.load.svg("bullet_sprite_spare", spareLoadout.bulletSprite, { width, height });
+    }
+
     // One image per distinct enemy type appearing in this session (story spawns + farm roster),
     // also loaded directly at final display size for the same reason as the player.
     const seenEnemySprites = new Set<string>();

@@ -13,6 +13,8 @@ interface HudUpdatePayload {
   isReloading: boolean;
   /** 0-1, or -1 when not reloading. */
   reloadProgress: number;
+  /** v35: seconds left in the current reload, or -1 when not reloading. */
+  reloadSecondsRemaining: number;
   outOfAmmo: boolean;
   kills: number;
   score: number;
@@ -29,6 +31,18 @@ interface HudUpdatePayload {
   /** v24: boss stages only — undefined once the boss is dead/not a boss stage. */
   bossHp?: number;
   bossMaxHp?: number;
+  /** v35: perk system (single-player only — never set by PvpScene) — see
+   *  src/lib/perks.ts for the catalog. */
+  perks?: { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean };
+  /** v35: -1 if the Spare Weapon perk/slot isn't set up at all. */
+  swapCooldownRemaining?: number;
+  /** v35: name of whichever weapon ISN'T active, for the SWAP button's label. */
+  inactiveWeaponName?: string | null;
+  /** v35: -1 if that perk isn't owned. */
+  regenCooldownRemaining?: number;
+  shieldCooldownRemaining?: number;
+  oneShotCooldownRemaining?: number;
+  oneShotArmed?: boolean;
 }
 
 export class HUDScene extends Phaser.Scene {
@@ -56,6 +70,16 @@ export class HUDScene extends Phaser.Scene {
   /** v24: big top-of-screen boss hp bar — only ever visible on boss stages. */
   private bossBar!: Phaser.GameObjects.Graphics;
   private bossNameText!: Phaser.GameObjects.Text;
+  /** v35: perk buttons/status icons — only ever created (non-undefined) when
+   *  the matching perk is owned, see create()'s perk block. */
+  private swapCircle?: Phaser.GameObjects.Arc;
+  private swapText?: Phaser.GameObjects.Text;
+  private oneShotCircle?: Phaser.GameObjects.Arc;
+  private oneShotText?: Phaser.GameObjects.Text;
+  private regenIcon?: Phaser.GameObjects.Text;
+  private regenCooldownText?: Phaser.GameObjects.Text;
+  private shieldIcon?: Phaser.GameObjects.Text;
+  private shieldCooldownText?: Phaser.GameObjects.Text;
   private bossHpText!: Phaser.GameObjects.Text;
 
   constructor() {
@@ -134,6 +158,23 @@ export class HUDScene extends Phaser.Scene {
       this.createExitButton(width);
     }
     this.createReloadButton(width, height);
+
+    // v35: perks are single-player only — not wired into PvpScene at all, so
+    // these never render there regardless of ownership.
+    if (!this.isPvp) {
+      const perks = this.registry.get("perks") as { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean } | undefined;
+      let stackedAbove = 0;
+      if (perks?.spareWeapon) {
+        this.createSwapButton(width, height, stackedAbove);
+        stackedAbove++;
+      }
+      if (perks?.oneShot) {
+        this.createOneShotButton(width, height, stackedAbove);
+      }
+      if (perks?.regen || perks?.superShield) {
+        this.createPerkStatusIcons(width, Boolean(perks?.regen), Boolean(perks?.superShield));
+      }
+    }
 
     this.farmCountdownText = this.add.text(width / 2, height / 2, "", {
       fontFamily: "Orbitron, monospace", fontSize: "56px", color: "#ffcc00", fontStyle: "bold",
@@ -277,6 +318,89 @@ export class HUDScene extends Phaser.Scene {
     circle.on("pointerout", () => circle.setStrokeStyle(2, 0xc5a97d));
   }
 
+  /** Shared position math for a button stacked directly above the Reload
+   *  button — stackIndex 0 sits immediately above it, 1 sits above that, etc. */
+  private stackedButtonPosition(width: number, height: number, stackIndex: number) {
+    const radius = 30;
+    const raised = this.isMobile && this.isJoystickScheme;
+    const cx = raised ? width - 130 : width - 56;
+    const reloadCy = raised ? height - 210 - radius - 14 : height - 56;
+    const cy = reloadCy - (stackIndex + 1) * (radius * 2 + 14);
+    return { cx, cy, radius };
+  }
+
+  /** v35: Spare Weapon perk — SWAP button, same visual language as Reload,
+   *  stacked directly above it. Label updates each hud-update with whichever
+   *  weapon ISN'T currently active (the one you'd swap TO). */
+  private createSwapButton(width: number, height: number, stackIndex: number) {
+    const { cx, cy, radius } = this.stackedButtonPosition(width, height, stackIndex);
+    this.swapCircle = this.add.circle(cx, cy, radius, 0x1a1a2e, 0.85)
+      .setStrokeStyle(2, 0xc5a97d).setDepth(20).setInteractive({ useHandCursor: true });
+    this.swapText = this.add.text(cx, cy, "SWAP", {
+      fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#c5a97d", fontStyle: "bold", align: "center",
+    }).setOrigin(0.5).setDepth(21);
+
+    this.swapCircle.on("pointerdown", () => {
+      sfx.play("ui_click");
+      const gameScene = this.scene.get("GameScene") as Phaser.Scene & { triggerSwapWeapon: () => void };
+      gameScene.triggerSwapWeapon();
+    });
+    this.swapCircle.on("pointerover", () => this.swapCircle?.setStrokeStyle(2, 0xf3c98a));
+    this.swapCircle.on("pointerout", () => this.swapCircle?.setStrokeStyle(2, 0xc5a97d));
+  }
+
+  /** v35: One Shot perk — skull button, stacked above Swap (or directly
+   *  above Reload if Spare Weapon isn't owned). Glows gold while armed. */
+  private createOneShotButton(width: number, height: number, stackIndex: number) {
+    const { cx, cy, radius } = this.stackedButtonPosition(width, height, stackIndex);
+    this.oneShotCircle = this.add.circle(cx, cy, radius, 0x1a1a2e, 0.85)
+      .setStrokeStyle(2, 0xc5a97d).setDepth(20).setInteractive({ useHandCursor: true });
+    this.oneShotText = this.add.text(cx, cy, "💀", { fontSize: "20px" }).setOrigin(0.5).setDepth(21);
+
+    this.oneShotCircle.on("pointerdown", () => {
+      sfx.play("ui_click");
+      const gameScene = this.scene.get("GameScene") as Phaser.Scene & { triggerOneShot: () => void };
+      gameScene.triggerOneShot();
+    });
+    this.oneShotCircle.on("pointerover", () => { if (this.oneShotCircle?.getData("ready")) this.oneShotCircle.setStrokeStyle(2, 0xf3c98a); });
+    this.oneShotCircle.on("pointerout", () => { if (this.oneShotCircle?.getData("ready")) this.oneShotCircle.setStrokeStyle(2, 0xc5a97d); });
+  }
+
+  /** v35: Regeneration / Super Shield perk status icons, below the ammo
+   *  Refill button (top-right) — ready (bright) vs on-cooldown (dim, with a
+   *  countdown). Purely informational, no click handler. */
+  private createPerkStatusIcons(width: number, hasRegen: boolean, hasShield: boolean) {
+    let y = 108;
+    if (hasRegen) {
+      this.regenIcon = this.add.text(width - 10, y, "💚 REGEN", {
+        fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#4ade80",
+      }).setOrigin(1, 0);
+      this.regenCooldownText = this.add.text(width - 10, y + 13, "", {
+        fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#94a3b8",
+      }).setOrigin(1, 0);
+      y += 30;
+    }
+    if (hasShield) {
+      this.shieldIcon = this.add.text(width - 10, y, "🛡️ SHIELD", {
+        fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#60a5fa",
+      }).setOrigin(1, 0);
+      this.shieldCooldownText = this.add.text(width - 10, y + 13, "", {
+        fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#94a3b8",
+      }).setOrigin(1, 0);
+    }
+  }
+
+  /** v35: shared "ready (bright) vs on-cooldown (dim + countdown)" look for
+   *  the perk status icons/buttons — cooldownRemaining is in seconds, -1
+   *  meaning the perk isn't owned (handled by the caller not calling this). */
+  private applyPerkCooldownVisual(icon: Phaser.GameObjects.Text | undefined, cooldownText: Phaser.GameObjects.Text | undefined, cooldownRemaining: number, readyColor: string) {
+    if (!icon) return;
+    const ready = cooldownRemaining <= 0;
+    icon.setAlpha(ready ? 1 : 0.4);
+    icon.setColor(ready ? readyColor : "#94a3b8");
+    cooldownText?.setText(ready ? "READY" : `${cooldownRemaining.toFixed(0)}s`);
+  }
+
   private onHudUpdate(data: HudUpdatePayload) {
     this.hpText.setText(`HP: ${Math.ceil(data.hp)}/${data.maxHp}`);
     this.ammoText.setText(`AMMO: ${data.magazine}/${data.magazineSize} (${data.ammo} left today)`);
@@ -290,6 +414,9 @@ export class HUDScene extends Phaser.Scene {
       isBossStage ? "" : this.isPvp ? "DEFEAT YOUR OPPONENT" : data.isFarmStage ? `WAVE ${data.wave}` : "ELIMINATE ALL ENEMIES"
     );
     this.reloadText.setVisible(data.isReloading && !data.outOfAmmo);
+    if (data.isReloading && data.reloadSecondsRemaining >= 0) {
+      this.reloadText.setText(`RELOADING... ${data.reloadSecondsRemaining.toFixed(1)}s`);
+    }
     this.outOfAmmoText.setVisible(data.outOfAmmo);
 
     this.updateBossBar(data);
@@ -324,6 +451,35 @@ export class HUDScene extends Phaser.Scene {
     }
 
     this.updateHideBar(data);
+    this.updatePerkUi(data);
+  }
+
+  /** v35: swap/one-shot buttons + regen/shield status icons — no-ops for any
+   *  element that was never created (perk not owned, see create()). */
+  private updatePerkUi(data: HudUpdatePayload) {
+    if (this.swapCircle && this.swapText) {
+      const remaining = data.swapCooldownRemaining ?? -1;
+      const ready = remaining <= 0;
+      this.swapCircle.setStrokeStyle(2, ready ? 0xc5a97d : 0x555555).setAlpha(ready ? 1 : 0.5);
+      this.swapText.setText(ready ? `SWAP\n${data.inactiveWeaponName ?? ""}` : `${remaining.toFixed(0)}s`);
+    }
+
+    if (this.oneShotCircle && this.oneShotText) {
+      const remaining = data.oneShotCooldownRemaining ?? -1;
+      const ready = remaining <= 0;
+      const armed = Boolean(data.oneShotArmed);
+      this.oneShotCircle.setData("ready", ready);
+      if (armed) {
+        this.oneShotCircle.setStrokeStyle(3, 0xf39c12).setFillStyle(0x3a2a0a, 0.9);
+      } else {
+        this.oneShotCircle.setStrokeStyle(2, ready ? 0xc5a97d : 0x555555).setFillStyle(0x1a1a2e, 0.85);
+      }
+      this.oneShotCircle.setAlpha(ready || armed ? 1 : 0.5);
+      this.oneShotText.setText(ready || armed ? "💀" : `${remaining.toFixed(0)}s`);
+    }
+
+    this.applyPerkCooldownVisual(this.regenIcon, this.regenCooldownText, data.regenCooldownRemaining ?? -1, "#4ade80");
+    this.applyPerkCooldownVisual(this.shieldIcon, this.shieldCooldownText, data.shieldCooldownRemaining ?? -1, "#60a5fa");
   }
 
   /** v24: big, unmissable hp bar for the boss itself — top-center, well above

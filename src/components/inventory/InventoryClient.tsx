@@ -31,6 +31,8 @@ interface Props {
   ticket: number;
   exp: number;
   greenBanknote: number;
+  hasSpareWeaponPerk: boolean;
+  spareWeaponId: string;
 }
 
 type DropTarget = "weapon" | EquipmentSlot;
@@ -161,9 +163,11 @@ function CornerSlot({ position, target, icon, label, itemSprite, itemName, onCli
   );
 }
 
-export default function InventoryClient({ characterSprite, characterName, ownedWeapons, equippedWeaponId: initialEquippedWeaponId, ownedEquipment: initialEquipment, coin, diamond, ticket, exp, greenBanknote }: Props) {
+export default function InventoryClient({ characterSprite, characterName, ownedWeapons, equippedWeaponId: initialEquippedWeaponId, ownedEquipment: initialEquipment, coin, diamond, ticket, exp, greenBanknote, hasSpareWeaponPerk, spareWeaponId: initialSpareWeaponId }: Props) {
   const t = useT();
   const [equippedWeaponId, setEquippedWeaponId] = useState(initialEquippedWeaponId);
+  const [spareWeaponId, setSpareWeaponId] = useState(initialSpareWeaponId);
+  const [spareLoading, setSpareLoading] = useState(false);
   const [equipment, setEquipment] = useState(initialEquipment);
   const [message, setMessage] = useState("");
   const [openPicker, setOpenPicker] = useState<"weapon" | EquipmentSlot | null>(null);
@@ -244,6 +248,33 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
     }
   }
 
+  async function setSpareWeapon(weaponId: string) {
+    if (spareLoading) return;
+    setSpareLoading(true);
+    const previous = spareWeaponId;
+    setSpareWeaponId(weaponId);
+    try {
+      const res = await fetch("/api/perk/spare-weapon", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weaponId }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setSpareWeaponId(previous);
+        setMessage(data.error);
+        sfx.play("miss");
+      } else {
+        sfx.play("pickup_item");
+      }
+    } catch {
+      setSpareWeaponId(previous);
+      setMessage("Network error — spare weapon not set.");
+      sfx.play("miss");
+    } finally {
+      setSpareLoading(false);
+    }
+  }
+
   function handleDragStart(event: DragStartEvent) {
     setActiveDrag(event.active.data.current as DragPayload);
   }
@@ -290,6 +321,29 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
         </div>
 
         {message && <div className="text-center mb-2 text-military-gold text-sm">{message}</div>}
+
+        {/* v35: Spare Weapon perk — a plain dropdown rather than a drag-drop
+         *  slot like the main weapon/equipment, since this is a simple
+         *  "pick one owned weapon" choice with no visual placement to it. */}
+        {hasSpareWeaponPerk && (
+          <div className="max-w-md mx-auto mb-6 card-military flex items-center gap-3">
+            <span className="text-2xl">🔫</span>
+            <div className="flex-1">
+              <p className="text-xs text-military-tan font-bold uppercase tracking-wider mb-1">Spare Weapon</p>
+              <select
+                value={spareWeaponId}
+                disabled={spareLoading}
+                onChange={(e) => setSpareWeapon(e.target.value)}
+                className="w-full bg-military-darker border border-military-steel text-sm p-1.5 rounded"
+              >
+                <option value="">— choose a weapon —</option>
+                {ownedWeapons.filter((w) => w.id !== equippedWeaponId).map((w) => (
+                  <option key={w.id} value={w.id}>{w.name}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
 
         {/* Character + 4 corner slots + item picker, all stacked in ONE left
          *  column (stat panel is a separate, independently-sized right column)

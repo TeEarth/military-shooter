@@ -50,6 +50,8 @@ export default async function InventoryPage() {
       ticket={player.ticket}
       exp={player.exp}
       greenBanknote={income.greenBanknoteBalance}
+      hasSpareWeaponPerk={player.perkSpareWeapon}
+      spareWeaponId={player.spareWeaponId}
     />
   );
 }

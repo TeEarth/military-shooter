@@ -40,6 +40,16 @@ export interface Player {
    *  like this project's other daily counters (ammo, missions). */
   dailyWithdrawnBaht: number;
   dailyWithdrawnDate: string;
+  /** v35: requires scripts/sql/004_v35_perks.sql — held back until confirmed
+   *  run. One-time ticket-purchased perks, see src/lib/perks.ts. */
+  perkSpareWeapon: boolean;
+  perkRegen: boolean;
+  perkSuperShield: boolean;
+  perkOneShot: boolean;
+  /** v35: which OWNED weapon (other than currentWeapon) is loaded into the
+   *  swap slot — only meaningful once perkSpareWeapon is true. Empty string
+   *  if never set. */
+  spareWeaponId: string;
 }
 
 /** DB row (snake_case) -> app-facing Player (camelCase) — same shape callers
@@ -75,6 +85,11 @@ function rowToPlayer(row: any): Player {
     weeklyFarmMaxWave: Number(row.weekly_farm_max_wave ?? 0),
     dailyWithdrawnBaht: Number(row.daily_withdrawn_baht ?? 0),
     dailyWithdrawnDate: row.daily_withdrawn_date ?? "",
+    perkSpareWeapon: Boolean(row.perk_spare_weapon),
+    perkRegen: Boolean(row.perk_regen),
+    perkSuperShield: Boolean(row.perk_super_shield),
+    perkOneShot: Boolean(row.perk_one_shot),
+    spareWeaponId: row.spare_weapon_id ?? "",
   };
 }
 
@@ -142,6 +157,13 @@ export async function createPlayer(params: { email: string; username: string; pa
     weeklyFarmMaxWave: 0,
     dailyWithdrawnBaht: 0,
     dailyWithdrawnDate: "",
+    // v35: also not included in .insert() below — DB-level defaults (see
+    // 004_v35_perks.sql), same reasoning as the v16 fields above.
+    perkSpareWeapon: false,
+    perkRegen: false,
+    perkSuperShield: false,
+    perkOneShot: false,
+    spareWeaponId: "",
   };
 
   const supabase = getSupabaseClient();
@@ -207,6 +229,11 @@ const CAMEL_TO_SNAKE: Record<string, string> = {
   weeklyFarmMaxWave: "weekly_farm_max_wave",
   dailyWithdrawnBaht: "daily_withdrawn_baht",
   dailyWithdrawnDate: "daily_withdrawn_date",
+  perkSpareWeapon: "perk_spare_weapon",
+  perkRegen: "perk_regen",
+  perkSuperShield: "perk_super_shield",
+  perkOneShot: "perk_one_shot",
+  spareWeaponId: "spare_weapon_id",
 };
 
 function toSnakeUpdates(updates: Record<string, string | number | boolean>): Record<string, string | number | boolean> {

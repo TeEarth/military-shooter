@@ -26,7 +26,7 @@ interface VipProgress {
 const MENU_ITEMS = [
   { href: "/play", label: "PLAY", icon: "⚔️", primary: true },
   { href: "/pvp", label: "PVP", icon: "🔫", primary: true, subtitle: "Costs 5 🎟️ per round" },
-  { href: "/character", label: "CHARACTER", icon: "🪖" },
+  { href: "/character", label: "CHARACTER / WEAPON", icon: "🪖" },
   { href: "/inventory", label: "INVENTORY", icon: "🎒" },
   { href: "/gacha", label: "GACHA", icon: "🏪" },
   { href: "/shop", label: "TRADE", icon: "💱" },
