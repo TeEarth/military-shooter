@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import type { ControlScheme } from "@/lib/controlScheme";
+import { getFireScale, getMoveScale, type ControlScheme } from "@/lib/controlScheme";
 
 /** v9 #6 / v14 rework / v20 rework / v22-v24 scheme choice: touch-only
  *  virtual controls — created by GameScene ONLY when the registry's
@@ -24,12 +24,16 @@ export class MobileControls {
   private scene: Phaser.Scene;
   private scheme: ControlScheme;
 
-  private readonly baseRadius = 80;
-  private readonly knobRadius = 38;
-  private readonly maxTravel = 60;
-  /** How far from a stick's center a touch-down still grabs it — bigger than
-   *  the visible base so thumbs don't need pixel-perfect placement. */
-  private readonly grabRadius = 110;
+  // v33: each stick's size is independently adjustable on the Settings page
+  // (see controlScheme.ts's getMoveScale/getFireScale) — read once here and
+  // applied as a multiplier over these base numbers, per stick.
+  private readonly moveBaseRadius: number;
+  private readonly moveKnobRadius: number;
+  private readonly moveMaxTravel: number;
+  private readonly moveGrabRadius: number;
+  private readonly aimBaseRadius: number;
+  private readonly aimKnobRadius: number;
+  private readonly aimMaxTravel: number;
 
   /** scheme "split" only — the move stick floats to wherever the left-half
    *  touch actually landed (see handleDown) instead of a small fixed circle,
@@ -65,19 +69,29 @@ export class MobileControls {
     this.isFloatingMove = scheme === "split";
     const { width, height } = scene.scale;
 
+    const moveScale = getMoveScale();
+    const fireScale = getFireScale();
+    this.moveBaseRadius = 80 * moveScale;
+    this.moveKnobRadius = 38 * moveScale;
+    this.moveMaxTravel = 60 * moveScale;
+    this.moveGrabRadius = 110 * moveScale;
+    this.aimBaseRadius = 80 * fireScale;
+    this.aimKnobRadius = 38 * fireScale;
+    this.aimMaxTravel = 60 * fireScale;
+
     this.moveCenter = { x: 130, y: height - 130 };
     this.aimCenter = { x: width - 130, y: height - 130 };
 
     const DEPTH = 2000;
-    this.moveBase = scene.add.circle(this.moveCenter.x, this.moveCenter.y, this.baseRadius, 0xffffff, 0.12)
+    this.moveBase = scene.add.circle(this.moveCenter.x, this.moveCenter.y, this.moveBaseRadius, 0xffffff, 0.12)
       .setScrollFactor(0).setDepth(DEPTH).setStrokeStyle(2, 0xffffff, 0.3);
-    this.moveKnob = scene.add.circle(this.moveCenter.x, this.moveCenter.y, this.knobRadius, 0xc5a97d, 0.5)
+    this.moveKnob = scene.add.circle(this.moveCenter.x, this.moveCenter.y, this.moveKnobRadius, 0xc5a97d, 0.5)
       .setScrollFactor(0).setDepth(DEPTH + 1);
 
     if (scheme === "joystick") {
-      this.aimBase = scene.add.circle(this.aimCenter.x, this.aimCenter.y, this.baseRadius, 0xffffff, 0.12)
+      this.aimBase = scene.add.circle(this.aimCenter.x, this.aimCenter.y, this.aimBaseRadius, 0xffffff, 0.12)
         .setScrollFactor(0).setDepth(DEPTH).setStrokeStyle(2, 0xff4444, 0.35);
-      this.aimKnob = scene.add.circle(this.aimCenter.x, this.aimCenter.y, this.knobRadius, 0xc0392b, 0.5)
+      this.aimKnob = scene.add.circle(this.aimCenter.x, this.aimCenter.y, this.aimKnobRadius, 0xc0392b, 0.5)
         .setScrollFactor(0).setDepth(DEPTH + 1);
     } else {
       // v29 fix: scheme "split" now has a FLOATING move stick — hidden until
@@ -142,24 +156,33 @@ export class MobileControls {
       return;
     }
 
-    if (this.movePointerId === null && Phaser.Math.Distance.Between(pointer.x, pointer.y, this.moveCenter.x, this.moveCenter.y) <= this.grabRadius) {
+    if (this.movePointerId === null && Phaser.Math.Distance.Between(pointer.x, pointer.y, this.moveCenter.x, this.moveCenter.y) <= this.moveGrabRadius) {
       this.movePointerId = pointer.id;
-      this.updateStick(pointer.x, pointer.y, this.moveCenter, this.moveKnob, (v) => (this.moveVector = v));
+      this.updateStick(pointer.x, pointer.y, this.moveCenter, this.moveKnob, this.moveMaxTravel, (v) => (this.moveVector = v));
       return;
     }
 
-    if (this.aimPointerId === null && Phaser.Math.Distance.Between(pointer.x, pointer.y, this.aimCenter.x, this.aimCenter.y) <= this.grabRadius) {
+    // v33 fix: firing used to require grabbing the fire stick's small circle
+    // pixel-perfectly — any other touch on the right half did nothing. The
+    // stick's base now stays fully fixed in place (never relocates, unlike
+    // "split"'s floating move stick) but ANY touch anywhere on the right half
+    // (outside the move stick's own zone and the HUD buttons, already
+    // excluded above) now claims the fire pointer, so a thumb can fire from
+    // wherever it lands. updateStick() below still clamps the knob's visual
+    // travel to maxTravel regardless of how far the touch is from aimCenter,
+    // so the direction reads correctly even from a touch far from the stick.
+    if (this.aimPointerId === null && pointer.x >= this.scene.scale.width / 2) {
       this.aimPointerId = pointer.id;
-      this.updateStick(pointer.x, pointer.y, this.aimCenter, this.aimKnob!, (v) => (this.aimVector = v));
+      this.updateStick(pointer.x, pointer.y, this.aimCenter, this.aimKnob!, this.aimMaxTravel, (v) => (this.aimVector = v));
     }
   }
 
   private handleMove(pointer: Phaser.Input.Pointer) {
-    if (pointer.id === this.movePointerId) this.updateStick(pointer.x, pointer.y, this.moveCenter, this.moveKnob, (v) => (this.moveVector = v));
+    if (pointer.id === this.movePointerId) this.updateStick(pointer.x, pointer.y, this.moveCenter, this.moveKnob, this.moveMaxTravel, (v) => (this.moveVector = v));
     if (pointer.id !== this.aimPointerId) return;
 
     if (this.scheme === "split") this.aimScreenPoint = { x: pointer.x, y: pointer.y };
-    else this.updateStick(pointer.x, pointer.y, this.aimCenter, this.aimKnob!, (v) => (this.aimVector = v));
+    else this.updateStick(pointer.x, pointer.y, this.aimCenter, this.aimKnob!, this.aimMaxTravel, (v) => (this.aimVector = v));
   }
 
   private handleUp(pointer: Phaser.Input.Pointer) {
@@ -184,15 +207,15 @@ export class MobileControls {
     }
   }
 
-  private updateStick(px: number, py: number, center: { x: number; y: number }, knob: Phaser.GameObjects.Arc, setVector: (v: { x: number; y: number }) => void) {
+  private updateStick(px: number, py: number, center: { x: number; y: number }, knob: Phaser.GameObjects.Arc, maxTravel: number, setVector: (v: { x: number; y: number }) => void) {
     const dx = px - center.x;
     const dy = py - center.y;
-    const d = Math.min(this.maxTravel, Math.hypot(dx, dy));
+    const d = Math.min(maxTravel, Math.hypot(dx, dy));
     const angle = Math.atan2(dy, dx);
     const kx = center.x + Math.cos(angle) * d;
     const ky = center.y + Math.sin(angle) * d;
     knob.setPosition(kx, ky);
-    setVector({ x: (kx - center.x) / this.maxTravel, y: (ky - center.y) / this.maxTravel });
+    setVector({ x: (kx - center.x) / maxTravel, y: (ky - center.y) / maxTravel });
   }
 
   getMoveVector() {

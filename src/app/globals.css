@@ -155,6 +155,112 @@ body {
 .gacha-anim-glow-legendary { animation: gacha-glow-pulse 0.8s ease-in-out infinite; }
 .gacha-anim-particle { animation: gacha-particle 0.4s ease-out forwards; }
 
+/* v33: cinematic reveal pass — charging sphere, screen flash, card 3D flip,
+ * legendary spotlight. Layered on top of the v20/v24 fall/pop/burst sequence
+ * above rather than replacing it (capsules still fall and pop the same way);
+ * these run before (charging) and after (flip/spotlight) that existing beat. */
+@keyframes gacha-charge-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+@keyframes gacha-charge-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes gacha-charge-in {
+  0% { transform: scale(0.2); opacity: 0; filter: brightness(1); }
+  100% { transform: scale(1); opacity: 1; filter: brightness(1.6); }
+}
+@keyframes gacha-charge-ray-spin {
+  0% { transform: rotate(0deg); opacity: 0.5; }
+  100% { transform: rotate(360deg); opacity: 0.85; }
+}
+@keyframes gacha-bg-darken {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.gacha-anim-charge-sphere {
+  animation: gacha-charge-in 0.85s cubic-bezier(0.2, 0.6, 0.3, 1) forwards, gacha-charge-pulse 0.5s ease-in-out 0.3s infinite;
+}
+.gacha-anim-charge-rays {
+  animation: gacha-charge-ray-spin 1.6s linear infinite;
+}
+.gacha-anim-bg-darken { animation: gacha-bg-darken 0.4s ease-out forwards; }
+
+@keyframes gacha-flash {
+  0% { opacity: 0; }
+  12% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.gacha-anim-flash { animation: gacha-flash 0.5s ease-out forwards; }
+
+@keyframes gacha-shockwave {
+  0% { transform: scale(0.2); opacity: 0.9; border-width: 6px; }
+  100% { transform: scale(3.2); opacity: 0; border-width: 1px; }
+}
+.gacha-anim-shockwave { animation: gacha-shockwave 0.6s cubic-bezier(0.1, 0.6, 0.4, 1) forwards; }
+
+/* Cards launch outward from the explosion's center to their grid slot —
+ * each card is positioned at its FINAL left/top (see cardPositions() in
+ * GachaClient.tsx) and this animates a transform offset back to that spot
+ * from the center, per-card via --launch-dx/--launch-dy/--rot-from. */
+@keyframes gacha-card-launch {
+  0% { transform: translate(-50%, -50%) translate(var(--launch-dx), var(--launch-dy)) scale(0) rotate(var(--rot-from)); opacity: 0; }
+  60% { opacity: 1; }
+  100% { transform: translate(-50%, -50%) translate(0, 0) scale(1) rotate(0deg); opacity: 1; }
+}
+
+/* Card face-down -> face-up 3D flip. The card itself never changes size —
+ * only its inner .gacha-flip-inner rotates on the Y axis; back/front faces
+ * are absolutely stacked and hidden via backface-visibility. */
+.gacha-flip-outer { perspective: 800px; }
+.gacha-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.5s cubic-bezier(0.34, 1.2, 0.4, 1);
+  transform-style: preserve-3d;
+}
+.gacha-flip-inner.is-flipped { transform: rotateY(180deg); }
+.gacha-flip-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.gacha-flip-face-back { transform: rotateY(0deg); }
+.gacha-flip-face-front { transform: rotateY(180deg); }
+
+@keyframes gacha-shine-sweep {
+  0% { transform: translateX(-120%) skewX(-20deg); opacity: 0; }
+  15% { opacity: 0.9; }
+  60% { opacity: 0; }
+  100% { transform: translateX(220%) skewX(-20deg); opacity: 0; }
+}
+.gacha-anim-shine { animation: gacha-shine-sweep 0.7s ease-out forwards; }
+
+/* Legendary-only full-screen spotlight beat, inserted between explode and
+ * the normal card grid — dims/pauses everything else while this one card
+ * gets its own moment. */
+@keyframes gacha-legendary-float {
+  0% { transform: translateY(40px) scale(0.6) rotateY(0deg); opacity: 0; }
+  40% { transform: translateY(0) scale(1.15) rotateY(0deg); opacity: 1; }
+  100% { transform: translateY(0) scale(1) rotateY(360deg); opacity: 1; }
+}
+.gacha-anim-legendary-card { animation: gacha-legendary-float 1.6s cubic-bezier(0.2, 0.8, 0.3, 1) forwards; }
+
+@keyframes gacha-legendary-beam-spin {
+  0% { transform: rotate(0deg); opacity: 0.5; }
+  100% { transform: rotate(360deg); opacity: 0.8; }
+}
+.gacha-anim-legendary-beams { animation: gacha-legendary-beam-spin 6s linear infinite; }
+
+@keyframes gacha-count-up-pop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.gacha-anim-count { animation: gacha-count-up-pop 0.35s ease-out forwards; }
+
 /* v8 #12: shared design system extracted from the Character page (v7 #5), reused
  * sitewide via <ThemedPageBackground> and <ThemedCard> instead of every page
  * carrying its own plain bg-military-darker div. */

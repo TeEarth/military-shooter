@@ -27,7 +27,23 @@ const RARITY_BORDER: Record<Rarity, string> = {
   legendary: "border-military-gold",
 };
 
-type AnimPhase = "idle" | "capsule" | "pop" | "reveal";
+/** v33 cinematic reveal pass: idle -> charging (energy sphere, color escalates
+ *  with the pull's best rarity) -> explode (flash + shockwave + burst) ->
+ *  reveal (cards launch from center to a grid, face-down; click one or "Reveal
+ *  All" to flip). Replaces the old "capsule"/"pop" falling-capsule phases —
+ *  same backend calls (/api/gacha/pull, /api/gacha/pull-multi), same reward
+ *  math, only the presentation changed. */
+type AnimPhase = "idle" | "charging" | "explode" | "reveal";
+type ChargeRarity = "common" | "rare" | "epic" | "legendary";
+
+const RARITY_ORDER: ChargeRarity[] = ["common", "rare", "epic", "legendary"];
+/** Charging sphere / shockwave / beam color per escalation tier. */
+const CHARGE_COLOR: Record<ChargeRarity, string> = {
+  common: "#5aa7e0",
+  rare: "#8b5cf6",
+  epic: "#d4af37",
+  legendary: "#ffffff",
+};
 
 /** v10 #1: x10 pull costs 10x the single price minus a flat 5% discount. */
 const MULTI_PULL_COUNT = 10;
@@ -38,31 +54,34 @@ function capsuleSpriteForCurrency(currency: string): string {
   return currency === "ticket" ? "/assets/sprites/ui/gacha_capsule_ticket.svg" : "/assets/sprites/ui/shop_gacha_capsule.svg";
 }
 
-// v20: full-screen "falling from the sky" reveal timing — one capsule per pull
-// (1 or 10), staggered so they don't all land in the same instant.
-const FALL_MS = 900;
-const FALL_STAGGER_MS = 70;
-function popDelayFor(count: number) {
-  return (count - 1) * FALL_STAGGER_MS + FALL_MS + 150;
-}
-function revealDelayFor(count: number) {
-  return popDelayFor(count) + 300;
+const CHARGE_MS = 900;
+const EXPLODE_MS = 550;
+const CARD_LAUNCH_STAGGER_MS = 85;
+const CARD_FLIP_STAGGER_MS = 90;
+
+function bestRarity(results: GachaPullResult[]): ChargeRarity {
+  let best: ChargeRarity = "common";
+  for (const r of results) {
+    if (r.rewardType !== "equipment" || !r.rarity) continue;
+    const idx = RARITY_ORDER.indexOf(r.rarity as ChargeRarity);
+    if (idx > RARITY_ORDER.indexOf(best)) best = r.rarity as ChargeRarity;
+  }
+  return best;
 }
 
-/** Scatters capsules across the full-screen overlay instead of stacking them
- *  in one spot — a single pull drops dead center, a x10 pull spreads into a
- *  5-wide, 2-row meteor shower with alternating tumble direction. */
-function capsulePositions(count: number): { left: number; top: number; rotFrom: number; rotTo: number }[] {
-  if (count <= 1) return [{ left: 50, top: 42, rotFrom: -20, rotTo: 10 }];
+/** Grid layout for the reveal phase — a single pull centers one big card, a
+ *  x10 pull spreads into a 5-wide, 2-row grid. Also used to compute each
+ *  card's "launch from center" vector for the fly-out animation. */
+function cardPositions(count: number): { left: number; top: number; rotFrom: number }[] {
+  if (count <= 1) return [{ left: 50, top: 46, rotFrom: 0 }];
   const cols = 5;
   return Array.from({ length: count }, (_, i) => {
     const col = i % cols;
     const row = Math.floor(i / cols);
     return {
       left: 10 + col * 20,
-      top: row === 0 ? 32 : 58,
-      rotFrom: i % 2 === 0 ? -25 : 25,
-      rotTo: i % 2 === 0 ? 12 : -12,
+      top: row === 0 ? 32 : 60,
+      rotFrom: i % 2 === 0 ? -18 : 18,
     };
   });
 }
@@ -94,28 +113,25 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
   const [ticket, setTicket] = useState(initialTicket);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [lastResult, setLastResult] = useState<GachaPullResult | null>(null);
-  const [multiResults, setMultiResults] = useState<GachaPullResult[] | null>(null);
+  const [results, setResults] = useState<GachaPullResult[]>([]);
   const [phase, setPhase] = useState<AnimPhase>("idle");
   const [activeCurrency, setActiveCurrency] = useState<string>("diamond");
-  // v14: tracked separately from multiResults (which is null until the reveal
-  // beat) so the capsule/pop phases know to render 10 capsules, not 1.
-  const [pullMode, setPullMode] = useState<"single" | "multi">("single");
+  const [chargeRarity, setChargeRarity] = useState<ChargeRarity>("common");
+  const [revealed, setRevealed] = useState<Set<number>>(new Set());
+  const [legendarySpotlight, setLegendarySpotlight] = useState<number | null>(null);
 
   // v24: SKIP button — the pull's real result is already known the moment the
-  // fetch resolves, well before the fall/pop animation finishes playing; skip
-  // just cancels the two pending setTimeouts and applies the same
-  // phase/state changes immediately instead of waiting them out.
+  // fetch resolves, well before the charge/explode animation finishes
+  // playing; skip just cancels the pending timers and jumps straight to the
+  // face-down reveal grid instead of waiting them out.
   const pendingTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
   const pendingReveal = useRef<(() => void) | null>(null);
-  // v25 fix: the Skip button appears the instant phase becomes "capsule" —
-  // synchronously, before the /api/gacha/pull fetch has even been sent — but
-  // pendingReveal.current is only populated once that fetch resolves. Clicking
-  // Skip immediately (the natural instinct) landed in that gap and silently
-  // did nothing, so the animation played out in full anyway. This flag
-  // records "skip was requested" so the fetch-resolved handler can honor it
-  // the moment the real result is actually known, instead of the click just
-  // being lost.
+  // v25 fix: the Skip button appears the instant phase becomes "charging" —
+  // synchronously, before the fetch has even been sent — but pendingReveal
+  // is only populated once that fetch resolves. Clicking Skip immediately
+  // landed in that gap and silently did nothing. This flag records "skip was
+  // requested" so the fetch-resolved handler honors it the moment the real
+  // result is known, instead of the click being lost.
   const skipRequested = useRef(false);
 
   function clearPendingTimers() {
@@ -134,45 +150,62 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
     skipRequested.current = false;
   }
 
-  async function pull(poolId: string, currency: string) {
+  async function runPull(url: string, poolId: string, currency: string, count: number) {
     if (loading) return;
     sfx.play("ui_click");
     setLoading(true);
-    setLastResult(null);
-    setMultiResults(null);
-    setPullMode("single");
+    setMessage("");
+    setResults([]);
+    setRevealed(new Set());
+    setLegendarySpotlight(null);
     setActiveCurrency(currency);
-    setPhase("capsule");
+    setChargeRarity("common");
+    setPhase("charging");
+    sfx.play("gacha_charge");
     skipRequested.current = false;
     try {
-      const res = await fetch("/api/gacha/pull", {
+      const res = await fetch(url, {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ poolId }),
       });
       const data = await res.json();
       if (data.success) {
+        const pulled: GachaPullResult[] = data.results ?? [data.result];
+        const rarity = bestRarity(pulled);
         const applyReveal = () => {
-          setPhase("reveal");
-          setLastResult(data.result);
+          setPhase("explode");
+          setChargeRarity(rarity);
           if (data.updatedPlayer) {
             setDiamond(data.updatedPlayer.diamond);
             setTicket(data.updatedPlayer.ticket);
           }
+          pendingTimers.current.push(setTimeout(() => {
+            setResults(pulled);
+            setPhase("reveal");
+          }, EXPLODE_MS));
         };
         pendingReveal.current = applyReveal;
         if (skipRequested.current) {
-          // Skip was clicked before the fetch resolved — honor it now instead
-          // of scheduling the animation timers at all.
           skipRequested.current = false;
           pendingReveal.current = null;
-          applyReveal();
+          setChargeRarity(rarity);
+          setPhase("reveal");
+          setResults(pulled);
+          if (data.updatedPlayer) {
+            setDiamond(data.updatedPlayer.diamond);
+            setTicket(data.updatedPlayer.ticket);
+          }
         } else {
-          // Sequence: capsule falls from off-screen -> pops (sfx here) -> burst + item reveal.
-          pendingTimers.current.push(setTimeout(() => {
-            setPhase("pop");
-            sfx.play("gacha_reveal");
-          }, popDelayFor(1)));
-          pendingTimers.current.push(setTimeout(applyReveal, revealDelayFor(1)));
+          // Escalate the charging color/sound the moment the real rarity is
+          // known (mid-charge, before the visible explosion) — this is the
+          // "anticipation" beat: a rare+ pull visibly and audibly intensifies
+          // before anything is revealed.
+          if (rarity !== "common") {
+            setChargeRarity(rarity);
+            sfx.play("gacha_charge_rare");
+          }
+          const elapsed = 0; // fetch already took real time; just hold the remaining charge beat
+          pendingTimers.current.push(setTimeout(applyReveal, Math.max(150, CHARGE_MS - elapsed)));
         }
       } else {
         setMessage(data.error);
@@ -183,118 +216,92 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
     }
   }
 
-  /** v14: x10 now shows all 10 capsules spinning/popping together (not one
-   *  shared capsule sprite), so the "อลังการ" spectacle scales with the pull
-   *  count instead of looking like a single pull with a bigger result grid. */
-  async function pullMulti(poolId: string, currency: string) {
-    if (loading) return;
-    sfx.play("ui_click");
-    setLoading(true);
-    setLastResult(null);
-    setMultiResults(null);
-    setPullMode("multi");
-    setActiveCurrency(currency);
-    setPhase("capsule");
-    skipRequested.current = false;
-    try {
-      const res = await fetch("/api/gacha/pull-multi", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ poolId }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        const applyReveal = () => {
-          setPhase("reveal");
-          setMultiResults(data.results);
-          if (data.updatedPlayer) {
-            setDiamond(data.updatedPlayer.diamond);
-            setTicket(data.updatedPlayer.ticket);
-          }
-        };
-        pendingReveal.current = applyReveal;
-        if (skipRequested.current) {
-          skipRequested.current = false;
-          pendingReveal.current = null;
-          applyReveal();
-        } else {
-          pendingTimers.current.push(setTimeout(() => {
-            setPhase("pop");
-            sfx.play("gacha_reveal");
-          }, popDelayFor(MULTI_PULL_COUNT)));
-          pendingTimers.current.push(setTimeout(applyReveal, revealDelayFor(MULTI_PULL_COUNT)));
-        }
-      } else {
-        setMessage(data.error);
-        setPhase("idle");
-      }
-    } finally {
-      setLoading(false);
+  function pull(poolId: string, currency: string) {
+    void runPull("/api/gacha/pull", poolId, currency, 1);
+  }
+  function pullMulti(poolId: string, currency: string) {
+    void runPull("/api/gacha/pull-multi", poolId, currency, MULTI_PULL_COUNT);
+  }
+
+  function flipCard(i: number) {
+    if (revealed.has(i)) return;
+    const r = results[i];
+    const isLegendary = r?.rewardType === "equipment" && r.rarity === "legendary";
+    if (isLegendary) {
+      setLegendarySpotlight(i);
+      sfx.play("gacha_legendary");
+      pendingTimers.current.push(setTimeout(() => {
+        setLegendarySpotlight(null);
+        setRevealed((prev) => new Set(prev).add(i));
+      }, 2200));
+    } else {
+      sfx.play("gacha_flip");
+      setRevealed((prev) => new Set(prev).add(i));
     }
+  }
+
+  function revealAll() {
+    results.forEach((r, i) => {
+      if (revealed.has(i)) return;
+      pendingTimers.current.push(setTimeout(() => flipCard(i), i * CARD_FLIP_STAGGER_MS));
+    });
   }
 
   function closeReveal() {
+    clearPendingTimers();
     setPhase("idle");
-    setLastResult(null);
-    setMultiResults(null);
+    setResults([]);
+    setRevealed(new Set());
+    setLegendarySpotlight(null);
   }
 
-  function renderResultContent(result: GachaPullResult) {
+  function cardBack(sizeClass: string) {
+    return (
+      <div className={`gacha-flip-face gacha-flip-face-back ${sizeClass} rounded-lg border-2 border-military-tan bg-military-darker flex items-center justify-center overflow-hidden`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={capsuleSpriteForCurrency(activeCurrency)} alt="" className="w-2/3 h-2/3 object-contain opacity-80" />
+      </div>
+    );
+  }
+
+  function cardFront(result: GachaPullResult, big: boolean) {
     if (result.rewardType === "currency") {
       return (
-        <div className="gacha-anim-item">
-          <span className="text-8xl block mb-4">{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
-          <p className="text-military-gold font-bold text-2xl">+{result.rewardAmount} {result.rewardCurrency === "coin" ? "coin" : "diamond"}</p>
+        <div className={`gacha-flip-face gacha-flip-face-front ${big ? "w-44 h-44" : "w-full h-full"} rounded-lg border-2 border-military-steel bg-military-darker flex flex-col items-center justify-center gap-1`}>
+          <span className={big ? "text-6xl" : "text-3xl"}>{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
+          <p className={`text-military-gold font-bold ${big ? "text-xl" : "text-xs"}`}>+{result.rewardAmount}</p>
         </div>
       );
     }
-
     const rarity = (result.rarity ?? "common") as Rarity;
     const isLegendary = rarity === "legendary";
-
     return (
-      <div className="gacha-anim-item flex flex-col items-center">
-        <div className={`relative w-44 h-44 mb-4 rounded-full border-4 ${RARITY_BORDER[rarity]} ${isLegendary ? "gacha-anim-glow-legendary" : ""} ${RARITY_COLOR[rarity]} flex items-center justify-center bg-military-darker`}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={getEquipmentSprite(result.equipmentId ?? "")} alt={result.equipmentName ?? ""} className="w-32 h-32 object-contain" />
-        </div>
-        <p className={`font-bold uppercase text-2xl ${RARITY_COLOR[rarity]}`}>{rarity} {result.slot}</p>
-        <p className="text-white">{result.equipmentName}</p>
-        {result.isDupe ? (
-          <p className="text-green-400 text-sm">Duplicate — upgraded to level {result.newUpgradeLevel}!</p>
-        ) : (
-          <p className="text-military-gold text-sm">New item added to inventory!</p>
-        )}
-      </div>
-    );
-  }
-
-  function renderCompactResult(result: GachaPullResult, key: number) {
-    // Staggered reveal (40ms/item) so all 10 land almost together but still
-    // feel like a cascade rather than a flat, static grid.
-    const style = { animationDelay: `${key * 40}ms` } as React.CSSProperties;
-
-    if (result.rewardType === "currency") {
-      return (
-        <div key={key} style={style} className="gacha-anim-item flex flex-col items-center bg-military-darker/60 border border-military-steel rounded p-3">
-          <span className="text-4xl">{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
-          <p className="text-military-gold text-sm font-bold">+{result.rewardAmount}</p>
-        </div>
-      );
-    }
-    const rarity = (result.rarity ?? "common") as Rarity;
-    return (
-      <div key={key} style={style} className={`gacha-anim-item flex flex-col items-center bg-military-darker/60 border-2 rounded p-3 ${RARITY_BORDER[rarity]}`}>
+      <div className={`gacha-flip-face gacha-flip-face-front ${big ? "w-44 h-44" : "w-full h-full"} rounded-lg border-2 ${RARITY_BORDER[rarity]} ${isLegendary ? "gacha-anim-glow-legendary" : ""} bg-military-darker flex flex-col items-center justify-center p-2 gap-1`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={getEquipmentSprite(result.equipmentId ?? "")} alt={result.equipmentName ?? ""} className="w-16 h-16 object-contain" />
-        <p className={`text-xs font-bold uppercase ${RARITY_COLOR[rarity]}`}>{rarity}</p>
-        {result.isDupe && <p className="text-green-400 text-[11px]">+lvl {result.newUpgradeLevel}</p>}
+        <img src={getEquipmentSprite(result.equipmentId ?? "")} alt={result.equipmentName ?? ""} className={big ? "w-24 h-24 object-contain" : "w-14 h-14 object-contain"} />
+        <p className={`font-bold uppercase ${big ? "text-sm" : "text-[10px]"} ${RARITY_COLOR[rarity]}`}>{rarity}</p>
+        {result.isDupe && <p className="text-green-400 text-[10px]">+lvl {result.newUpgradeLevel}</p>}
       </div>
     );
   }
 
-  const isLegendaryReveal = lastResult?.rewardType === "equipment" && lastResult.rarity === "legendary";
-  const hasLegendaryInMulti = (multiResults ?? []).some((r) => r.rewardType === "equipment" && r.rarity === "legendary");
-  const capsuleCount = pullMode === "multi" ? MULTI_PULL_COUNT : 1;
+  const totalCount = results.length;
+  const allRevealed = totalCount > 0 && revealed.size === totalCount;
+  const summary = allRevealed
+    ? results.reduce(
+        (acc, r) => {
+          if (r.rewardType === "currency") {
+            acc.currency += r.rewardAmount ?? 0;
+          } else {
+            const r2 = (r.rarity ?? "common") as Rarity;
+            acc.byRarity[r2] = (acc.byRarity[r2] ?? 0) + 1;
+            if (r.isDupe) acc.dupes += 1;
+          }
+          return acc;
+        },
+        { currency: 0, dupes: 0, byRarity: {} as Partial<Record<Rarity, number>> }
+      )
+    : null;
 
   return (
     <div className="min-h-screen page-bg-themed p-6 relative overflow-hidden">
@@ -332,16 +339,16 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
 
         {phase !== "idle" && (
           <div
-            className="gacha-anim-overlay fixed inset-0 z-[100] bg-black/90 flex items-center justify-center overflow-hidden"
-            onClick={() => phase === "reveal" && closeReveal()}
+            className="gacha-anim-overlay gacha-anim-bg-darken fixed inset-0 z-[100] bg-black/92 flex items-center justify-center overflow-hidden"
+            onClick={() => phase === "reveal" && allRevealed && closeReveal()}
           >
-            {/* Faint sky-glow behind the falling capsules, purely atmospheric. */}
+            {/* Faint sky-glow behind everything, purely atmospheric. */}
             <div
-              className="absolute inset-0 pointer-events-none"
-              style={{ background: "radial-gradient(ellipse at 50% -10%, rgba(197,169,125,0.18), transparent 60%)" }}
+              className="absolute inset-0 pointer-events-none transition-colors duration-500"
+              style={{ background: `radial-gradient(ellipse at 50% 46%, ${CHARGE_COLOR[chargeRarity]}22, transparent 60%)` }}
             />
 
-            {(phase === "capsule" || phase === "pop") && (
+            {(phase === "charging" || phase === "explode") && (
               <button
                 onClick={(e) => { e.stopPropagation(); skipToReveal(); }}
                 className="absolute top-6 right-6 z-10 text-military-steel hover:text-white text-xs border border-military-steel hover:border-military-tan px-3 py-1.5 rounded uppercase tracking-wider"
@@ -350,76 +357,119 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
               </button>
             )}
 
-            {phase === "capsule" && (
-              <div className="absolute inset-0">
-                {capsulePositions(capsuleCount).map((pos, i) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={i}
-                    src={capsuleSpriteForCurrency(activeCurrency)}
-                    alt=""
-                    className={`${capsuleCount > 1 ? "w-24 h-24" : "w-48 h-48"} gacha-anim-fall absolute -translate-x-1/2 -translate-y-1/2`}
-                    style={{
-                      left: `${pos.left}%`,
-                      top: `${pos.top}%`,
-                      animationDelay: `${i * FALL_STAGGER_MS}ms`,
-                      "--rot-from": `${pos.rotFrom}deg`,
-                      "--rot-to": `${pos.rotTo}deg`,
-                    } as React.CSSProperties}
-                  />
-                ))}
+            {phase === "charging" && (
+              <div className="relative flex items-center justify-center" style={{ width: 260, height: 260 }}>
+                <div
+                  className="gacha-anim-charge-rays absolute inset-0 rounded-full"
+                  style={{
+                    background: `conic-gradient(from 0deg, transparent 0deg, ${CHARGE_COLOR[chargeRarity]}55 20deg, transparent 40deg, transparent 180deg, ${CHARGE_COLOR[chargeRarity]}55 200deg, transparent 220deg)`,
+                  }}
+                />
+                <div
+                  className="gacha-anim-charge-sphere rounded-full"
+                  style={{
+                    width: 140, height: 140,
+                    background: `radial-gradient(circle at 35% 30%, #fff, ${CHARGE_COLOR[chargeRarity]} 45%, ${CHARGE_COLOR[chargeRarity]}88 75%, transparent 100%)`,
+                    boxShadow: `0 0 60px 20px ${CHARGE_COLOR[chargeRarity]}77`,
+                  }}
+                />
               </div>
             )}
 
-            {phase === "pop" && (
-              <div className="absolute inset-0">
-                {capsulePositions(capsuleCount).map((pos, i) => (
-                  <div key={i} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${pos.left}%`, top: `${pos.top}%` }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={capsuleSpriteForCurrency(activeCurrency)}
-                      alt=""
-                      className={`${capsuleCount > 1 ? "w-24 h-24" : "w-48 h-48"} gacha-anim-pop`}
-                    />
-                    {Array.from({ length: capsuleCount > 1 ? 6 : 10 }).map((_, p) => {
-                      const angle = (p / (capsuleCount > 1 ? 6 : 10)) * Math.PI * 2;
-                      const reach = capsuleCount > 1 ? 65 : 160;
-                      return (
-                        <span
-                          key={p}
-                          className="gacha-anim-particle absolute left-1/2 top-1/2 w-3 h-3 rounded-full bg-military-gold"
-                          style={{ "--px": `${Math.cos(angle) * reach}px`, "--py": `${Math.sin(angle) * reach}px` } as React.CSSProperties}
-                        />
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
+            {phase === "explode" && (
+              <>
+                <div className="gacha-anim-flash absolute inset-0 bg-white pointer-events-none" />
+                <div
+                  className="gacha-anim-shockwave absolute rounded-full border-solid pointer-events-none"
+                  style={{ width: 200, height: 200, borderColor: CHARGE_COLOR[chargeRarity] }}
+                />
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src="/assets/sprites/ui/gacha_burst.svg"
+                  alt=""
+                  className={`w-[70vmin] h-[70vmin] max-w-[700px] max-h-[700px] ${chargeRarity === "legendary" ? "gacha-anim-burst-legendary" : "gacha-anim-burst"}`}
+                />
+              </>
             )}
 
             {phase === "reveal" && (
               <>
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src="/assets/sprites/ui/gacha_burst.svg"
-                    alt=""
-                    className={`w-[90vmin] h-[90vmin] max-w-[900px] max-h-[900px] ${isLegendaryReveal || hasLegendaryInMulti ? "gacha-anim-burst-legendary" : "gacha-anim-burst"}`}
-                  />
+                <div className="absolute inset-0">
+                  {cardPositions(totalCount).map((pos, i) => {
+                    const isFlipped = revealed.has(i);
+                    const big = totalCount <= 1;
+                    const dx = `${50 - pos.left}vw`;
+                    const dy = `${46 - pos.top}vh`;
+                    if (legendarySpotlight === i) return null;
+                    return (
+                      <div
+                        key={i}
+                        className="absolute -translate-x-1/2 -translate-y-1/2 cursor-pointer"
+                        style={{
+                          left: `${pos.left}%`,
+                          top: `${pos.top}%`,
+                          animationDelay: `${i * CARD_LAUNCH_STAGGER_MS}ms`,
+                          animationName: "gacha-card-launch",
+                          animationDuration: "0.55s",
+                          animationTimingFunction: "cubic-bezier(0.2,0.7,0.3,1)",
+                          animationFillMode: "both",
+                          "--launch-dx": dx,
+                          "--launch-dy": dy,
+                          "--rot-from": `${pos.rotFrom}deg`,
+                        } as React.CSSProperties}
+                        onClick={() => flipCard(i)}
+                      >
+                        <div className={`gacha-flip-outer ${big ? "w-44 h-44" : "w-20 h-20"}`}>
+                          <div className={`gacha-flip-inner ${isFlipped ? "is-flipped" : ""}`}>
+                            {cardBack(big ? "w-44 h-44" : "w-20 h-20")}
+                            {cardFront(results[i], big)}
+                          </div>
+                          {isFlipped && <div className="gacha-anim-shine absolute inset-0 pointer-events-none rounded-lg" style={{ background: "linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.5) 50%, transparent 70%)" }} />}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="relative max-w-4xl w-full px-6 text-center">
-                  {(isLegendaryReveal || hasLegendaryInMulti) && (
-                    <p className="gacha-anim-title text-military-gold text-4xl font-black tracking-widest mb-6 gacha-anim-glow-legendary">✨ LEGENDARY! ✨</p>
-                  )}
-                  {multiResults ? (
-                    <div className="grid grid-cols-5 gap-4 mx-auto">
-                      {multiResults.map((r, i) => renderCompactResult(r, i))}
+
+                {legendarySpotlight !== null && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+                    <div
+                      className="gacha-anim-legendary-beams absolute rounded-full pointer-events-none"
+                      style={{ width: 500, height: 500, background: `conic-gradient(from 0deg, transparent, ${CHARGE_COLOR.legendary}33, transparent 15%, transparent 50%, ${CHARGE_COLOR.legendary}33, transparent 65%)` }}
+                    />
+                    <div className="gacha-anim-legendary-card">
+                      <div className="w-56 h-56 rounded-lg border-4 border-military-gold gacha-anim-glow-legendary bg-military-darker flex flex-col items-center justify-center p-3 gap-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={getEquipmentSprite(results[legendarySpotlight].equipmentId ?? "")} alt="" className="w-28 h-28 object-contain" />
+                        <p className="text-military-gold font-black uppercase text-lg">Legendary</p>
+                        <p className="text-white text-sm">{results[legendarySpotlight].equipmentName}</p>
+                      </div>
                     </div>
-                  ) : (
-                    lastResult && renderResultContent(lastResult)
-                  )}
-                  <button onClick={closeReveal} className="btn-military text-sm px-6 py-2 mt-10">TAP TO CONTINUE</button>
-                </div>
+                    <p className="gacha-anim-title absolute bottom-[20%] text-military-gold text-4xl font-black tracking-widest gacha-anim-glow-legendary">✨ LEGENDARY! ✨</p>
+                  </div>
+                )}
+
+                {!allRevealed && legendarySpotlight === null && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); revealAll(); }}
+                    className="btn-gold text-sm px-6 py-2 absolute bottom-10"
+                  >
+                    Reveal All
+                  </button>
+                )}
+
+                {allRevealed && summary && (
+                  <div className="absolute bottom-8 left-1/2 -translate-x-1/2 w-full max-w-lg px-6 text-center">
+                    <div className="gacha-anim-count flex items-center justify-center gap-4 mb-4 text-sm">
+                      {RARITY_ORDER.filter((r) => summary.byRarity[r]).map((r) => (
+                        <span key={r} className={`font-bold ${RARITY_COLOR[r]}`}>{summary.byRarity[r]}× {r}</span>
+                      ))}
+                      {summary.currency > 0 && <span className="text-military-gold font-bold">+{summary.currency}</span>}
+                      {summary.dupes > 0 && <span className="text-green-400">{summary.dupes} upgraded</span>}
+                    </div>
+                    <button onClick={(e) => { e.stopPropagation(); closeReveal(); }} className="btn-military text-sm px-6 py-2">TAP TO CONTINUE</button>
+                  </div>
+                )}
               </>
             )}
           </div>

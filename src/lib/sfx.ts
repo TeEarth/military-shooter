@@ -25,6 +25,10 @@ type SfxName =
   | "pickup_item"
   | "ui_click"
   | "gacha_reveal"
+  | "gacha_charge"
+  | "gacha_charge_rare"
+  | "gacha_flip"
+  | "gacha_legendary"
   | "victory"
   | "defeat"
   | "miss";
@@ -201,6 +205,18 @@ class SfxEngine {
         case "gacha_reveal":
           this.chime(ctx, out, [523, 659, 784, 1046], 0.14);
           break;
+        case "gacha_charge":
+          this.charge(ctx, out, 220, 620, 0.85);
+          break;
+        case "gacha_charge_rare":
+          this.charge(ctx, out, 260, 1100, 0.85);
+          break;
+        case "gacha_flip":
+          this.blip(ctx, out, { freq: 1400, decay: 0.05, noiseMix: 0.35, type: "sine" });
+          break;
+        case "gacha_legendary":
+          this.chime(ctx, out, [523, 659, 784, 1046, 1318, 1568], 0.12);
+          break;
         case "victory":
           this.chime(ctx, out, [523, 659, 784, 1046, 1318], 0.18);
           break;
@@ -244,6 +260,28 @@ class SfxEngine {
       noise.connect(noiseGain).connect(out);
       noise.start(t0);
     }
+  }
+
+  /** Rising energy-charge sweep for the gacha "sphere charging" beat —
+   *  frequency ramps up over the full duration, building tension into the
+   *  explosion. Higher toFreq for rarer pulls reads as a more intense charge. */
+  private charge(ctx: AudioContext, out: AudioNode, fromFreq: number, toFreq: number, duration: number) {
+    const t0 = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    osc.type = "sawtooth";
+    osc.frequency.setValueAtTime(fromFreq, t0);
+    osc.frequency.exponentialRampToValueAtTime(toFreq, t0 + duration);
+    const filter = ctx.createBiquadFilter();
+    filter.type = "lowpass";
+    filter.frequency.setValueAtTime(400, t0);
+    filter.frequency.exponentialRampToValueAtTime(3000, t0 + duration);
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.001, t0);
+    gain.gain.exponentialRampToValueAtTime(0.3, t0 + duration * 0.7);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+    osc.connect(filter).connect(gain).connect(out);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.05);
   }
 
   private explosion(ctx: AudioContext, out: AudioNode) {

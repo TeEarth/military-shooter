@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { sfx } from "@/lib/sfx";
-import { getControlScheme, setControlScheme, type ControlScheme } from "@/lib/controlScheme";
+import {
+  getControlScheme, setControlScheme, type ControlScheme,
+  getMoveScale, setMoveScale, getFireScale, setFireScale,
+  MIN_CONTROL_SCALE, MAX_CONTROL_SCALE,
+} from "@/lib/controlScheme";
 
 interface Props {
   username: string;
@@ -24,6 +28,8 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
   const [muted, setMuted] = useState(false);
   const [volume, setVolume] = useState(0.6);
   const [controlScheme, setControlSchemeState] = useState<ControlScheme>("joystick");
+  const [moveScale, setMoveScaleState] = useState(1);
+  const [fireScale, setFireScaleState] = useState(1);
 
   // Restore + apply the saved audio preference on mount — sfx itself defaults
   // to unmuted/0.6 volume, so without this every fresh page load would ignore
@@ -36,12 +42,24 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
     sfx.setMuted(savedMuted);
     sfx.setVolume(savedVolume);
     setControlSchemeState(getControlScheme());
+    setMoveScaleState(getMoveScale());
+    setFireScaleState(getFireScale());
   }, []);
 
   function chooseControlScheme(scheme: ControlScheme) {
     sfx.play("ui_click");
     setControlSchemeState(scheme);
     setControlScheme(scheme);
+  }
+
+  function changeMoveScale(v: number) {
+    setMoveScaleState(v);
+    setMoveScale(v);
+  }
+
+  function changeFireScale(v: number) {
+    setFireScaleState(v);
+    setFireScale(v);
   }
 
   function toggleMuted() {
@@ -136,6 +154,36 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
                 Drag the bottom-right stick in any direction to aim AND fire that way at the same time (default).
               </p>
             </button>
+          </div>
+
+          <div className="mt-4 pt-4 border-t border-military-steel/30 space-y-3">
+            <p className="text-xs text-military-steel">Stick size — only affects touch devices.</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-military-steel w-14">Move</span>
+              <input
+                type="range"
+                min={MIN_CONTROL_SCALE}
+                max={MAX_CONTROL_SCALE}
+                step={0.05}
+                value={moveScale}
+                onChange={(e) => changeMoveScale(Number(e.target.value))}
+                className="flex-1"
+              />
+              <span className="text-xs text-military-steel w-10 text-right">{Math.round(moveScale * 100)}%</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-military-steel w-14">Attack</span>
+              <input
+                type="range"
+                min={MIN_CONTROL_SCALE}
+                max={MAX_CONTROL_SCALE}
+                step={0.05}
+                value={fireScale}
+                onChange={(e) => changeFireScale(Number(e.target.value))}
+                className="flex-1"
+              />
+              <span className="text-xs text-military-steel w-10 text-right">{Math.round(fireScale * 100)}%</span>
+            </div>
           </div>
         </div>
 
