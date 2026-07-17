@@ -1,25 +1,65 @@
 <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <filter id="fxBlur2" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="10"></feGaussianBlur></filter>
+  <defs><filter id="fxBlur2" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="6"></feGaussianBlur></filter><filter id="fxBlur" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="1.6"></feGaussianBlur></filter>
+    <linearGradient id="baseSand" x1="0%" y1="0%" x2="60%" y2="100%">
+      <stop offset="0%" stop-color="#a8905f"></stop>
+      <stop offset="50%" stop-color="#8f7a4d"></stop>
+      <stop offset="100%" stop-color="#6e5c39"></stop>
+    </linearGradient>
+    <filter id="bumpS" x="-20%" y="-20%" width="140%" height="140%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.042" numOctaves="4" seed="31" result="n"></feTurbulence>
+      <feDiffuseLighting in="n" lighting-color="#ffffff" surfaceScale="3.4" diffuseConstant="1.12">
+        <feDistantLight azimuth="235" elevation="43"></feDistantLight>
+      </feDiffuseLighting>
+    </filter>
+    <radialGradient id="vignetteS" cx="50%" cy="39%" r="78%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.055"></stop>
+      <stop offset="60%" stop-color="#000000" stop-opacity="0"></stop>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.34"></stop>
+    </radialGradient>
   </defs>
 
-  <!-- v31 fix: see battlefield_ground.svg — flat fill instead of a gradient/
-       vignette/directional lighting, which all showed up as an obvious
-       repeating seam once this 512x512 tile repeats across the whole stage. -->
-  <rect width="512" height="512" fill="#8a7548"></rect>
+  <rect width="512" height="512" fill="url(#baseSand)"></rect>
 
-  <ellipse cx="120" cy="150" rx="150" ry="110" fill="#7c6840" opacity="0.35" filter="url(#fxBlur2)"></ellipse>
-  <ellipse cx="400" cy="360" rx="160" ry="120" fill="#96814f" opacity="0.3" filter="url(#fxBlur2)"></ellipse>
-  <ellipse cx="330" cy="90" rx="100" ry="80" fill="#7c6840" opacity="0.25" filter="url(#fxBlur2)"></ellipse>
-  <ellipse cx="90" cy="420" rx="110" ry="90" fill="#96814f" opacity="0.28" filter="url(#fxBlur2)"></ellipse>
+  
+  <path d="M60 120 Q110 90 170 110 Q210 130 190 175 Q150 210 90 190 Q40 165 60 120 Z" fill="#5c4c2e" opacity="0.4" filter="url(#fxBlur2)"></path>
+  <path d="M330 320 Q400 300 440 345 Q460 400 410 420 Q350 430 320 390 Q300 350 330 320 Z" fill="#5c4c2e" opacity="0.36" filter="url(#fxBlur2)"></path>
+  <path d="M260 80 Q300 65 325 95 Q330 125 295 130 Q265 120 260 80 Z" fill="#5c4c2e" opacity="0.3" filter="url(#fxBlur2)"></path>
+  <path d="M150 380 Q190 365 210 400 Q205 430 165 430 Q140 410 150 380 Z" fill="#4a3d25" opacity="0.3" filter="url(#fxBlur2)"></path>
 
-  <ellipse cx="122" cy="70" rx="3" ry="2" fill="#4a3d25" opacity="0.45"></ellipse>
-  <ellipse cx="232" cy="415" rx="3" ry="2" fill="#c0aa78" opacity="0.4"></ellipse>
-  <ellipse cx="440" cy="169" rx="2.5" ry="1.7" fill="#5c4c2e" opacity="0.4"></ellipse>
-  <ellipse cx="111" cy="497" rx="2" ry="1.4" fill="#4a3d25" opacity="0.45"></ellipse>
-  <ellipse cx="49" cy="333" rx="2.2" ry="1.5" fill="#4a3d25" opacity="0.4"></ellipse>
+  <ellipse cx="122" cy="70" rx="5" ry="3.5" fill="#4a3d25" opacity="0.55"></ellipse>
+  <ellipse cx="232" cy="415" rx="5" ry="3.5" fill="#c0aa78" opacity="0.55"></ellipse>
+  <ellipse cx="73" cy="119" rx="4" ry="2.8" fill="#4a3d25" opacity="0.5"></ellipse>
+  <ellipse cx="440" cy="169" rx="4.5" ry="3.1" fill="#5c4c2e" opacity="0.5"></ellipse>
+  <ellipse cx="409" cy="111" rx="3" ry="2.1" fill="#c0aa78" opacity="0.5"></ellipse>
+  <ellipse cx="111" cy="497" rx="2.2" ry="1.5" fill="#4a3d25" opacity="0.6"></ellipse>
+  <ellipse cx="289" cy="39" rx="2.3" ry="1.6" fill="#5c4c2e" opacity="0.6"></ellipse>
+  <ellipse cx="129" cy="274" rx="1.9" ry="1.3" fill="#c0aa78" opacity="0.6"></ellipse>
+  <ellipse cx="49" cy="333" rx="3.4" ry="2.4" fill="#4a3d25" opacity="0.55"></ellipse>
+  <ellipse cx="222" cy="235" rx="3.4" ry="2.4" fill="#4a3d25" opacity="0.5"></ellipse>
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
 
-  <!-- sun-bleached bone/skull hint — kept subtle and small so it doesn't
-       read as an obvious repeating shape when tiled. -->
-  <ellipse cx="410" cy="440" rx="20" ry="6" fill="#e0d0a0" opacity="0.25" filter="url(#fxBlur2)"></ellipse>
+  
+  <ellipse cx="410" cy="440" rx="26" ry="8" fill="#e0d0a0" opacity="0.35" filter="url(#fxBlur2)"></ellipse>
+  <path d="M395 440 Q410 425 425 440 Q418 450 402 450 Z" fill="#d8c896" opacity="0.4" filter="url(#fxBlur2)"></path>
+  <ellipse cx="90" cy="60" rx="18" ry="6" fill="#e0d0a0" opacity="0.28"></ellipse>
+
+  <rect width="512" height="512" fill="#808080" filter="url(#bumpS)" opacity="0.14" style="mix-blend-mode:overlay"></rect>
+  <rect width="512" height="512" fill="url(#vignetteS)"></rect>
 </svg>
