@@ -210,19 +210,36 @@ export class TutorialScene extends GameScene {
    *  exact same coordinates HUDScene would use if they WERE owned. */
   private perkSimIcons = new Map<PerkId, { bg: Phaser.GameObjects.Arc | Phaser.GameObjects.Text; label?: Phaser.GameObjects.Text }>();
 
-  /** v50 fix: EVERY fixed-screen UI element in this file (instruction box,
-   *  guided-intro overlay, perk simulation icons, banners) is a child of this
-   *  container instead of a top-level scrollFactor(0) object. Reason: a
-   *  scrollFactor(0) object is still subject to the camera's ZOOM — Phaser
-   *  scales/repositions it around the camera's origin (default screen
-   *  center) by the zoom factor, so at any zoom other than 100% every one of
-   *  these elements renders at the wrong position/size (the further from
-   *  screen-center, the worse — exactly why HP/Ammo top-left and Reload
-   *  bottom-right were visibly the most broken once the default zoom became
-   *  120%). This container's own position+scale exactly cancels that
-   *  distortion, so every child can keep using plain, natural raw pixel
-   *  coordinates (e.g. width-56, height-56) with zero per-element math. */
-  private uiRoot!: Phaser.GameObjects.Container;
+  /** v50 fix: a scrollFactor(0) object is still subject to the camera's
+   *  ZOOM — Phaser scales/repositions it around the camera's origin (screen
+   *  center by default) by the zoom factor, so every fixed-screen UI element
+   *  in this file (instruction box, guided-intro overlay, perk simulation
+   *  icons, banners) rendered at the wrong position/size once the default
+   *  zoom became 120% (the further from screen-center, the worse — exactly
+   *  why HP/Ammo top-left and Reload bottom-right were visibly the most
+   *  broken). uiX/uiY/uiScale below compensate for that per-object: apply
+   *  uiX/uiY to the raw target position and uiScale to .setScale() on EVERY
+   *  scrollFactor(0) object in this file, and it renders at the exact raw
+   *  pixel position/size intended, with zero container nesting (deliberately
+   *  NOT wrapped in a parent Container — Phaser's input hit-testing for
+   *  interactive children of a scaled/repositioned Container is a smaller,
+   *  less-travelled code path, and that's exactly what broke Next/Previous/
+   *  Skip entirely when this was first tried that way). */
+  private uiX(x: number): number {
+    const cam = this.cameras.main;
+    const originX = cam.width * cam.originX;
+    return originX + (x - originX) / cam.zoom;
+  }
+
+  private uiY(y: number): number {
+    const cam = this.cameras.main;
+    const originY = cam.height * cam.originY;
+    return originY + (y - originY) / cam.zoom;
+  }
+
+  private get uiScale(): number {
+    return 1 / this.cameras.main.zoom;
+  }
 
   constructor() {
     super({ key: "TutorialScene" });
@@ -240,7 +257,6 @@ export class TutorialScene extends GameScene {
     // detect the same real player action without duplicating listeners.
     this.events.on("player-fired", () => { this.shotFiredThisStep = true; });
 
-    this.buildUiRoot();
     this.buildInstructionUI();
     this.instructionBox.setVisible(false);
 
@@ -338,21 +354,6 @@ export class TutorialScene extends GameScene {
     this.introEnemy = new Enemy(this, spawn.spawnX, spawn.spawnY, spawn, this.enemyBullets, this.enemyGroup, 1, 1, this.failedAssetKeys);
   }
 
-  /** v50 fix: see the uiRoot field doc — this container's position/scale
-   *  exactly cancels the camera zoom's "scale around screen center" effect
-   *  for all its (scrollFactor 0) children, letting every child below use
-   *  plain raw pixel coordinates. */
-  private buildUiRoot() {
-    const cam = this.cameras.main;
-    const zoom = cam.zoom;
-    const originX = cam.width * cam.originX;
-    const originY = cam.height * cam.originY;
-    this.uiRoot = this.add.container(originX * (1 - 1 / zoom), originY * (1 - 1 / zoom));
-    this.uiRoot.setScale(1 / zoom);
-    this.uiRoot.setScrollFactor(0);
-    this.uiRoot.setDepth(140);
-  }
-
   /** v50 fix: claims this pointer as "consumed by UI" for the rest of this
    *  click/touch — same mechanism as HUDScene's real buttons (see its
    *  claimPointer). Without this, clicking Next/Previous/Skip left the
@@ -367,9 +368,12 @@ export class TutorialScene extends GameScene {
   private buildIntroUI() {
     const { width, height } = this.cameras.main;
 
-    this.introDim = this.add.graphics().setDepth(140);
-    this.introScreenRing = this.add.graphics().setDepth(150).setVisible(false);
-    this.uiRoot.add([this.introDim, this.introScreenRing]);
+    // Positioned at the compensated ORIGIN (raw 0,0), scaled by uiScale —
+    // everything drawn inside via raw-coordinate fillRect/strokeRoundedRect
+    // (drawSpotlight, updateIntroHighlight) then lands at the exact raw
+    // pixel position/size intended, same math as every other element below.
+    this.introDim = this.add.graphics().setPosition(this.uiX(0), this.uiY(0)).setScale(this.uiScale).setScrollFactor(0).setDepth(140);
+    this.introScreenRing = this.add.graphics().setPosition(this.uiX(0), this.uiY(0)).setScale(this.uiScale).setScrollFactor(0).setDepth(150).setVisible(false);
     this.introRingTween = this.tweens.add({ targets: this.introScreenRing, alpha: 0.35, duration: 500, yoyo: true, repeat: -1 });
 
     const boxWidth = Math.min(520, width - 32);
@@ -379,35 +383,33 @@ export class TutorialScene extends GameScene {
     // v48 fix: absolute-positioned GameObjects (same convention every other
     // interactive HUD button in this codebase already uses — see HUDScene's
     // createReloadButton/createSwapButton/etc.) instead of nesting interactive
-    // children inside a Container. Not proven to be the cause of a reported
-    // "Next doesn't respond" bug, but this matches the one interactive-button
-    // pattern already confirmed working everywhere else in the game, so it's
-    // the safer structure regardless.
-    const bg = this.add.rectangle(centerX, centerY, boxWidth, 150, 0x1a1a2e, 0.97).setStrokeStyle(2, 0xc5a97d).setDepth(160);
-    this.introTitleText = this.add.text(centerX, centerY - 56, "", {
+    // children inside a Container. Confirmed necessary, not just "safer" —
+    // nesting Next/Previous/Skip inside a Container (tried during v50) broke
+    // their clicks entirely.
+    const bg = this.add.rectangle(this.uiX(centerX), this.uiY(centerY), boxWidth, 150, 0x1a1a2e, 0.97).setStrokeStyle(2, 0xc5a97d).setScale(this.uiScale).setScrollFactor(0).setDepth(160);
+    this.introTitleText = this.add.text(this.uiX(centerX), this.uiY(centerY - 56), "", {
       fontFamily: "Orbitron, monospace", fontSize: "15px", color: "#f3c98a", fontStyle: "bold",
-    }).setOrigin(0.5).setDepth(161);
-    this.introDescText = this.add.text(centerX, centerY - 34, "", {
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(161);
+    this.introDescText = this.add.text(this.uiX(centerX), this.uiY(centerY - 34), "", {
       fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#ffffff", align: "center", wordWrap: { width: boxWidth - 40 },
-    }).setOrigin(0.5, 0).setDepth(161);
-    this.introProgressText = this.add.text(centerX, centerY + 50, "", {
+    }).setOrigin(0.5, 0).setScale(this.uiScale).setScrollFactor(0).setDepth(161);
+    this.introProgressText = this.add.text(this.uiX(centerX), this.uiY(centerY + 50), "", {
       fontFamily: "Orbitron, monospace", fontSize: "9px", color: "#8a8a9a",
-    }).setOrigin(0.5).setDepth(161);
-    this.introNextBtn = this.add.text(centerX + boxWidth / 2 - 70, centerY + 66, "[ NEXT ]", {
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(161);
+    this.introNextBtn = this.add.text(this.uiX(centerX + boxWidth / 2 - 70), this.uiY(centerY + 66), "[ NEXT ]", {
       fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#4ade80", fontStyle: "bold",
-    }).setOrigin(0.5).setDepth(162).setInteractive({ useHandCursor: true });
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
     // v50: Previous — mirrors Next's position on the opposite side of the
     // Skip link, disabled (not shown) on the very first step since there's
     // nowhere to go back to.
-    this.introPrevBtn = this.add.text(centerX - boxWidth / 2 + 14, centerY + 66, "[ PREVIOUS ]", {
+    this.introPrevBtn = this.add.text(this.uiX(centerX - boxWidth / 2 + 14), this.uiY(centerY + 66), "[ PREVIOUS ]", {
       fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#c5a97d", fontStyle: "bold",
-    }).setOrigin(0, 0.5).setDepth(162).setInteractive({ useHandCursor: true });
-    this.introSkipBtn = this.add.text(centerX, centerY + 66, "Skip Tutorial", {
+    }).setOrigin(0, 0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
+    this.introSkipBtn = this.add.text(this.uiX(centerX), this.uiY(centerY + 66), "Skip Tutorial", {
       fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#c0392b",
-    }).setOrigin(0.5).setDepth(162).setInteractive({ useHandCursor: true });
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
 
     this.introBoxParts = [bg, this.introTitleText, this.introDescText, this.introProgressText, this.introNextBtn, this.introPrevBtn, this.introSkipBtn];
-    this.uiRoot.add(this.introBoxParts);
 
     this.introNextBtn.on("pointerdown", (pointer: Phaser.Input.Pointer) => { this.claimPointer(pointer); this.introNext(); });
     this.introPrevBtn.on("pointerdown", (pointer: Phaser.Input.Pointer) => { this.claimPointer(pointer); this.introPrev(); });
@@ -529,20 +531,19 @@ export class TutorialScene extends GameScene {
   private showSkipConfirm() {
     if (this.skipConfirmGroup) return;
     const { width, height } = this.cameras.main;
-    const dim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.75).setDepth(200);
-    const box = this.add.rectangle(width / 2, height / 2, 320, 150, 0x1a1a2e, 1).setStrokeStyle(2, 0xc0392b).setDepth(201);
-    const text = this.add.text(width / 2, height / 2 - 30, "Skip the tutorial guide?", {
+    const dim = this.add.rectangle(this.uiX(width / 2), this.uiY(height / 2), width, height, 0x000000, 0.75).setScale(this.uiScale).setScrollFactor(0).setDepth(200);
+    const box = this.add.rectangle(this.uiX(width / 2), this.uiY(height / 2), 320, 150, 0x1a1a2e, 1).setStrokeStyle(2, 0xc0392b).setScale(this.uiScale).setScrollFactor(0).setDepth(201);
+    const text = this.add.text(this.uiX(width / 2), this.uiY(height / 2 - 30), "Skip the tutorial guide?", {
       fontFamily: "Orbitron, monospace", fontSize: "13px", color: "#ffffff", align: "center", wordWrap: { width: 280 },
-    }).setOrigin(0.5).setDepth(202);
-    const yesBtn = this.add.text(width / 2 - 70, height / 2 + 30, "[ SKIP ]", {
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(202);
+    const yesBtn = this.add.text(this.uiX(width / 2 - 70), this.uiY(height / 2 + 30), "[ SKIP ]", {
       fontFamily: "Orbitron, monospace", fontSize: "13px", color: "#c0392b", fontStyle: "bold",
-    }).setOrigin(0.5).setDepth(202).setInteractive({ useHandCursor: true });
-    const noBtn = this.add.text(width / 2 + 70, height / 2 + 30, "[ CANCEL ]", {
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(202).setInteractive({ useHandCursor: true });
+    const noBtn = this.add.text(this.uiX(width / 2 + 70), this.uiY(height / 2 + 30), "[ CANCEL ]", {
       fontFamily: "Orbitron, monospace", fontSize: "13px", color: "#4ade80", fontStyle: "bold",
-    }).setOrigin(0.5).setDepth(202).setInteractive({ useHandCursor: true });
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(202).setInteractive({ useHandCursor: true });
 
     this.skipConfirmGroup = [dim, box, text, yesBtn, noBtn];
-    this.uiRoot.add(this.skipConfirmGroup);
     const closeConfirm = () => {
       this.skipConfirmGroup?.forEach((o) => o.destroy());
       this.skipConfirmGroup = undefined;
@@ -578,24 +579,20 @@ export class TutorialScene extends GameScene {
       if (perkId === "spare_weapon" || perkId === "one_shot") {
         const stackIndex = perkId === "spare_weapon" ? 0 : 1;
         const cy = (height - 56) - (stackIndex + 1) * (radius * 2 + 14);
-        const bg = this.add.circle(cx, cy, radius, 0x1a1a2e, 0.85).setStrokeStyle(2, 0xc5a97d).setDepth(20);
-        const label = this.add.text(cx, cy, perkId === "spare_weapon" ? "SWAP" : "💀", {
+        // Depth 20/21 — well below the dim(140)/ring(150)/box(160+) — Phaser
+        // sorts top-level objects by depth normally, so the spotlight's dim
+        // still darkens whichever of these isn't currently emphasized.
+        const bg = this.add.circle(this.uiX(cx), this.uiY(cy), radius, 0x1a1a2e, 0.85).setStrokeStyle(2, 0xc5a97d).setScale(this.uiScale).setScrollFactor(0).setDepth(20);
+        const label = this.add.text(this.uiX(cx), this.uiY(cy), perkId === "spare_weapon" ? "SWAP" : "💀", {
           fontFamily: "Orbitron, monospace", fontSize: perkId === "spare_weapon" ? "10px" : "20px", color: "#c5a97d", fontStyle: "bold",
-        }).setOrigin(0.5).setDepth(21);
-        // v50 fix: added at index 0 (bottom of the stack) so the spotlight
-        // dim (added earlier, but ALWAYS meant to sit visually above these)
-        // can still darken whichever ones aren't currently emphasized —
-        // these are created well after buildIntroUI(), so a plain .add()
-        // would otherwise stack them on TOP of the dim/ring/box instead.
-        this.uiRoot.addAt([bg, label], 0);
+        }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(21);
         this.perkSimIcons.set(perkId, { bg, label });
       } else {
         const statusIndex = ["regen", "super_shield", "invisible", "never_died"].indexOf(perkId);
         const y = 118 + statusIndex * 34;
-        const bg = this.add.text(width - 10, y, `${def.icon} ${def.name.toUpperCase()}`, {
+        const bg = this.add.text(this.uiX(width - 10), this.uiY(y), `${def.icon} ${def.name.toUpperCase()}`, {
           fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#94a3b8",
-        }).setOrigin(1, 0).setDepth(20);
-        this.uiRoot.addAt(bg, 0);
+        }).setOrigin(1, 0).setScale(this.uiScale).setScrollFactor(0).setDepth(20);
         this.perkSimIcons.set(perkId, { bg });
       }
     });
@@ -630,8 +627,8 @@ export class TutorialScene extends GameScene {
     this.progressText = this.add.text(0, 14, "", {
       fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#8a8a9a",
     }).setOrigin(0.5);
-    this.instructionBox = this.add.container(width / 2, 40, [bg, this.instructionText, this.progressText]).setDepth(200);
-    this.uiRoot.add(this.instructionBox);
+    this.instructionBox = this.add.container(this.uiX(width / 2), this.uiY(40), [bg, this.instructionText, this.progressText])
+      .setScale(this.uiScale).setScrollFactor(0).setDepth(200);
   }
 
   setInstruction(text: string, _stepNumber: number) {
@@ -646,10 +643,9 @@ export class TutorialScene extends GameScene {
 
   private showBanner(text: string) {
     const { width, height } = this.cameras.main;
-    const label = this.add.text(width / 2, height / 2 - 60, text, {
+    const label = this.add.text(this.uiX(width / 2), this.uiY(height / 2 - 60), text, {
       fontFamily: "Orbitron, monospace", fontSize: "20px", color: "#4ade80", fontStyle: "bold",
-    }).setOrigin(0.5).setDepth(201);
-    this.uiRoot.add(label);
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(201);
     this.tweens.add({ targets: label, alpha: 0, y: label.y - 20, duration: 1200, delay: 400, onComplete: () => label.destroy() });
   }
 
@@ -680,20 +676,19 @@ export class TutorialScene extends GameScene {
 
   private showCongrats() {
     const { width, height } = this.cameras.main;
-    const bg = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.75).setDepth(210);
-    const title = this.add.text(width / 2, height / 2 - 40, "CONGRATULATIONS!", {
+    const bg = this.add.rectangle(this.uiX(width / 2), this.uiY(height / 2), width, height, 0x000000, 0.75).setScale(this.uiScale).setScrollFactor(0).setDepth(210);
+    const title = this.add.text(this.uiX(width / 2), this.uiY(height / 2 - 40), "CONGRATULATIONS!", {
       fontFamily: "Orbitron, monospace", fontSize: "24px", color: "#f3c98a", fontStyle: "bold",
-    }).setOrigin(0.5).setDepth(211);
-    const sub = this.add.text(width / 2, height / 2, "You have completed the training.", {
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(211);
+    const sub = this.add.text(this.uiX(width / 2), this.uiY(height / 2), "You have completed the training.", {
       fontFamily: "Orbitron, monospace", fontSize: "14px", color: "#ffffff",
-    }).setOrigin(0.5).setDepth(211);
-    const reward = this.add.text(width / 2, height / 2 + 26, `+${TUTORIAL_TICKET_REWARD} Tickets`, {
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(211);
+    const reward = this.add.text(this.uiX(width / 2), this.uiY(height / 2 + 26), `+${TUTORIAL_TICKET_REWARD} Tickets`, {
       fontFamily: "Orbitron, monospace", fontSize: "16px", color: "#4ade80", fontStyle: "bold",
-    }).setOrigin(0.5).setDepth(211);
-    const btn = this.add.text(width / 2, height / 2 + 70, "[ CONTINUE ]", {
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(211);
+    const btn = this.add.text(this.uiX(width / 2), this.uiY(height / 2 + 70), "[ CONTINUE ]", {
       fontFamily: "Orbitron, monospace", fontSize: "14px", color: "#2d5a27",
-    }).setOrigin(0.5).setDepth(211).setInteractive({ useHandCursor: true });
-    this.uiRoot.add([bg, title, sub, reward, btn]);
+    }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(211).setInteractive({ useHandCursor: true });
 
     btn.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.claimPointer(pointer);
