@@ -732,7 +732,7 @@ export class GameScene extends Phaser.Scene {
     // v13: the on-screen RELOAD button pulses this.reloadRequested for exactly
     // one frame, same one-shot semantics as JustDown(R) below.
     // v16: right-click also triggers a reload (see the pointerdown listener in create()).
-    const isReloading = Phaser.Input.Keyboard.JustDown(this.reloadKey) || this.reloadRequested;
+    let isReloading = Phaser.Input.Keyboard.JustDown(this.reloadKey) || this.reloadRequested;
     this.reloadRequested = false;
 
     const pointer = this.input.activePointer;
@@ -774,6 +774,13 @@ export class GameScene extends Phaser.Scene {
     // this is safe to call unconditionally instead of gating on isFarmStage.
     this.updateFarmPhase(delta);
     const frozen = this.farmPhase === "freeze";
+
+    // v50: TutorialScene overrides this to lock whichever inputs the current
+    // guided-intro step doesn't explicitly call out — see its
+    // controlsLockedFor(). Always false (nothing locked) outside the intro.
+    if (this.controlsLockedFor("move")) { moveLeft = moveRight = moveUp = moveDown = false; }
+    if (this.controlsLockedFor("shoot")) isShooting = false;
+    if (this.controlsLockedFor("reload")) isReloading = false;
 
     this.player.update(moveLeft, moveRight, moveUp, moveDown, isShooting, isReloading, worldPointer, delta, this.covers);
 
@@ -947,7 +954,7 @@ export class GameScene extends Phaser.Scene {
   /** v13: on-screen RELOAD button — sets the same one-frame pulse the R key
    *  sets, consumed on the next update(). */
   triggerReload() {
-    if (this.stageEnded || this.scene.isPaused()) return;
+    if (this.stageEnded || this.scene.isPaused() || this.controlsLockedFor("reload")) return;
     this.reloadRequested = true;
   }
 
@@ -955,14 +962,22 @@ export class GameScene extends Phaser.Scene {
    *  isn't set up or the swap is still on cooldown (Player.swapWeapon()
    *  itself enforces that; this is just the entry point HUDScene calls). */
   triggerSwapWeapon() {
-    if (this.stageEnded || this.scene.isPaused()) return;
+    if (this.stageEnded || this.scene.isPaused() || this.controlsLockedFor("swap")) return;
     this.player.swapWeapon();
   }
 
   /** v35: on-screen skull button (One Shot perk) — arms the next shot. */
   triggerOneShot() {
-    if (this.stageEnded || this.scene.isPaused()) return;
+    if (this.stageEnded || this.scene.isPaused() || this.controlsLockedFor("perk")) return;
     this.player.armOneShot();
+  }
+
+  /** v50: TutorialScene overrides this during its guided intro — everything
+   *  not explicitly allowed by the current step is locked so the player can't
+   *  wander off, waste ammo, or trigger perks mid-explanation. Always false
+   *  (nothing locked) for every other mode/scene. */
+  protected controlsLockedFor(_action: "move" | "shoot" | "reload" | "swap" | "perk"): boolean {
+    return false;
   }
 
   /** Called by AmmoRefillScene after a successful refill to update the live Player instance. */

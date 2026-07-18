@@ -3,7 +3,8 @@ import { GameScene } from "./GameScene";
 import { Enemy } from "@/game/entities/Enemy";
 import type { EnemySpawn } from "@/types/enemy";
 import type { WeaponRow } from "@/lib/google/weapon";
-import { INTRO_STEPS } from "./tutorialIntroSteps";
+import { INTRO_STEPS, type ControlKind } from "./tutorialIntroSteps";
+import { PERKS, PERK_ORDER, type PerkId } from "@/lib/perks";
 
 /**
  * First-time Training Mode — a guided walkthrough (this file's INTRO_* code)
@@ -184,17 +185,30 @@ export class TutorialScene extends GameScene {
   /** -1 = not currently in the guided intro (either finished, skipped, or
    *  never started because this session resumed past MOVE). */
   private introStepIndex = -1;
-  private introDim?: Phaser.GameObjects.Rectangle;
-  private introWorldRing?: Phaser.GameObjects.Arc;
+  /** v50: spotlight overlay — a dark screen-space mask with a rectangular
+   *  cutout at the current highlight's exact position, instead of a flat dim
+   *  rectangle sitting on top of everything (which used to bury the real HUD
+   *  element being pointed at underneath a dark tint of its own). Redrawn
+   *  every frame in updateIntroHighlight() since world-anchored highlights
+   *  (character/enemy/tree) move as the camera scrolls. */
+  private introDim?: Phaser.GameObjects.Graphics;
   private introScreenRing?: Phaser.GameObjects.Graphics;
   private introBoxParts: Phaser.GameObjects.GameObject[] = [];
   private introTitleText!: Phaser.GameObjects.Text;
   private introDescText!: Phaser.GameObjects.Text;
   private introProgressText!: Phaser.GameObjects.Text;
   private introNextBtn!: Phaser.GameObjects.Text;
+  private introPrevBtn!: Phaser.GameObjects.Text;
   private introSkipBtn!: Phaser.GameObjects.Text;
   private introRingTween?: Phaser.Tweens.Tween;
   private skipConfirmGroup?: Phaser.GameObjects.GameObject[];
+
+  /** v50: simulated perk buttons/icons shown ONLY while the guided intro is
+   *  walking through the 6 perk sub-steps (see PERK_STEPS in
+   *  tutorialIntroSteps.ts) — purely decorative teaching aids, real or not
+   *  (the tutorial Player never actually owns any perk), positioned at the
+   *  exact same coordinates HUDScene would use if they WERE owned. */
+  private perkSimIcons = new Map<PerkId, { bg: Phaser.GameObjects.Arc | Phaser.GameObjects.Text; label?: Phaser.GameObjects.Text }>();
 
   constructor() {
     super({ key: "TutorialScene" });
@@ -312,10 +326,9 @@ export class TutorialScene extends GameScene {
   private buildIntroUI() {
     const { width, height } = this.cameras.main;
 
-    this.introDim = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.55).setScrollFactor(0).setDepth(140);
-    this.introWorldRing = this.add.circle(0, 0, 38, 0x000000, 0).setStrokeStyle(3, 0xf3c98a).setDepth(150).setVisible(false);
+    this.introDim = this.add.graphics().setScrollFactor(0).setDepth(140);
     this.introScreenRing = this.add.graphics().setScrollFactor(0).setDepth(150).setVisible(false);
-    this.introRingTween = this.tweens.add({ targets: [this.introWorldRing, this.introScreenRing], alpha: 0.35, duration: 500, yoyo: true, repeat: -1 });
+    this.introRingTween = this.tweens.add({ targets: this.introScreenRing, alpha: 0.35, duration: 500, yoyo: true, repeat: -1 });
 
     const boxWidth = Math.min(520, width - 32);
     const centerX = width / 2;
@@ -341,30 +354,61 @@ export class TutorialScene extends GameScene {
     this.introNextBtn = this.add.text(centerX + boxWidth / 2 - 70, centerY + 66, "[ NEXT ]", {
       fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#4ade80", fontStyle: "bold",
     }).setOrigin(0.5).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
-    this.introSkipBtn = this.add.text(centerX - boxWidth / 2 + 60, centerY + 66, "Skip Tutorial", {
+    // v50: Previous — mirrors Next's position on the opposite side of the
+    // Skip link, disabled (not shown) on the very first step since there's
+    // nowhere to go back to.
+    this.introPrevBtn = this.add.text(centerX - boxWidth / 2 + 14, centerY + 66, "[ PREVIOUS ]", {
+      fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#c5a97d", fontStyle: "bold",
+    }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
+    this.introSkipBtn = this.add.text(centerX, centerY + 66, "Skip Tutorial", {
       fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#c0392b",
     }).setOrigin(0.5).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
 
-    this.introBoxParts = [bg, this.introTitleText, this.introDescText, this.introProgressText, this.introNextBtn, this.introSkipBtn];
+    this.introBoxParts = [bg, this.introTitleText, this.introDescText, this.introProgressText, this.introNextBtn, this.introPrevBtn, this.introSkipBtn];
 
     this.introNextBtn.on("pointerdown", () => this.introNext());
+    this.introPrevBtn.on("pointerdown", () => this.introPrev());
     this.introSkipBtn.on("pointerdown", () => this.showSkipConfirm());
   }
 
   private showIntroStep(index: number) {
+    const previousStep = this.introStepIndex >= 0 ? INTRO_STEPS[this.introStepIndex] : null;
     this.introStepIndex = index;
     const step = INTRO_STEPS[index];
     this.introTitleText.setText(step.title);
     this.introDescText.setText(step.getDescription(this));
     this.introProgressText.setText(`Tutorial Guide  ${index + 1}/${INTRO_STEPS.length}`);
     this.introNextBtn.setText(index === INTRO_STEPS.length - 1 ? "[ START TRAINING ]" : "[ NEXT ]");
+    this.introPrevBtn.setVisible(index > 0);
 
     if (step.id === "shooting") this.shotFiredThisStep = false;
     if (step.id === "reload") this.wasReloading = false;
+
+    // v50: entering/leaving the run of perk sub-steps toggles the simulated
+    // button overlay; while INSIDE that run, just move the emphasis.
+    if (step.perkId && !previousStep?.perkId) this.showPerkSimulation();
+    else if (!step.perkId && previousStep?.perkId) this.hidePerkSimulation();
+    if (step.perkId) this.emphasizePerk(step.perkId);
+
+    this.updateIntroNextEnabled();
+  }
+
+  /** v50: Next is disabled (dimmed, non-interactive) for steps that require
+   *  the player to actually perform the action first — re-checked every
+   *  frame in update() as autoAdvanceIf flips true. */
+  private updateIntroNextEnabled() {
+    if (this.introStepIndex < 0) return;
+    const step = INTRO_STEPS[this.introStepIndex];
+    const locked = Boolean(step.requireAction) && !step.autoAdvanceIf?.(this);
+    this.introNextBtn.setAlpha(locked ? 0.35 : 1);
+    if (locked) this.introNextBtn.disableInteractive();
+    else this.introNextBtn.setInteractive({ useHandCursor: true });
   }
 
   private introNext() {
     if (this.introStepIndex < 0) return;
+    const step = INTRO_STEPS[this.introStepIndex];
+    if (step.requireAction && !step.autoAdvanceIf?.(this)) return;
     const nextIndex = this.introStepIndex + 1;
     if (nextIndex >= INTRO_STEPS.length) {
       this.endIntro();
@@ -373,31 +417,60 @@ export class TutorialScene extends GameScene {
     this.showIntroStep(nextIndex);
   }
 
+  private introPrev() {
+    if (this.introStepIndex <= 0) return;
+    this.showIntroStep(this.introStepIndex - 1);
+  }
+
+  /** v50: draws a dark mask over the WHOLE screen except a rectangular
+   *  cutout at the current highlight's exact position (4 fill rects framing
+   *  the hole, rather than one flat overlay) so the real HUD element being
+   *  pointed at stays fully visible/usable underneath — the previous flat
+   *  dim rectangle sat on top of everything, including whatever it was
+   *  supposedly highlighting. */
+  private drawSpotlight(rect: { x: number; y: number; w: number; h: number } | null) {
+    if (!this.introDim) return;
+    const { width, height } = this.cameras.main;
+    this.introDim.clear();
+    this.introDim.fillStyle(0x000000, 0.6);
+    if (!rect) {
+      this.introDim.fillRect(0, 0, width, height);
+      return;
+    }
+    const pad = 6;
+    const x = rect.x - pad, y = rect.y - pad, w = rect.w + pad * 2, h = rect.h + pad * 2;
+    this.introDim.fillRect(0, 0, width, Math.max(0, y)); // top
+    this.introDim.fillRect(0, y + h, width, Math.max(0, height - (y + h))); // bottom
+    this.introDim.fillRect(0, y, Math.max(0, x), h); // left
+    this.introDim.fillRect(x + w, y, Math.max(0, width - (x + w)), h); // right
+  }
+
   private updateIntroHighlight() {
     if (this.introStepIndex < 0) return;
     const step = INTRO_STEPS[this.introStepIndex];
     const highlight = step.getHighlight(this);
-    this.introWorldRing?.setVisible(false);
-    this.introScreenRing?.setVisible(false);
 
-    if (highlight.kind === "world" && this.introWorldRing) {
-      const pos = highlight.getPos(this);
-      this.introWorldRing.setPosition(pos.x, pos.y).setVisible(true);
-    } else if (highlight.kind === "screen" && this.introScreenRing) {
+    if (highlight.kind === "rect" && this.introScreenRing) {
       const rect = highlight.getRect(this);
       this.introScreenRing.clear();
       this.introScreenRing.lineStyle(3, 0xf3c98a, 1);
-      this.introScreenRing.strokeRoundedRect(rect.x, rect.y, rect.w, rect.h, 14);
+      this.introScreenRing.strokeRoundedRect(rect.x, rect.y, rect.w, rect.h, 10);
       this.introScreenRing.setVisible(true);
+      this.drawSpotlight(rect);
+    } else {
+      this.introScreenRing?.setVisible(false);
+      this.drawSpotlight(null);
     }
+
+    this.updateIntroNextEnabled();
   }
 
   private endIntro() {
     this.introStepIndex = -1;
     this.registry.set("tutorialIntroActive", false);
+    this.hidePerkSimulation();
     this.introRingTween?.stop();
     this.introDim?.destroy();
-    this.introWorldRing?.destroy();
     this.introScreenRing?.destroy();
     this.introBoxParts.forEach((o) => o.destroy());
     this.introBoxParts = [];
@@ -432,6 +505,67 @@ export class TutorialScene extends GameScene {
     };
     yesBtn.on("pointerdown", () => { closeConfirm(); this.endIntro(); });
     noBtn.on("pointerdown", closeConfirm);
+  }
+
+  /** v50: gameplay input lock for the guided intro — see ControlKind and each
+   *  step's allowedControls in tutorialIntroSteps.ts. Not in the intro at
+   *  all (introStepIndex < 0) means nothing is locked, same as any other
+   *  mode (GameScene's own default). */
+  protected controlsLockedFor(action: ControlKind): boolean {
+    if (this.introStepIndex < 0) return false;
+    const allowed = INTRO_STEPS[this.introStepIndex].allowedControls ?? [];
+    return !allowed.includes(action);
+  }
+
+  /** v50: creates all 6 perk buttons/icons at the exact positions HUDScene
+   *  would place them if owned — spare_weapon/one_shot as the circular
+   *  buttons stacked above Reload, the other 4 as the text status icons
+   *  stacked top-right. Purely decorative — these icons have no click
+   *  handler at all (unlike HUDScene's real buttons), since the tutorial
+   *  Player never actually owns any perk anyway. */
+  private showPerkSimulation() {
+    if (this.perkSimIcons.size > 0) return;
+    const { width, height } = this.cameras.main;
+    const radius = 30;
+    const cx = width - 56;
+
+    PERK_ORDER.forEach((perkId, i) => {
+      const def = PERKS[perkId];
+      if (perkId === "spare_weapon" || perkId === "one_shot") {
+        const stackIndex = perkId === "spare_weapon" ? 0 : 1;
+        const cy = (height - 56) - (stackIndex + 1) * (radius * 2 + 14);
+        const bg = this.add.circle(cx, cy, radius, 0x1a1a2e, 0.85).setStrokeStyle(2, 0xc5a97d).setScrollFactor(0).setDepth(20);
+        const label = this.add.text(cx, cy, perkId === "spare_weapon" ? "SWAP" : "💀", {
+          fontFamily: "Orbitron, monospace", fontSize: perkId === "spare_weapon" ? "10px" : "20px", color: "#c5a97d", fontStyle: "bold",
+        }).setOrigin(0.5).setScrollFactor(0).setDepth(21);
+        this.perkSimIcons.set(perkId, { bg, label });
+      } else {
+        const statusIndex = ["regen", "super_shield", "invisible", "never_died"].indexOf(perkId);
+        const y = 118 + statusIndex * 34;
+        const bg = this.add.text(width - 10, y, `${def.icon} ${def.name.toUpperCase()}`, {
+          fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#94a3b8",
+        }).setOrigin(1, 0).setScrollFactor(0).setDepth(20);
+        this.perkSimIcons.set(perkId, { bg });
+      }
+    });
+  }
+
+  /** v50: brightens the perk currently being explained, dims the rest — all
+   *  6 stay visible throughout the whole run of perk sub-steps. */
+  private emphasizePerk(activeId: PerkId) {
+    for (const [perkId, icon] of this.perkSimIcons) {
+      const active = perkId === activeId;
+      icon.bg.setAlpha(active ? 1 : 0.4);
+      icon.label?.setAlpha(active ? 1 : 0.4);
+    }
+  }
+
+  private hidePerkSimulation() {
+    for (const icon of this.perkSimIcons.values()) {
+      icon.bg.destroy();
+      icon.label?.destroy();
+    }
+    this.perkSimIcons.clear();
   }
 
   // --- Hands-on UI (unchanged) ---
