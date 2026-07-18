@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPlayerById, addCurrency, updatePlayer, toPublicPlayer } from "@/lib/db/player";
-import { getCharacterById } from "@/lib/google/character";
+import { getCharacterById, isFreelyUnlocked } from "@/lib/google/character";
+import { ownsCharacter } from "@/lib/db/inventory";
 import { getUpgradeCost, getUpgradedBaseHp } from "@/lib/characterUpgrade";
 
 /** Permanent, uncapped, per-character HP upgrade — see src/lib/characterUpgrade.ts
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
   const [player, character] = await Promise.all([getPlayerById(session.user.id), getCharacterById(characterId)]);
   if (!player) return NextResponse.json({ error: "Player not found" }, { status: 404 });
   if (!character) return NextResponse.json({ error: "Character not found" }, { status: 404 });
+
+  const owned = isFreelyUnlocked(character, player.currentStage) || (await ownsCharacter(player.id, characterId));
+  if (!owned) return NextResponse.json({ error: "Character not owned" }, { status: 403 });
 
   const currentLevel = player.characterUpgradeLevels[characterId] ?? 0;
   const cost = getUpgradeCost(currentLevel);

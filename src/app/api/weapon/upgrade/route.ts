@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPlayerById, addCurrency, updatePlayer, toPublicPlayer } from "@/lib/db/player";
 import { getWeaponById } from "@/lib/google/weapon";
+import { ownsWeapon } from "@/lib/db/inventory";
 import { getUpgradedBaseDamage, getWeaponUpgradeCost } from "@/lib/weaponUpgrade";
 
 /** Permanent, uncapped, per-weapon damage upgrade — see src/lib/weaponUpgrade.ts
@@ -16,6 +17,9 @@ export async function POST(req: NextRequest) {
   const [player, weapon] = await Promise.all([getPlayerById(session.user.id), getWeaponById(weaponId)]);
   if (!player) return NextResponse.json({ error: "Player not found" }, { status: 404 });
   if (!weapon) return NextResponse.json({ error: "Weapon not found" }, { status: 404 });
+
+  const owned = weapon.unlockType === "FREE" || (await ownsWeapon(player.id, weaponId));
+  if (!owned) return NextResponse.json({ error: "Weapon not owned" }, { status: 403 });
 
   const currentLevel = player.weaponUpgradeLevels[weaponId] ?? 0;
   const cost = getWeaponUpgradeCost(currentLevel);

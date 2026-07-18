@@ -642,6 +642,10 @@ export default function CharacterHubClient(props: Props) {
 
             <div className="mt-4 pt-4 border-t border-military-steel/30">
               <h3 className="text-xs uppercase tracking-wider text-military-tan mb-2">Color Skin — {selectedCharacter.name} only</h3>
+              {!isCharOwned ? (
+                <p className="text-xs text-red-400">🔒 Own {selectedCharacter.name} first to customize their color skin.</p>
+              ) : (
+              <>
               <p className="text-xs text-military-steel mb-2">Every character keeps its own colors — this never touches any other character. Click a color to preview it, then Confirm to buy/equip.</p>
               <div className="flex gap-2 flex-wrap items-center">
                 {(() => {
@@ -685,10 +689,16 @@ export default function CharacterHubClient(props: Props) {
                   );
                 })()}
               </div>
+              </>
+              )}
             </div>
 
             <div className="mt-4 pt-4 border-t border-military-steel/30 relative">
               <h3 className="text-xs uppercase tracking-wider text-military-tan mb-2">Character Upgrade — {selectedCharacter.name} only</h3>
+              {!isCharOwned ? (
+                <p className="text-xs text-red-400">🔒 Own {selectedCharacter.name} first to upgrade their HP.</p>
+              ) : (
+              <>
               <p className="text-xs text-military-steel mb-2">Permanent, uncapped HP upgrade. Independent per character — never touches any other character's own level.</p>
               {(() => {
                 const level = characterUpgradeLevels[selectedCharacter.id] ?? 0;
@@ -715,7 +725,11 @@ export default function CharacterHubClient(props: Props) {
                       disabled={upgradeLoading || !canAfford}
                       className={`btn-military text-xs px-4 py-2 ${!canAfford ? "opacity-40 grayscale cursor-not-allowed" : ""}`}
                     >
-                      {upgradeLoading ? "..." : canAfford ? `UPGRADE — 🪙 ${cost.toLocaleString()}` : "NOT ENOUGH COIN"}
+                      {upgradeLoading
+                        ? "..."
+                        : canAfford
+                          ? `UPGRADE — 🪙 ${cost.toLocaleString()}`
+                          : `NOT ENOUGH COIN — 🪙 ${cost.toLocaleString()}`}
                     </button>
                   </div>
                 );
@@ -728,6 +742,8 @@ export default function CharacterHubClient(props: Props) {
                     <p className="text-military-gold font-bold text-2xl">+{upgradeSuccess.hpGained} HP</p>
                   </div>
                 </div>
+              )}
+              </>
               )}
             </div>
             </div>
@@ -847,7 +863,11 @@ export default function CharacterHubClient(props: Props) {
                         disabled={weaponUpgradeLoading || !canAfford}
                         className={`btn-military text-xs px-4 py-2 ${!canAfford ? "opacity-40 grayscale cursor-not-allowed" : ""}`}
                       >
-                        {weaponUpgradeLoading ? "..." : canAfford ? `UPGRADE — 🪙 ${cost.toLocaleString()}` : "NOT ENOUGH COIN"}
+                        {weaponUpgradeLoading
+                          ? "..."
+                          : canAfford
+                            ? `UPGRADE — 🪙 ${cost.toLocaleString()}`
+                            : `NOT ENOUGH COIN — 🪙 ${cost.toLocaleString()}`}
                       </button>
                     </div>
                   );

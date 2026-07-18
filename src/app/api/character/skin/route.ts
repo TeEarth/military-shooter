@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPlayerById, addCurrency, updatePlayer, toPublicPlayer } from "@/lib/db/player";
 import { SKIN_COLOR_PRICE, isSkinColor, getOwnedSkinColors } from "@/lib/skinColors";
+import { getCharacterById, isFreelyUnlocked } from "@/lib/google/character";
+import { ownsCharacter } from "@/lib/db/inventory";
 
 /** Buys or equips a color-tint skin (see src/lib/skinColors.ts) — cosmetic
  *  only, never changes the character's actual sprite/silhouette. v42:
@@ -17,6 +19,11 @@ export async function POST(req: NextRequest) {
 
   const player = await getPlayerById(session.user.id);
   if (!player) return NextResponse.json({ error: "Player not found" }, { status: 404 });
+
+  const character = await getCharacterById(characterId);
+  if (!character) return NextResponse.json({ error: "Character not found" }, { status: 404 });
+  const characterOwned = isFreelyUnlocked(character, player.currentStage) || (await ownsCharacter(player.id, characterId));
+  if (!characterOwned) return NextResponse.json({ error: "Character not owned" }, { status: 403 });
 
   const ownedForCharacter = getOwnedSkinColors(player.ownedSkinsByCharacter, characterId);
   const owned = ownedForCharacter.includes(skinColor);
