@@ -26,6 +26,7 @@ type SfxName =
   | "reload"
   | "hit_enemy"
   | "hurt_player"
+  | "ricochet" // bullet blocked by solid cover (not tree, not AoE)
   | "footstep"
   | "pickup_coin"
   | "pickup_item"
@@ -51,8 +52,11 @@ const SAMPLE_FILES: Partial<Record<SfxName, { url: string; gain: number }>> = {
   shoot_rocket: { url: "/assets/audio/sfx/gunshot_rocket.wav", gain: 0.8 },
   explosion: { url: "/assets/audio/sfx/boom.wav", gain: 0.85 },
   reload: { url: "/assets/audio/sfx/reload_all.wav", gain: 0.8 },
-  hit_enemy: { url: "/assets/audio/sfx/hit_enemy.wav", gain: 0.7 },
-  hurt_player: { url: "/assets/audio/sfx/hurt_player.wav", gain: 0.8 },
+  // v37: both sides share the one recorded "bullet hits a character" clip —
+  // only one was provided, not separate player/enemy perspectives.
+  hit_enemy: { url: "/assets/audio/sfx/bullet_impact.wav", gain: 0.7 },
+  hurt_player: { url: "/assets/audio/sfx/bullet_impact.wav", gain: 0.8 },
+  ricochet: { url: "/assets/audio/sfx/ricochet.wav", gain: 0.7 },
   footstep: { url: "/assets/audio/sfx/footstep.wav", gain: 0.35 },
 };
 
@@ -163,6 +167,40 @@ class SfxEngine {
     }
   }
 
+  /** v37: reload should audibly loop for the WHOLE reload duration (not just
+   *  a click at the start), and multiple enemies can be reloading at once —
+   *  each caller gets its own independent handle, unlike the singleton music
+   *  loop above. Call the returned stop() once the reload actually finishes
+   *  (or is otherwise cut short, e.g. the reloader dies mid-reload). No-op
+   *  stop() if muted or the sample hasn't finished loading yet — a still-
+   *  loading reload just plays silently rather than falling back to a
+   *  one-shot procedural click that wouldn't loop anyway. */
+  startLoop(name: SfxName): { stop: () => void } {
+    const spec = SAMPLE_FILES[name];
+    if (this.muted || !spec) return { stop: () => {} };
+
+    let stopped = false;
+    let src: AudioBufferSourceNode | null = null;
+    const ctx = this.getCtx();
+    this.loadSample(ctx, spec.url).then((buffer) => {
+      if (stopped) return;
+      src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+      const gain = ctx.createGain();
+      gain.gain.value = spec.gain;
+      src.connect(gain).connect(this.masterGain!);
+      src.start();
+    });
+
+    return {
+      stop: () => {
+        stopped = true;
+        if (src) { try { src.stop(); } catch { /* already stopped */ } }
+      },
+    };
+  }
+
   /** Public entry point used everywhere in the game/UI. */
   play(name: SfxName) {
     if (this.muted) return;
@@ -237,6 +275,9 @@ class SfxEngine {
           break;
         case "miss":
           this.blip(ctx, out, { freq: 2000, decay: 0.04, noiseMix: 0.1, type: "sine" });
+          break;
+        case "ricochet":
+          this.blip(ctx, out, { freq: 1600, decay: 0.1, noiseMix: 0.5, type: "triangle", crack: true });
           break;
       }
     } catch {

@@ -11,8 +11,8 @@ import { RECOIL_KICK_PX, decayRecoil, spawnMuzzleEffect, reloadWiggle } from "./
 const RIFLE_WEAPONS = new Set(["gatling", "ak47", "m16a1", "m16a4"]);
 
 function shootSfxForWeapon(weaponId: string): "shoot_pistol" | "shoot_rifle" | "shoot_shotgun" | "shoot_sniper" | "shoot_rasor" | "shoot_rocket" | null {
-  if (weaponId === "grenade_launcher") return null; // no fire sound provided — explosion still plays on impact
-  if (weaponId === "rocket_launcher") return "shoot_rocket";
+  // v37: grenade_launcher shares rocket_launcher's fire sound (no separate one provided).
+  if (weaponId === "grenade_launcher" || weaponId === "rocket_launcher") return "shoot_rocket";
   if (weaponId === "shotgun") return "shoot_shotgun";
   if (weaponId === "sniper") return "shoot_sniper";
   if (weaponId === "rasor_gun") return "shoot_rasor";
@@ -69,6 +69,8 @@ export class Player {
   private failedAssetKeys?: Set<string>;
   private reloadStartTime = 0;
   private reloadDurationMs = 0;
+  /** v37: handle for the currently-looping reload sound, or null when not reloading. */
+  private reloadLoopHandle: { stop: () => void } | null = null;
   /** v34: current backward "kick" offset (px) applied to the weapon sprite
    *  only — decays back to 0 every frame, see WeaponFx.ts. */
   private recoilAmount = 0;
@@ -538,21 +540,21 @@ export class Player {
 
   private startReload() {
     this.isReloading = true;
-    sfx.play("reload");
+    // v37 fix: loops for the entire reload instead of two discrete clicks —
+    // reloadDurationMs varies per weapon and the recorded sample doesn't
+    // match any single one of them, so it needs to actually loop, not just
+    // fire twice and leave the rest of the reload silent.
+    this.reloadLoopHandle?.stop();
+    this.reloadLoopHandle = sfx.startLoop("reload");
     this.reloadStartTime = this.scene.time.now;
     this.reloadDurationMs = this.loadout.reloadTime * 1000;
-    // v34: a second "mag seated" click partway through — the reload sound is
-    // a quick two-click cue, but reloadDurationMs itself can run several
-    // seconds, so without this the gun visibly wiggles in silence for most
-    // of that time.
-    this.scene.time.delayedCall(this.reloadDurationMs * 0.55, () => {
-      if (this.isReloading) sfx.play("reload");
-    });
     this.scene.time.delayedCall(this.reloadDurationMs, () => {
       const needed = this.loadout.magazineSize - this.magazine;
       const filled = Math.min(needed, this.ammo);
       this.magazine += filled;
       this.isReloading = false;
+      this.reloadLoopHandle?.stop();
+      this.reloadLoopHandle = null;
     });
   }
 
@@ -624,6 +626,10 @@ export class Player {
     this.isDead = true;
     this.sprite.setAlpha(0.3);
     (this.sprite.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
+    // v37: don't leave the reload loop playing over a dead player.
+    this.reloadLoopHandle?.stop();
+    this.reloadLoopHandle = null;
+    this.isReloading = false;
   }
 
   /** Ticket-funded mid-run revive (see GameScene's reviveUsedThisGame gate) —

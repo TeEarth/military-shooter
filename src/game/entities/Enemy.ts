@@ -35,6 +35,12 @@ export class Enemy {
   private recoilAmount = 0;
   private patrolTarget: Phaser.Math.Vector2;
   private hpBar!: Phaser.GameObjects.Graphics;
+  /** v37: small "RELOADING" label above the hp bar, visible only while this
+   *  enemy is actually reloading — so the player can tell why it's briefly
+   *  not shooting back. */
+  private reloadText!: Phaser.GameObjects.Text;
+  /** v37: handle for the currently-looping reload sound, or null when not reloading. */
+  private reloadLoopHandle: { stop: () => void } | null = null;
   private preferredRange: number;
   private worldWidth: number;
   private worldHeight: number;
@@ -97,6 +103,9 @@ export class Enemy {
     this.pickNewPatrolTarget();
 
     this.hpBar = scene.add.graphics();
+    this.reloadText = scene.add.text(x, y - 44, "RELOADING", {
+      fontFamily: "Orbitron, monospace", fontSize: "9px", color: "#ff9955", fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(this.sprite.depth + 2).setVisible(false);
     this.updateHpBar();
   }
 
@@ -280,16 +289,16 @@ export class Enemy {
 
   private startReload() {
     this.isReloading = true;
-    sfx.play("reload");
+    // v37 fix: loops for the entire reload instead of two discrete clicks — see Player.ts's startReload.
+    this.reloadLoopHandle?.stop();
+    this.reloadLoopHandle = sfx.startLoop("reload");
     this.reloadStartTime = this.scene.time.now;
     const reloadDurationMs = this.data.weapon.reloadTime * 1000;
-    // v34: mid-reload "mag seated" click — see Player.ts's startReload for why.
-    this.scene.time.delayedCall(reloadDurationMs * 0.55, () => {
-      if (this.isReloading) sfx.play("reload");
-    });
     this.scene.time.delayedCall(reloadDurationMs, () => {
       this.magazine = this.data.weapon.magazineSize;
       this.isReloading = false;
+      this.reloadLoopHandle?.stop();
+      this.reloadLoopHandle = null;
     });
   }
 
@@ -310,6 +319,10 @@ export class Enemy {
     (this.sprite.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
     this.sprite.setAlpha(0.3);
     this.hpBar.destroy();
+    this.reloadText.destroy();
+    // v37: don't leave the reload loop playing over a dead enemy.
+    this.reloadLoopHandle?.stop();
+    this.reloadLoopHandle = null;
     this.scene.tweens.add({ targets: this.sprite, alpha: 0, duration: 800, onComplete: () => this.sprite.destroy() });
     if (this.weaponSprite) {
       const weaponSprite = this.weaponSprite;
@@ -326,6 +339,8 @@ export class Enemy {
     this.hpBar.fillRect(x, y, 32, 4);
     this.hpBar.fillStyle(0x00cc00, 1);
     this.hpBar.fillRect(x, y, 32 * (this.hp / this.maxHp), 4);
+
+    this.reloadText.setPosition(this.sprite.x, this.sprite.y - 44).setVisible(this.isReloading);
   }
 
   getCoinReward() { return this.data.coinReward; }

@@ -116,19 +116,38 @@ export class MobileControls {
   }
 
   /** v29: fixed screen-space zones the HUD's own buttons occupy (Pause/Exit,
-   *  Refill top-right; Reload bottom-right) — kept in sync by hand with
-   *  HUDScene's button positions since they live on a separate scene with no
-   *  shared hit-test. A tap landing in one of these must never also register
-   *  as a move/fire touch underneath the button. */
+   *  Refill top-right; Reload/Swap/One-Shot stacked bottom-right) — kept in
+   *  sync by hand with HUDScene's button positions since they live on a
+   *  separate scene with no shared hit-test. A tap landing in one of these
+   *  must never also register as a move/fire touch underneath the button.
+   *  v37 fix: the "joystick" scheme used to skip this bottom-right check
+   *  entirely, relying on fire only triggering inside the aim stick's own
+   *  grabRadius to naturally miss the reload button above it — but v33
+   *  changed that scheme to fire from anywhere on the right half, which
+   *  meant pressing Reload/Swap/One-Shot also fired a shot underneath them.
+   *  Both schemes now explicitly reserve every stacked button's circle. */
   private isInHudButtonZone(x: number, y: number): boolean {
     const { width, height } = this.scene.scale;
     // Pause/Exit + Refill cluster, top-right.
     if (x >= width - 100 && y <= 118) return true;
-    // Reload button — bottom-right plain corner for "split" scheme (the
-    // "joystick" scheme's raised reload sits just above its own fire stick,
-    // which handleDown already reserves via the aimCenter grab check).
-    if (!this.isFloatingMove) return false;
-    return Phaser.Math.Distance.Between(x, y, width - 56, height - 56) <= 44;
+
+    const radius = 30;
+    const raised = this.scheme === "joystick";
+    const cx = raised ? width - 130 : width - 56;
+    const reloadCy = raised ? height - 210 - radius - 14 : height - 56;
+    // Reload is always reserved; Swap/One-Shot stack above it only when that
+    // perk is actually owned (see registry's "perks", set by GameClient.tsx —
+    // same source HUDScene reads to decide whether to create those buttons).
+    const perks = this.scene.registry.get("perks") as { spareWeapon?: boolean; oneShot?: boolean } | undefined;
+    let stackCount = 1;
+    if (perks?.spareWeapon) stackCount++;
+    if (perks?.oneShot) stackCount++;
+
+    for (let i = 0; i < stackCount; i++) {
+      const cy = reloadCy - i * (radius * 2 + 14);
+      if (Phaser.Math.Distance.Between(x, y, cx, cy) <= radius + 14) return true;
+    }
+    return false;
   }
 
   private handleDown(pointer: Phaser.Input.Pointer) {

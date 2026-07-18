@@ -458,6 +458,8 @@ export class GameScene extends Phaser.Scene {
       sfx.play("explosion");
       const radius = Number(bullet.getData("explosionRadius") ?? PLAYER_CONFIG.aoeRadius);
       this.applyAoeSplash(bullet.x, bullet.y, Number(bullet.getData("damage") ?? 0), isPlayerBullet, radius);
+    } else {
+      sfx.play("ricochet");
     }
     bullet.destroy();
   }
