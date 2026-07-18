@@ -81,6 +81,10 @@ export interface Player {
    *  (see src/lib/characterUpgrade.ts) — e.g. {"bob": 12}. Missing/0 = never
    *  upgraded. */
   characterUpgradeLevels: Record<string, number>;
+  /** v47: requires scripts/sql/013_v47_weapon_upgrade.sql — held back until
+   *  confirmed run. Permanent, uncapped, PER WEAPON damage upgrade level (see
+   *  src/lib/weaponUpgrade.ts) — e.g. {"pistol": 8}. Missing/0 = never upgraded. */
+  weaponUpgradeLevels: Record<string, number>;
 }
 
 /** DB row (snake_case) -> app-facing Player (camelCase) — same shape callers
@@ -129,6 +133,7 @@ function rowToPlayer(row: any): Player {
     dailyAdCoinWatches: Number(row.daily_ad_coin_watches ?? 0),
     dailyAdCoinDate: row.daily_ad_coin_date ?? "",
     characterUpgradeLevels: (row.character_upgrade_levels && typeof row.character_upgrade_levels === "object" && !Array.isArray(row.character_upgrade_levels)) ? row.character_upgrade_levels : {},
+    weaponUpgradeLevels: (row.weapon_upgrade_levels && typeof row.weapon_upgrade_levels === "object" && !Array.isArray(row.weapon_upgrade_levels)) ? row.weapon_upgrade_levels : {},
   };
 }
 
@@ -219,6 +224,9 @@ export async function createPlayer(params: { email: string; username: string; pa
     // v46: also not included in .insert() below — DB-level default (see
     // 012_v46_character_upgrade.sql), same reasoning as the fields above.
     characterUpgradeLevels: {},
+    // v47: also not included in .insert() below — DB-level default (see
+    // 013_v47_weapon_upgrade.sql), same reasoning as the fields above.
+    weaponUpgradeLevels: {},
   };
 
   const supabase = getSupabaseClient();
@@ -297,6 +305,7 @@ const CAMEL_TO_SNAKE: Record<string, string> = {
   dailyAdCoinWatches: "daily_ad_coin_watches",
   dailyAdCoinDate: "daily_ad_coin_date",
   characterUpgradeLevels: "character_upgrade_levels",
+  weaponUpgradeLevels: "weapon_upgrade_levels",
 };
 
 function toSnakeUpdates(updates: Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]> | Record<string, number>>): Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]> | Record<string, number>> {

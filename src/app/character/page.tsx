@@ -48,6 +48,7 @@ export default async function CharacterPage() {
       skinColors={player.skinColors}
       ownedSkinsByCharacter={player.ownedSkinsByCharacter}
       characterUpgradeLevels={player.characterUpgradeLevels}
+      weaponUpgradeLevels={player.weaponUpgradeLevels}
       perks={{
         spareWeapon: player.perkSpareWeapon,
         regen: player.perkRegen,

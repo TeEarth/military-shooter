@@ -5,6 +5,7 @@ import { getEquippedStatTotals } from "./db/inventory";
 import { getPassiveTotals, type PassiveTotals } from "./db/passive";
 import { getPlayerById } from "./db/player";
 import { getUpgradedBaseHp } from "./characterUpgrade";
+import { getUpgradedBaseDamage } from "./weaponUpgrade";
 import type { CombatLoadout } from "@/types/loadout";
 
 /**
@@ -67,9 +68,10 @@ export async function computeFullStats(playerId: string, character: CharacterRow
     getPassiveTotals(playerId),
     getPlayerById(playerId),
   ]);
-  const upgradeLevel = player?.characterUpgradeLevels[character.id] ?? 0;
+  const characterUpgradeLevel = player?.characterUpgradeLevels[character.id] ?? 0;
+  const weaponUpgradeLevel = player?.weaponUpgradeLevels[weapon.id] ?? 0;
 
-  return buildStatBreakdown(character, weapon, equipTotals, passives, upgradeLevel);
+  return buildStatBreakdown(character, weapon, equipTotals, passives, characterUpgradeLevel, weaponUpgradeLevel);
 }
 
 export function buildStatBreakdown(
@@ -82,12 +84,17 @@ export function buildStatBreakdown(
    *  BEFORE the equipment/passive %, so it's the single source of truth every
    *  mode (PvE/PvP/Tutorial) and every display (Home/Character/Result) reads
    *  from equally. */
-  characterUpgradeLevel = 0
+  characterUpgradeLevel = 0,
+  /** v47: this WEAPON's own permanent damage upgrade level (see
+   *  src/lib/weaponUpgrade.ts) — 0 if never upgraded. Same "applied before
+   *  equipment/passive %, single source of truth everywhere" treatment as HP. */
+  weaponUpgradeLevel = 0
 ): FullStatBreakdown {
   const upgradedBaseHp = getUpgradedBaseHp(character.hpMax, characterUpgradeLevel);
+  const upgradedBaseDamage = getUpgradedBaseDamage(weapon.damage, weaponUpgradeLevel);
   return {
     hp: multiplicative(upgradedBaseHp, equipTotals.hpPercent, passives.hpPercent),
-    damage: multiplicative(weapon.damage, equipTotals.damagePercent, passives.damagePercent),
+    damage: multiplicative(upgradedBaseDamage, equipTotals.damagePercent, passives.damagePercent),
     moveSpeed: { base: character.speed, bonusPercent: 0, equipmentBonusPercent: 0, passiveBonusPercent: 0, final: character.speed },
     // equipment has no accuracy bonus in the current tables
     accuracy: additive(weapon.accuracy + character.accuracy, 0, passives.accuracy),

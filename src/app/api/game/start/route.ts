@@ -306,6 +306,13 @@ async function startTutorialStage(player: Player) {
   const stats = await computeFullStats(player.id, character, weapon);
   const loadout = statsToLoadout(character, weapon, stats, TUTORIAL_AMMO, getEquippedSkinColor(player.skinColors, character.id));
 
+  // TutorialScene spawns its own 2 scripted enemies (not real StageEnemy rows)
+  // but still needs the real enemy_pistol sprite/weapon preloaded — without an
+  // enemyRoster entry, PreloadScene never loads that texture and the enemy
+  // renders as the generic placeholder circle instead of a real pistol soldier.
+  const [tutorialEnemy, tutorialEnemyWeapon] = await Promise.all([getEnemyById("enemy_pistol"), getWeaponById("pistol")]);
+  const enemyRoster = tutorialEnemy && tutorialEnemyWeapon ? [{ ...tutorialEnemy, weapon: tutorialEnemyWeapon }] : [];
+
   return NextResponse.json({
     success: true,
     stageData: {
@@ -321,7 +328,7 @@ async function startTutorialStage(player: Player) {
       playerSpawnY: TUTORIAL_HEIGHT / 2,
     },
     enemies: [],
-    enemyRoster: [],
+    enemyRoster,
     covers: [{ coverType: "tree", x: 760, y: TUTORIAL_HEIGHT / 2 }],
     character: loadout,
     weaponId,

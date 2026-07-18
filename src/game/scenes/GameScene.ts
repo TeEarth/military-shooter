@@ -3,6 +3,7 @@ import { Player, type PlayerPerks } from "@/game/entities/Player";
 import { Enemy } from "@/game/entities/Enemy";
 import { CoverObject, COVER_SIZES, type CoverType } from "@/game/entities/CoverObject";
 import { MobileControls } from "@/game/entities/MobileControls";
+import { showSpawnIndicator } from "@/game/entities/SpawnIndicator";
 import type { StageData } from "@/types/stage";
 import type { EnemySpawn, EnemyData } from "@/types/enemy";
 import type { CombatLoadout } from "@/types/loadout";
@@ -156,6 +157,7 @@ export class GameScene extends Phaser.Scene {
     this.player = new Player(this, spawnX, spawnY, this.bullets, character, this.failedAssetKeys, spareLoadout, perks);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
     this.cameras.main.setZoom(Number(this.registry.get("zoomLevel")) || 1);
+    showSpawnIndicator(this, this.player.sprite);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = {

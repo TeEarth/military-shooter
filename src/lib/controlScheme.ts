@@ -1,7 +1,7 @@
 export type ControlScheme = "split" | "joystick";
 
 const KEY = "mobile_control_scheme";
-const DEFAULT_SCHEME: ControlScheme = "joystick";
+const DEFAULT_SCHEME: ControlScheme = "split";
 
 /** "joystick" = drag the bottom-right stick to aim AND fire in that direction
  *  (the existing v20 scheme). "split" = that stick only turns the gun; a

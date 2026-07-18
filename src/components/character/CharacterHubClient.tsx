@@ -13,6 +13,7 @@ import { PERKS, PERK_ORDER, type PerkId } from "@/lib/perks";
 import { SKIN_COLORS, SKIN_COLOR_PRICE, SKIN_COLOR_HEX, getEquippedSkinColor, getOwnedSkinColors, type SkinColor } from "@/lib/skinColors";
 import { sfx } from "@/lib/sfx";
 import { getUpgradedBaseHp, getUpgradeCost } from "@/lib/characterUpgrade";
+import { getUpgradedBaseDamage, getWeaponUpgradeCost } from "@/lib/weaponUpgrade";
 
 interface Props {
   allCharacters: CharacterRow[];
@@ -38,6 +39,8 @@ interface Props {
   ownedSkinsByCharacter: Record<string, string[]>;
   /** v46: permanent HP upgrade level PER character id — e.g. {"bob": 12}. */
   characterUpgradeLevels: Record<string, number>;
+  /** v47: permanent damage upgrade level PER weapon id — e.g. {"pistol": 8}. */
+  weaponUpgradeLevels: Record<string, number>;
 }
 
 const PASSIVE_LABELS: Record<PassiveId, string> = {
@@ -100,6 +103,9 @@ export default function CharacterHubClient(props: Props) {
   const [characterUpgradeLevels, setCharacterUpgradeLevels] = useState(props.characterUpgradeLevels);
   const [upgradeLoading, setUpgradeLoading] = useState(false);
   const [upgradeSuccess, setUpgradeSuccess] = useState<{ hpGained: number } | null>(null);
+  const [weaponUpgradeLevels, setWeaponUpgradeLevels] = useState(props.weaponUpgradeLevels);
+  const [weaponUpgradeLoading, setWeaponUpgradeLoading] = useState(false);
+  const [weaponUpgradeSuccess, setWeaponUpgradeSuccess] = useState<{ damageGained: number } | null>(null);
 
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterRow>(
     props.allCharacters.find((c) => c.id === activeCharacterId) ?? props.allCharacters[0]
@@ -445,6 +451,42 @@ export default function CharacterHubClient(props: Props) {
     }
   }
 
+  // v47: same pattern as upgradeCharacter above, own DB field, own endpoint —
+  // never touches any other weapon's own level.
+  async function upgradeWeapon(weaponId: string) {
+    if (weaponUpgradeLoading) return;
+    const prevLevel = weaponUpgradeLevels[weaponId] ?? 0;
+    const cost = getWeaponUpgradeCost(prevLevel);
+    const prevCoin = coin;
+
+    setWeaponUpgradeLevels((prev) => ({ ...prev, [weaponId]: prevLevel + 1 }));
+    setCoin((c) => c - cost);
+    setWeaponUpgradeLoading(true);
+    try {
+      const res = await fetch("/api/weapon/upgrade", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ weaponId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        applyPlayerUpdate(data.updatedPlayer);
+        sfx.play("pickup_item");
+        setWeaponUpgradeSuccess({ damageGained: data.damageGained });
+        setTimeout(() => setWeaponUpgradeSuccess(null), 2000);
+      } else {
+        setWeaponUpgradeLevels((prev) => ({ ...prev, [weaponId]: prevLevel }));
+        setCoin(prevCoin);
+        setMessage(data.error);
+      }
+    } catch {
+      setWeaponUpgradeLevels((prev) => ({ ...prev, [weaponId]: prevLevel }));
+      setCoin(prevCoin);
+      setMessage("Network error — upgrade not completed.");
+    } finally {
+      setWeaponUpgradeLoading(false);
+    }
+  }
+
   const isCharOwned = ownedCharacterIds.includes(selectedCharacter.id) || isCharacterUnlocked(selectedCharacter, props.currentStage);
   const isCharActive = selectedCharacter.id === activeCharacterId;
   const specialOk = selectedCharacter.unlockType !== "SPECIAL" || (props.vipLevel >= selectedCharacter.vipRequirement && props.farmStageMaxWave > selectedCharacter.waveRequirement);
@@ -720,7 +762,7 @@ export default function CharacterHubClient(props: Props) {
 
             <div className="grid grid-cols-2 gap-3 my-4">
               {[
-                ["DAMAGE", selectedWeapon.damage],
+                ["DAMAGE", getUpgradedBaseDamage(selectedWeapon.damage, weaponUpgradeLevels[selectedWeapon.id] ?? 0)],
                 ["FIRE RATE", `${selectedWeapon.fireRate}/s`],
                 ["PROJECTILES", selectedWeapon.projectileCount],
                 ["ACCURACY", `${selectedWeapon.accuracy}%`],
@@ -771,6 +813,52 @@ export default function CharacterHubClient(props: Props) {
                     <button onClick={() => refillAmmo("diamond")} disabled={ammoLoading || diamond < 40} className="btn-gold text-xs flex-1 py-1">
                       {ammoLoading ? "..." : "💎 40 — Refill 100%"}
                     </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {isWeaponOwned && (
+              <div className="mt-4 pt-4 border-t border-military-steel/30 relative">
+                <h3 className="text-xs uppercase tracking-wider text-military-tan mb-2">Weapon Upgrade — {selectedWeapon.name} only</h3>
+                <p className="text-xs text-military-steel mb-2">Permanent, uncapped damage upgrade. Independent per weapon — never touches any other weapon's own level.</p>
+                {(() => {
+                  const level = weaponUpgradeLevels[selectedWeapon.id] ?? 0;
+                  const currentDamage = getUpgradedBaseDamage(selectedWeapon.damage, level);
+                  const nextDamage = getUpgradedBaseDamage(selectedWeapon.damage, level + 1);
+                  const cost = getWeaponUpgradeCost(level);
+                  const canAfford = coin >= cost;
+                  return (
+                    <div className="flex items-center gap-4 flex-wrap">
+                      <div className="bg-military-darker p-2 border border-military-steel">
+                        <div className="text-xs text-military-steel">LEVEL</div>
+                        <div className="text-white font-bold">Lv.{level}</div>
+                      </div>
+                      <div className="bg-military-darker p-2 border border-military-steel">
+                        <div className="text-xs text-military-steel">CURRENT DAMAGE</div>
+                        <div className="text-white font-bold">{currentDamage}</div>
+                      </div>
+                      <div className="bg-military-darker p-2 border border-emerald-600">
+                        <div className="text-xs text-military-steel">NEXT DAMAGE</div>
+                        <div className="text-emerald-400 font-bold">{nextDamage}</div>
+                      </div>
+                      <button
+                        onClick={() => upgradeWeapon(selectedWeapon.id)}
+                        disabled={weaponUpgradeLoading || !canAfford}
+                        className={`btn-military text-xs px-4 py-2 ${!canAfford ? "opacity-40 grayscale cursor-not-allowed" : ""}`}
+                      >
+                        {weaponUpgradeLoading ? "..." : canAfford ? `UPGRADE — 🪙 ${cost.toLocaleString()}` : "NOT ENOUGH COIN"}
+                      </button>
+                    </div>
+                  );
+                })()}
+
+                {weaponUpgradeSuccess && (
+                  <div className="absolute inset-0 flex items-center justify-center bg-military-darker/90 animate-[pvp-pay-flourish_0.9s_ease-out]">
+                    <div className="text-center">
+                      <p className="text-emerald-400 font-black text-lg uppercase tracking-widest">Weapon Upgrade Success!</p>
+                      <p className="text-military-gold font-bold text-2xl">+{weaponUpgradeSuccess.damageGained} DMG</p>
+                    </div>
                   </div>
                 )}
               </div>

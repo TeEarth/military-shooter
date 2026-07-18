@@ -3,6 +3,7 @@ import type { RealtimeChannel } from "@supabase/supabase-js";
 import { Player, type PlayerPerks } from "@/game/entities/Player";
 import { RemotePlayer, type RemoteSnapshot } from "@/game/entities/RemotePlayer";
 import { MobileControls } from "@/game/entities/MobileControls";
+import { showSpawnIndicator } from "@/game/entities/SpawnIndicator";
 import type { StageData } from "@/types/stage";
 import type { CombatLoadout } from "@/types/loadout";
 import { PLAYER_CONFIG } from "../../../config/player";
@@ -101,6 +102,7 @@ export class PvpScene extends Phaser.Scene {
     this.player = new Player(this, spawnX, spawnY, this.bullets, character, this.failedAssetKeys, spareLoadout, perks);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
     this.cameras.main.setZoom(Number(this.registry.get("zoomLevel")) || 1);
+    showSpawnIndicator(this, this.player.sprite);
 
     this.remotePlayer = new RemotePlayer(this, opponentSpawn.x, opponentSpawn.y, this.opponent.username, this.opponent.sprite, this.failedAssetKeys, this.opponent.skinColor);
 
