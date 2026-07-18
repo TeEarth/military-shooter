@@ -469,7 +469,8 @@ export class TutorialScene extends GameScene {
 
   showArrowAt(x: number, y: number) {
     this.hideArrow();
-    this.arrow = this.add.triangle(x, y - 60, 0, 20, 20, 20, 10, 0, 0xf3c98a).setDepth(150);
+    // Points DOWN toward the target below it (apex at the bottom), not up.
+    this.arrow = this.add.triangle(x, y - 60, 0, 0, 20, 0, 10, 20, 0xf3c98a).setDepth(150);
     this.arrowTween = this.tweens.add({ targets: this.arrow, y: y - 40, duration: 500, yoyo: true, repeat: -1, ease: "Sine.easeInOut" });
   }
 

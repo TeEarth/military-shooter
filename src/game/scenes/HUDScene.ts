@@ -87,12 +87,26 @@ export class HUDScene extends Phaser.Scene {
   }
 
   private isPvp = false;
+  private isTutorial = false;
   private isJoystickScheme = false;
+
+  /** v49 fix: every button handler used to hardcode "GameScene" for the
+   *  non-PvP case, so Tutorial mode (a separate "TutorialScene") silently
+   *  called methods on an inactive, never-created GameScene instance whose
+   *  update() loop never runs — this is exactly why the on-screen RELOAD
+   *  button (mobile's only way to reload, no physical R key) did nothing at
+   *  all in Tutorial mode. */
+  private get gameplaySceneKey(): string {
+    if (this.isPvp) return "PvpScene";
+    if (this.isTutorial) return "TutorialScene";
+    return "GameScene";
+  }
 
   create() {
     const { width, height } = this.scale;
     this.isMobile = Boolean(this.registry.get("isMobile"));
     this.isPvp = Boolean(this.registry.get("pvpMatchId"));
+    this.isTutorial = this.registry.get("stageId") === "tutorial";
     this.isJoystickScheme = this.registry.get("mobileControlScheme") !== "split";
 
     // v41: HUD buttons (Reload/Swap/One Shot/Pause/Refill/Exit) live on a
@@ -216,7 +230,7 @@ export class HUDScene extends Phaser.Scene {
       fontFamily: "Orbitron, monospace", fontSize: "13px", color: "#7dd3fc", fontStyle: "bold",
     }).setOrigin(0.5).setDepth(40).setVisible(false);
 
-    const gameScene = this.scene.get(this.isPvp ? "PvpScene" : "GameScene");
+    const gameScene = this.scene.get(this.gameplaySceneKey);
     gameScene.events.on("hud-update", this.onHudUpdate, this);
     gameScene.events.on("farm-countdown", this.onFarmCountdown, this);
     gameScene.events.on("farm-wave-start", this.onFarmWaveStart, this);
@@ -255,7 +269,7 @@ export class HUDScene extends Phaser.Scene {
     btn.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.claimPointer(pointer);
       sfx.play("ui_click");
-      const gameScene = this.scene.get("GameScene") as Phaser.Scene & { pauseGame: () => void };
+      const gameScene = this.scene.get(this.gameplaySceneKey) as Phaser.Scene & { pauseGame: () => void };
       gameScene.pauseGame();
     });
     btn.on("pointerover", () => btn.setColor("#f3c98a"));
@@ -299,7 +313,7 @@ export class HUDScene extends Phaser.Scene {
     btn.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.claimPointer(pointer);
       sfx.play("ui_click");
-      const gameScene = this.scene.get("GameScene") as Phaser.Scene & { openAmmoRefill: () => void };
+      const gameScene = this.scene.get(this.gameplaySceneKey) as Phaser.Scene & { openAmmoRefill: () => void };
       gameScene.openAmmoRefill();
     });
     btn.on("pointerover", () => btn.setColor("#f3c98a"));
@@ -337,7 +351,7 @@ export class HUDScene extends Phaser.Scene {
     circle.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.claimPointer(pointer);
       sfx.play("ui_click");
-      const gameScene = this.scene.get(this.isPvp ? "PvpScene" : "GameScene") as Phaser.Scene & { triggerReload: () => void };
+      const gameScene = this.scene.get(this.gameplaySceneKey) as Phaser.Scene & { triggerReload: () => void };
       gameScene.triggerReload();
     });
     circle.on("pointerover", () => circle.setStrokeStyle(2, 0xf3c98a));
@@ -369,7 +383,7 @@ export class HUDScene extends Phaser.Scene {
     this.swapCircle.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.claimPointer(pointer);
       sfx.play("ui_click");
-      const gameScene = this.scene.get(this.isPvp ? "PvpScene" : "GameScene") as Phaser.Scene & { triggerSwapWeapon: () => void };
+      const gameScene = this.scene.get(this.gameplaySceneKey) as Phaser.Scene & { triggerSwapWeapon: () => void };
       gameScene.triggerSwapWeapon();
     });
     this.swapCircle.on("pointerover", () => this.swapCircle?.setStrokeStyle(2, 0xf3c98a));
@@ -387,7 +401,7 @@ export class HUDScene extends Phaser.Scene {
     this.oneShotCircle.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.claimPointer(pointer);
       sfx.play("ui_click");
-      const gameScene = this.scene.get(this.isPvp ? "PvpScene" : "GameScene") as Phaser.Scene & { triggerOneShot: () => void };
+      const gameScene = this.scene.get(this.gameplaySceneKey) as Phaser.Scene & { triggerOneShot: () => void };
       gameScene.triggerOneShot();
     });
     this.oneShotCircle.on("pointerover", () => { if (this.oneShotCircle?.getData("ready")) this.oneShotCircle.setStrokeStyle(2, 0xf3c98a); });
@@ -614,7 +628,7 @@ export class HUDScene extends Phaser.Scene {
   }
 
   shutdown() {
-    const gameScene = this.scene.get(this.isPvp ? "PvpScene" : "GameScene");
+    const gameScene = this.scene.get(this.gameplaySceneKey);
     if (gameScene) {
       gameScene.events.off("hud-update", this.onHudUpdate, this);
       gameScene.events.off("farm-countdown", this.onFarmCountdown, this);

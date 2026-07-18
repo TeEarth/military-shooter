@@ -61,6 +61,11 @@ const SAMPLE_FILES: Partial<Record<SfxName, { url: string; gain: number }>> = {
 };
 
 const MUSIC_LOOP_URL = "/assets/audio/music/battle_loop.wav";
+const LOBBY_MUSIC_URL = "/assets/audio/music/lobby_loop.mp3";
+// The user's uploaded track is a full-volume song, not a pre-mixed quiet
+// background loop like battle_loop.wav — scale it down so it sits behind
+// menu UI clicks instead of overpowering them.
+const LOBBY_MUSIC_GAIN = 0.35;
 
 class SfxEngine {
   private ctx: AudioContext | null = null;
@@ -72,6 +77,9 @@ class SfxEngine {
   private musicSource: AudioBufferSourceNode | null = null;
   private musicGain: GainNode | null = null;
   private musicWanted = false;
+  private lobbyMusicSource: AudioBufferSourceNode | null = null;
+  private lobbyMusicGain: GainNode | null = null;
+  private lobbyMusicWanted = false;
 
   private getCtx(): AudioContext {
     if (!this.ctx) {
@@ -90,7 +98,7 @@ class SfxEngine {
   /** Kicks off every sample fetch+decode up front so the first shot/footstep
    *  of a session doesn't fall back to the procedural blip unnecessarily. */
   private preloadSamples(ctx: AudioContext) {
-    const urls = new Set<string>([...Object.values(SAMPLE_FILES).map((s) => s.url), MUSIC_LOOP_URL]);
+    const urls = new Set<string>([...Object.values(SAMPLE_FILES).map((s) => s.url), MUSIC_LOOP_URL, LOBBY_MUSIC_URL]);
     for (const url of urls) this.loadSample(ctx, url);
   }
 
@@ -135,6 +143,7 @@ class SfxEngine {
     // The music loop's source node keeps running through mute (only one-shot
     // `play()` calls check `this.muted`), so mute/unmute it explicitly here.
     if (this.musicGain) this.musicGain.gain.value = m ? 0 : 1;
+    if (this.lobbyMusicGain) this.lobbyMusicGain.gain.value = m ? 0 : LOBBY_MUSIC_GAIN;
   }
 
   /** Quiet background battle music, started on entering a combat stage and
@@ -164,6 +173,38 @@ class SfxEngine {
       try { this.musicSource.stop(); } catch { /* already stopped */ }
       this.musicSource = null;
       this.musicGain = null;
+    }
+  }
+
+  /** Menu/lobby background music (the user's own uploaded track) — plays on
+   *  every screen that ISN'T an actual stage (home/shop/gacha/settings/etc.),
+   *  and is stopped the moment a stage starts (see the game page mounting
+   *  logic). Kept as a fully separate source/gain pair from the battle loop
+   *  above so the two can never fight over the same handle. */
+  startLobbyMusic() {
+    this.lobbyMusicWanted = true;
+    if (this.lobbyMusicSource) return;
+    const ctx = this.getCtx();
+    this.loadSample(ctx, LOBBY_MUSIC_URL).then((buffer) => {
+      if (!this.lobbyMusicWanted) return; // stopLobbyMusic() was called while loading
+      const src = ctx.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+      const gain = ctx.createGain();
+      gain.gain.value = this.muted ? 0 : LOBBY_MUSIC_GAIN;
+      src.connect(gain).connect(this.masterGain!);
+      src.start();
+      this.lobbyMusicSource = src;
+      this.lobbyMusicGain = gain;
+    });
+  }
+
+  stopLobbyMusic() {
+    this.lobbyMusicWanted = false;
+    if (this.lobbyMusicSource) {
+      try { this.lobbyMusicSource.stop(); } catch { /* already stopped */ }
+      this.lobbyMusicSource = null;
+      this.lobbyMusicGain = null;
     }
   }
 

@@ -50,7 +50,7 @@ export function setFireScale(scale: number): void {
 export const ZOOM_LEVELS = [1, 1.2, 1.4] as const;
 export type ZoomLevel = (typeof ZOOM_LEVELS)[number];
 const ZOOM_KEY = "camera_zoom_level";
-const DEFAULT_ZOOM: ZoomLevel = 1;
+const DEFAULT_ZOOM: ZoomLevel = 1.2;
 
 export function getZoomLevel(): ZoomLevel {
   if (typeof window === "undefined") return DEFAULT_ZOOM;

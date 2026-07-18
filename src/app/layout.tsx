@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SessionProvider } from "./providers";
+import LobbyMusic from "@/components/LobbyMusic";
 
 export const metadata: Metadata = {
   title: "Military Shooter 2D",
@@ -34,7 +35,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="bg-military-darker text-white min-h-screen font-military">
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <LobbyMusic />
+          {children}
+        </SessionProvider>
       </body>
     </html>
   );

@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "military-shooter-dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": ["/c", "D:\\Online_game\\.claude\\dev-wrapper.cmd"],
       "port": 3000
     }
   ]

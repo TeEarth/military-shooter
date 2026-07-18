@@ -12,7 +12,9 @@ const BOB_PERIOD_MS = 900;
  *  for that. Auto-destroys itself after 5s; returns nothing since nobody needs
  *  to manage it further. */
 export function showSpawnIndicator(scene: Phaser.Scene, target: Phaser.GameObjects.Image): void {
-  const arrow = scene.add.triangle(target.x, target.y - 70, 0, 22, 22, 22, 11, 0, 0xf3c98a).setDepth(150).setStrokeStyle(2, 0x2d5a27);
+  // Points DOWN (apex at the bottom) so it reads as "the character is right
+  // below this", not an upward-pointing arrow that looks like it's pointing away.
+  const arrow = scene.add.triangle(target.x, target.y - 70, 0, 0, 22, 0, 11, 22, 0xf3c98a).setDepth(150).setStrokeStyle(2, 0x2d5a27);
   const startTime = scene.time.now;
 
   const onUpdate = () => {

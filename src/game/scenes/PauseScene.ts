@@ -2,12 +2,20 @@ import Phaser from "phaser";
 import { sfx } from "@/lib/sfx";
 
 export class PauseScene extends Phaser.Scene {
+  /** v49 fix: RESUME/EXIT used to hardcode "GameScene" — in Tutorial mode the
+   *  actually-running scene is "TutorialScene", a separate key, so resuming
+   *  from pause there resumed the wrong (never-paused, inactive) scene and
+   *  left the real one stuck paused forever. Same class of bug as HUDScene's
+   *  reload/swap/one-shot buttons (see its gameplaySceneKey). */
+  private gameplaySceneKey = "GameScene";
+
   constructor() {
     super({ key: "PauseScene" });
   }
 
   create() {
     const { width, height } = this.scale;
+    this.gameplaySceneKey = this.registry.get("stageId") === "tutorial" ? "TutorialScene" : "GameScene";
 
     const overlay = this.add.rectangle(width / 2, height / 2, width, height, 0x000000, 0.65).setDepth(100);
     overlay.setInteractive(); // swallow clicks behind the pause menu
@@ -39,13 +47,13 @@ export class PauseScene extends Phaser.Scene {
   }
 
   private resumeGame() {
-    this.scene.resume("GameScene");
+    this.scene.resume(this.gameplaySceneKey);
     this.scene.resume("HUDScene");
     this.scene.stop();
   }
 
   private exitToHome() {
-    const gameScene = this.scene.get("GameScene") as Phaser.Scene & { reportProgressOnExit: () => void };
+    const gameScene = this.scene.get(this.gameplaySceneKey) as Phaser.Scene & { reportProgressOnExit: () => void };
     gameScene.reportProgressOnExit();
 
     const onExitToHome = this.registry.get("onExitToHome") as (() => void) | undefined;
