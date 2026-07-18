@@ -74,7 +74,7 @@ export class PvpScene extends Phaser.Scene {
     const opponentSpawn = this.registry.get("pvpOpponentSpawn") as { x: number; y: number };
     const character = this.registry.get("character") as CombatLoadout;
     const spareLoadout = (this.registry.get("spareLoadout") as CombatLoadout | null) ?? null;
-    const perks = (this.registry.get("perks") as PlayerPerks | undefined) ?? { spareWeapon: false, regen: false, superShield: false, oneShot: false };
+    const perks = (this.registry.get("perks") as PlayerPerks | undefined) ?? { spareWeapon: false, regen: false, superShield: false, oneShot: false, invisible: false, neverDied: false };
     this.failedAssetKeys = (this.registry.get("failedAssetKeys") as Set<string>) ?? new Set();
     this.matchEnded = false;
 

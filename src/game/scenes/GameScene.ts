@@ -108,7 +108,7 @@ export class GameScene extends Phaser.Scene {
     this.enemyRoster = (this.registry.get("enemyRoster") as EnemyData[]) ?? [];
     const character = this.registry.get("character") as CombatLoadout;
     const spareLoadout = (this.registry.get("spareLoadout") as CombatLoadout | null) ?? null;
-    const perks = (this.registry.get("perks") as PlayerPerks | undefined) ?? { spareWeapon: false, regen: false, superShield: false, oneShot: false };
+    const perks = (this.registry.get("perks") as PlayerPerks | undefined) ?? { spareWeapon: false, regen: false, superShield: false, oneShot: false, invisible: false, neverDied: false };
     this.failedAssetKeys = (this.registry.get("failedAssetKeys") as Set<string>) ?? new Set();
 
     this.isFarmStage = this.stageData.isRepeatable;
@@ -784,11 +784,17 @@ export class GameScene extends Phaser.Scene {
     // all — combined with the no-damage guards in the hit handlers below,
     // this is what makes freeze a true "both sides harmless" pause, not just
     // a visual one.
+    // v50: Invisible perk — same "enemies can't detect the player" effect as
+    // tree stealth (isHidden), ORed in rather than replacing it, since the two
+    // are independent (Invisible works anywhere, mid-movement/combat, while
+    // tree stealth still requires standing still off-cooldown).
+    const undetectable = this.isHidden || this.player.isInvisibleActive();
+
     if (!frozen) {
       for (const enemy of this.enemies) {
         // v14: while hidden in a tree, enemies have no idea where the player
         // is — forced to "patrol" regardless of distance/line-of-sight.
-        if (!enemy.isDead) enemy.update(this.player.sprite.x, this.player.sprite.y, this.isHidden, delta);
+        if (!enemy.isDead) enemy.update(this.player.sprite.x, this.player.sprite.y, undetectable, delta);
       }
     }
 
@@ -826,6 +832,9 @@ export class GameScene extends Phaser.Scene {
       shieldChargeRemaining: this.player.getShieldChargeRemaining(),
       oneShotCooldownRemaining: this.player.getOneShotCooldownRemaining(),
       oneShotArmed: this.player.isOneShotArmed(),
+      invisibleCooldownRemaining: this.player.getInvisibleCooldownRemaining(),
+      invisibleActive: this.player.isInvisibleActive(),
+      neverDiedUsed: this.player.hasUsedNeverDied(),
     });
 
     // Consumed above (as "hit this frame") — reset for the next physics step.
@@ -861,7 +870,9 @@ export class GameScene extends Phaser.Scene {
       this.isHidden = false;
     }
 
-    this.player.sprite.setAlpha(this.isHidden ? 0.35 : 1);
+    // v50: Invisible perk fades the sprite too (own visual cue, distinct from
+    // tree stealth) even though it doesn't touch isHidden/hideTimer at all.
+    this.player.sprite.setAlpha(this.isHidden ? 0.35 : this.player.isInvisibleActive() ? 0.5 : 1);
   }
 
   protected checkWinCondition() {

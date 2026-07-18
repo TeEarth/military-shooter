@@ -33,7 +33,7 @@ interface HudUpdatePayload {
   bossMaxHp?: number;
   /** v35: perk system (single-player only — never set by PvpScene) — see
    *  src/lib/perks.ts for the catalog. */
-  perks?: { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean };
+  perks?: { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean; invisible: boolean; neverDied: boolean };
   /** v35: -1 if the Spare Weapon perk/slot isn't set up at all. */
   swapCooldownRemaining?: number;
   /** v35: -1 if that perk isn't owned. */
@@ -43,6 +43,11 @@ interface HudUpdatePayload {
   shieldChargeRemaining?: number;
   oneShotCooldownRemaining?: number;
   oneShotArmed?: boolean;
+  /** v50: -1 if the Invisible perk isn't owned. */
+  invisibleCooldownRemaining?: number;
+  invisibleActive?: boolean;
+  /** v50: true once the once-per-match Never Died save has already fired. */
+  neverDiedUsed?: boolean;
 }
 
 export class HUDScene extends Phaser.Scene {
@@ -80,6 +85,10 @@ export class HUDScene extends Phaser.Scene {
   private regenCooldownText?: Phaser.GameObjects.Text;
   private shieldIcon?: Phaser.GameObjects.Text;
   private shieldCooldownText?: Phaser.GameObjects.Text;
+  /** v50: Invisible/Never Died status icons — same "created only if owned" rule. */
+  private invisibleIcon?: Phaser.GameObjects.Text;
+  private invisibleCooldownText?: Phaser.GameObjects.Text;
+  private neverDiedIcon?: Phaser.GameObjects.Text;
   private bossHpText!: Phaser.GameObjects.Text;
 
   constructor() {
@@ -192,7 +201,7 @@ export class HUDScene extends Phaser.Scene {
     // reads from the match-start payload) — render the same buttons/icons
     // there too, not just single-player.
     {
-      const perks = this.registry.get("perks") as { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean } | undefined;
+      const perks = this.registry.get("perks") as { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean; invisible: boolean; neverDied: boolean } | undefined;
       let stackedAbove = 0;
       if (perks?.spareWeapon) {
         this.createSwapButton(width, height, stackedAbove);
@@ -201,8 +210,8 @@ export class HUDScene extends Phaser.Scene {
       if (perks?.oneShot) {
         this.createOneShotButton(width, height, stackedAbove);
       }
-      if (perks?.regen || perks?.superShield) {
-        this.createPerkStatusIcons(width, Boolean(perks?.regen), Boolean(perks?.superShield));
+      if (perks?.regen || perks?.superShield || perks?.invisible || perks?.neverDied) {
+        this.createPerkStatusIcons(width, Boolean(perks?.regen), Boolean(perks?.superShield), Boolean(perks?.invisible), Boolean(perks?.neverDied));
       }
     }
 
@@ -411,7 +420,7 @@ export class HUDScene extends Phaser.Scene {
   /** v35: Regeneration / Super Shield perk status icons, below the ammo
    *  Refill button (top-right) — ready (bright) vs on-cooldown (dim, with a
    *  countdown). Purely informational, no click handler. */
-  private createPerkStatusIcons(width: number, hasRegen: boolean, hasShield: boolean) {
+  private createPerkStatusIcons(width: number, hasRegen: boolean, hasShield: boolean, hasInvisible: boolean, hasNeverDied: boolean) {
     let y = 118;
     if (hasRegen) {
       this.regenIcon = this.add.text(width - 10, y, "💚 REGEN", {
@@ -428,6 +437,21 @@ export class HUDScene extends Phaser.Scene {
       }).setOrigin(1, 0);
       this.shieldCooldownText = this.add.text(width - 10, y + 13, "", {
         fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#94a3b8",
+      }).setOrigin(1, 0);
+      y += 34;
+    }
+    if (hasInvisible) {
+      this.invisibleIcon = this.add.text(width - 10, y, "👻 INVISIBLE", {
+        fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#a78bfa",
+      }).setOrigin(1, 0);
+      this.invisibleCooldownText = this.add.text(width - 10, y + 13, "", {
+        fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#94a3b8",
+      }).setOrigin(1, 0);
+      y += 34;
+    }
+    if (hasNeverDied) {
+      this.neverDiedIcon = this.add.text(width - 10, y, "❤️‍🩹 NEVER DIED", {
+        fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#f472b6",
       }).setOrigin(1, 0);
     }
   }
@@ -538,6 +562,22 @@ export class HUDScene extends Phaser.Scene {
       } else {
         this.applyPerkCooldownVisual(this.shieldIcon, this.shieldCooldownText, cooldown, "#60a5fa");
       }
+    }
+
+    // v50: Invisible has a third state Regen/Shield don't — ACTIVE (the 2s
+    // window itself), distinct from both ready and on-cooldown.
+    if (this.invisibleIcon) {
+      if (data.invisibleActive) {
+        this.invisibleIcon.setAlpha(1).setColor("#c4b5fd");
+        this.invisibleCooldownText?.setText("ACTIVE");
+      } else {
+        this.applyPerkCooldownVisual(this.invisibleIcon, this.invisibleCooldownText, data.invisibleCooldownRemaining ?? -1, "#a78bfa");
+      }
+    }
+
+    if (this.neverDiedIcon) {
+      const used = Boolean(data.neverDiedUsed);
+      this.neverDiedIcon.setAlpha(used ? 0.4 : 1).setColor(used ? "#94a3b8" : "#f472b6");
     }
   }
 

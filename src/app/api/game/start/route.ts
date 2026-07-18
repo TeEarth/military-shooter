@@ -332,7 +332,7 @@ async function startTutorialStage(player: Player) {
     covers: [{ coverType: "tree", x: 760, y: TUTORIAL_HEIGHT / 2 }],
     character: loadout,
     weaponId,
-    perks: { spareWeapon: false, regen: false, superShield: false, oneShot: false },
+    perks: { spareWeapon: false, regen: false, superShield: false, oneShot: false, invisible: false, neverDied: false },
     spareLoadout: null,
     tutorialStep: player.tutorialStep,
   });

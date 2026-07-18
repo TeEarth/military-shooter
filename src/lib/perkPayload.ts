@@ -17,6 +17,8 @@ export async function buildPerkPayload(player: Player, weaponId: string) {
     regen: player.perkRegen,
     superShield: player.perkSuperShield,
     oneShot: player.perkOneShot,
+    invisible: player.perkInvisible,
+    neverDied: player.perkNeverDied,
   };
 
   let spareLoadout: CombatLoadout | null = null;

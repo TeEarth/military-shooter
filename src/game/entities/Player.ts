@@ -30,6 +30,13 @@ export interface PlayerPerks {
   regen: boolean;
   superShield: boolean;
   oneShot: boolean;
+  /** v50: automatic, looping stealth — see maybeTriggerInvisiblePerk. Unlike
+   *  tree stealth (GameScene's isHidden), the player can move/shoot while it's
+   *  active; GameScene ORs isInvisibleActive() into its own enemy-detection
+   *  check instead of replacing it. */
+  invisible: boolean;
+  /** v50: once-per-match "can't actually die" — see applyToShieldThenHp. */
+  neverDied: boolean;
 }
 
 const REGEN_HP_THRESHOLD = 0.2;
@@ -42,6 +49,9 @@ const ONE_SHOT_DAMAGE = 3000;
 const ONE_SHOT_AOE_DAMAGE = 1000;
 const ONE_SHOT_AOE_RADIUS_MULTIPLIER = 3;
 const SWAP_COOLDOWN_MS = 5_000;
+const INVISIBLE_DURATION_MS = 2_000;
+const INVISIBLE_COOLDOWN_MS = 15_000;
+const NEVER_DIED_INVINCIBLE_MS = 3_000;
 
 export class Player {
   scene: Phaser.Scene;
@@ -104,11 +114,23 @@ export class Player {
   private oneShotArmed = false;
   private oneShotCooldownUntil = -Infinity;
 
+  // v50: Invisible perk — auto-loops the whole match, starting the instant it
+  // can (cooldownUntil starts at 0, not -Infinity, so it fires almost
+  // immediately on spawn rather than waiting out a full cooldown first).
+  private invisibleUntil = -Infinity;
+  private invisibleCooldownUntil = 0;
+
+  // v50: Never Died perk — one-time use per match; a dedicated invincibility
+  // window separate from the normal 0.3s post-hit i-frames (setInvincible()),
+  // since that timer would otherwise immediately overwrite/cut this one short.
+  private neverDiedUsed = false;
+  private neverDiedInvincibleUntil = -Infinity;
+
   constructor(
     scene: Phaser.Scene, x: number, y: number, bullets: Phaser.Physics.Arcade.Group, loadout: CombatLoadout,
     failedAssetKeys?: Set<string>,
     spareLoadout: CombatLoadout | null = null,
-    perks: PlayerPerks = { spareWeapon: false, regen: false, superShield: false, oneShot: false }
+    perks: PlayerPerks = { spareWeapon: false, regen: false, superShield: false, oneShot: false, invisible: false, neverDied: false }
   ) {
     this.scene = scene;
     this.bullets = bullets;
@@ -261,6 +283,7 @@ export class Player {
     this.regenerate();
     this.maybeTriggerRegenPerk();
     this.maybeTriggerShieldPerk();
+    this.maybeTriggerInvisiblePerk();
     this.updateLaserSight(angle, covers);
   }
 
@@ -378,6 +401,39 @@ export class Player {
     this.shieldEmptySince = null;
     sfx.play("pickup_item");
     this.scene.tweens.add({ targets: this.sprite, tint: 0x60a5fa, duration: 200, yoyo: true, onComplete: () => this.sprite.clearTint() });
+  }
+
+  /** v50: Invisible perk — fully automatic, no button. Fires the instant its
+   *  cooldown clears (regardless of what the player is doing), stays active
+   *  for INVISIBLE_DURATION_MS, then starts a fresh INVISIBLE_COOLDOWN_MS
+   *  before it can fire again — repeats for the whole match on its own. */
+  private maybeTriggerInvisiblePerk() {
+    if (!this.perks.invisible || this.isDead) return;
+    const now = this.scene.time.now;
+    if (now < this.invisibleUntil) return; // already active
+    if (now < this.invisibleCooldownUntil) return;
+    this.invisibleUntil = now + INVISIBLE_DURATION_MS;
+    this.invisibleCooldownUntil = this.invisibleUntil + INVISIBLE_COOLDOWN_MS;
+  }
+
+  /** v50: true while the Invisible perk's 2s window is active — GameScene ORs
+   *  this into its own tree-stealth isHidden check for enemy detection, and
+   *  into the player alpha fade, without touching either mechanic itself. */
+  isInvisibleActive(): boolean {
+    return this.scene.time.now < this.invisibleUntil;
+  }
+
+  /** v50: seconds until Invisible can trigger again, or -1 if it's owned but
+   *  not on a cooldown countdown (either currently active, or the perk isn't
+   *  owned at all) — drives the HUD's status icon. */
+  getInvisibleCooldownRemaining(): number {
+    if (!this.perks.invisible) return -1;
+    return Math.max(0, this.invisibleCooldownUntil - this.scene.time.now) / 1000;
+  }
+
+  /** v50: whether the once-per-match Never Died save has already been spent. */
+  hasUsedNeverDied(): boolean {
+    return this.neverDiedUsed;
   }
 
   /** v35: seconds until Regeneration can trigger again, or -1 if it's ready
@@ -599,7 +655,7 @@ export class Player {
   /** Armor is a flat percentage damage reduction, not a separate buffer. Shield
    *  (from equipped gear) absorbs damage before HP and never regenerates mid-stage. */
   takeDamage(amount: number) {
-    if (this.isInvincible || this.isDead) return;
+    if (this.isInvincible || this.isDead || this.scene.time.now < this.neverDiedInvincibleUntil) return;
     const effective = amount * (1 - this.loadout.armorPercent / 100);
     this.applyToShieldThenHp(effective);
     this.setInvincible();
@@ -608,7 +664,7 @@ export class Player {
 
   /** AoE splash from a rocket/grenade explosion — no armor mitigation, always full damage (still shield-first). */
   takeAoeDamage(amount: number) {
-    if (this.isDead) return;
+    if (this.isDead || this.scene.time.now < this.neverDiedInvincibleUntil) return;
     this.applyToShieldThenHp(amount);
     if (this.hp <= 0) this.die();
   }
@@ -620,6 +676,20 @@ export class Player {
       amount -= absorbed;
     }
     if (amount > 0) this.hp = Math.max(0, this.hp - amount);
+
+    // v50: Never Died — the moment HP would actually hit 0, intercept it here
+    // (before takeDamage/takeAoeDamage's own `if (this.hp <= 0) this.die()`
+    // runs) so death is prevented at the source instead of being undone after
+    // the fact. Uses its own invincibility field rather than this.isInvincible
+    // so the normal 0.3s post-hit i-frame timer (setInvincible(), called right
+    // after this in takeDamage) can't cut the 3s window short.
+    if (this.hp <= 0 && this.perks.neverDied && !this.neverDiedUsed) {
+      this.hp = 1;
+      this.neverDiedUsed = true;
+      this.neverDiedInvincibleUntil = this.scene.time.now + NEVER_DIED_INVINCIBLE_MS;
+      sfx.play("pickup_item");
+      this.scene.tweens.add({ targets: this.sprite, tint: 0xfbbf24, duration: 250, yoyo: true, repeat: 5, onComplete: () => this.sprite.clearTint() });
+    }
   }
 
   private setInvincible() {

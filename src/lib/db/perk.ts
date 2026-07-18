@@ -2,11 +2,13 @@ import { getPlayerById, updatePlayer, addCurrency, type Player } from "./player"
 import { ownsWeapon } from "./inventory";
 import { PERKS, type PerkId } from "../perks";
 
-const PERK_FIELD: Record<PerkId, keyof Pick<Player, "perkSpareWeapon" | "perkRegen" | "perkSuperShield" | "perkOneShot">> = {
+const PERK_FIELD: Record<PerkId, keyof Pick<Player, "perkSpareWeapon" | "perkRegen" | "perkSuperShield" | "perkOneShot" | "perkInvisible" | "perkNeverDied">> = {
   spare_weapon: "perkSpareWeapon",
   regen: "perkRegen",
   super_shield: "perkSuperShield",
   one_shot: "perkOneShot",
+  invisible: "perkInvisible",
+  never_died: "perkNeverDied",
 };
 
 /** One-time ticket purchase — throws if already owned or short on tickets,

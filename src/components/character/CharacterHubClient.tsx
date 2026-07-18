@@ -32,7 +32,7 @@ interface Props {
   ticket: number;
   exp: number;
   greenBanknote: number;
-  perks: { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean };
+  perks: { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean; invisible: boolean; neverDied: boolean };
   /** v42: equipped color skin PER character id — e.g. {"bob": "red"}. */
   skinColors: Record<string, string>;
   /** v42: owned color skins PER character id — e.g. {"bob": ["red", "gold"]}. */
@@ -75,6 +75,17 @@ const PERK_THEME: Record<PerkId, { from: string; glow: string }> = {
   regen: { from: "#1a3a24", glow: "#4ade80" },
   super_shield: { from: "#1a2a3a", glow: "#60a5fa" },
   one_shot: { from: "#3a1a1a", glow: "#f39c12" },
+  invisible: { from: "#241a3a", glow: "#a78bfa" },
+  never_died: { from: "#3a1a2a", glow: "#f472b6" },
+};
+
+const PERK_FIELD_NAME: Record<PerkId, keyof Props["perks"]> = {
+  spare_weapon: "spareWeapon",
+  regen: "regen",
+  super_shield: "superShield",
+  one_shot: "oneShot",
+  invisible: "invisible",
+  never_died: "neverDied",
 };
 
 function isCharacterUnlocked(char: CharacterRow, currentStage: number): boolean {
@@ -345,6 +356,8 @@ export default function CharacterHubClient(props: Props) {
           regen: perkId === "regen" ? true : prev.regen,
           superShield: perkId === "super_shield" ? true : prev.superShield,
           oneShot: perkId === "one_shot" ? true : prev.oneShot,
+          invisible: perkId === "invisible" ? true : prev.invisible,
+          neverDied: perkId === "never_died" ? true : prev.neverDied,
         }));
         applyPlayerUpdate(data.updatedPlayer);
         setMessage(`${PERKS[perkId].name} unlocked!`);
@@ -928,7 +941,7 @@ export default function CharacterHubClient(props: Props) {
         <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
           {PERK_ORDER.map((perkId) => {
             const def = PERKS[perkId];
-            const owned = perks[perkId === "spare_weapon" ? "spareWeapon" : perkId === "super_shield" ? "superShield" : perkId === "one_shot" ? "oneShot" : "regen"];
+            const owned = perks[PERK_FIELD_NAME[perkId]];
             const theme = PERK_THEME[perkId];
             return (
               <div

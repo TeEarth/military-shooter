@@ -5,7 +5,7 @@
  * gameplay behavior lives in Player.ts (see the matching perk* fields/
  * methods there) and is surfaced to the HUD via GameScene.ts/HUDScene.ts.
  */
-export type PerkId = "spare_weapon" | "regen" | "super_shield" | "one_shot";
+export type PerkId = "spare_weapon" | "regen" | "super_shield" | "one_shot" | "invisible" | "never_died";
 
 export interface PerkDef {
   id: PerkId;
@@ -44,6 +44,20 @@ export const PERKS: Record<PerkId, PerkDef> = {
     cost: 999,
     description: "A skull button (above Swap, or above Reload if you don't own Spare Weapon) that arms your next shot: 3000 flat damage with any weapon. Rocket/Grenade Launcher instead spread it wide at 1000 damage. 30s cooldown per press.",
   },
+  invisible: {
+    id: "invisible",
+    name: "Invisible",
+    icon: "👻",
+    cost: 2499,
+    description: "Automatic: loops from the start of the match to the end — every 15s you turn invisible to enemies for 2 seconds, and unlike tree stealth you can keep moving and shooting the whole time.",
+  },
+  never_died: {
+    id: "never_died",
+    name: "Never Died",
+    icon: "❤️‍🩹",
+    cost: 2499,
+    description: "Automatic: the first time your HP would hit 0, it's locked at 1 instead and you become invincible for 3 seconds to retreat or regroup. Only once per match.",
+  },
 };
 
-export const PERK_ORDER: PerkId[] = ["spare_weapon", "regen", "super_shield", "one_shot"];
+export const PERK_ORDER: PerkId[] = ["spare_weapon", "regen", "super_shield", "one_shot", "invisible", "never_died"];

@@ -54,6 +54,8 @@ export default async function CharacterPage() {
         regen: player.perkRegen,
         superShield: player.perkSuperShield,
         oneShot: player.perkOneShot,
+        invisible: player.perkInvisible,
+        neverDied: player.perkNeverDied,
       }}
     />
   );

@@ -51,6 +51,10 @@ export interface Player {
   perkRegen: boolean;
   perkSuperShield: boolean;
   perkOneShot: boolean;
+  /** v50: requires scripts/sql/014_v50_invisible_never_died_perks.sql —
+   *  held back until confirmed run. See src/lib/perks.ts. */
+  perkInvisible: boolean;
+  perkNeverDied: boolean;
   /** v35: which OWNED weapon (other than currentWeapon) is loaded into the
    *  swap slot — only meaningful once perkSpareWeapon is true. Empty string
    *  if never set. */
@@ -125,6 +129,8 @@ function rowToPlayer(row: any): Player {
     perkRegen: Boolean(row.perk_regen),
     perkSuperShield: Boolean(row.perk_super_shield),
     perkOneShot: Boolean(row.perk_one_shot),
+    perkInvisible: Boolean(row.perk_invisible),
+    perkNeverDied: Boolean(row.perk_never_died),
     spareWeaponId: row.spare_weapon_id ?? "",
     skinColors: (row.skin_colors && typeof row.skin_colors === "object" && !Array.isArray(row.skin_colors)) ? row.skin_colors : {},
     ownedSkinsByCharacter: (row.owned_skins_by_character && typeof row.owned_skins_by_character === "object" && !Array.isArray(row.owned_skins_by_character)) ? row.owned_skins_by_character : {},
@@ -208,6 +214,8 @@ export async function createPlayer(params: { email: string; username: string; pa
     perkRegen: false,
     perkSuperShield: false,
     perkOneShot: false,
+    perkInvisible: false,
+    perkNeverDied: false,
     spareWeaponId: "",
     // v42: also not included in .insert() below — DB-level defaults (see
     // 010_v42_per_character_skins.sql), same reasoning as the v16/v35 fields above.
@@ -297,6 +305,8 @@ const CAMEL_TO_SNAKE: Record<string, string> = {
   perkRegen: "perk_regen",
   perkSuperShield: "perk_super_shield",
   perkOneShot: "perk_one_shot",
+  perkInvisible: "perk_invisible",
+  perkNeverDied: "perk_never_died",
   spareWeaponId: "spare_weapon_id",
   skinColors: "skin_colors",
   ownedSkinsByCharacter: "owned_skins_by_character",
