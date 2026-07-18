@@ -124,6 +124,8 @@ export default function PvpClient({ playerId, username }: { playerId: string; us
       game.registry.set("pvpMyId", playerId);
       game.registry.set("character", startRes.character);
       game.registry.set("weaponId", startRes.weaponId);
+      game.registry.set("perks", startRes.perks);
+      game.registry.set("spareLoadout", startRes.spareLoadout);
       game.registry.set("enemySpawns", []);
       game.registry.set("enemyRoster", []);
 

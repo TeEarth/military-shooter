@@ -9,6 +9,7 @@ import { getWeaponById } from "@/lib/google/weapon";
 import { getEquippedWeaponId } from "@/lib/db/inventory";
 import { getRemainingAmmo } from "@/lib/db/weaponAmmo";
 import { computeFullStats, statsToLoadout } from "@/lib/stats";
+import { buildPerkPayload } from "@/lib/perkPayload";
 
 const DEFAULT_WEAPON_ID = "pistol";
 const ARENA_WIDTH = 1280;
@@ -74,6 +75,7 @@ export async function POST(req: NextRequest) {
   // isn't the point of a separate mode. Magazine size still applies normally.
   const remainingAmmo = await getRemainingAmmo(player.id, weaponId, Math.round(stats.dailyAmmo.final));
   const loadout = statsToLoadout(character, weapon, stats, Math.max(remainingAmmo, stats.dailyAmmo.final), player.skinColor);
+  const { perks, spareLoadout } = await buildPerkPayload(player, weaponId);
 
   const mySpawn = isPlayer1
     ? { x: ARENA_WIDTH * 0.15, y: ARENA_HEIGHT / 2 }
@@ -108,5 +110,7 @@ export async function POST(req: NextRequest) {
     opponentSpawn,
     character: loadout,
     weaponId,
+    perks,
+    spareLoadout,
   });
 }

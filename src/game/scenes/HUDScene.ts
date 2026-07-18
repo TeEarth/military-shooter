@@ -95,6 +95,20 @@ export class HUDScene extends Phaser.Scene {
     this.isPvp = Boolean(this.registry.get("pvpMatchId"));
     this.isJoystickScheme = this.registry.get("mobileControlScheme") !== "split";
 
+    // v41: HUD buttons (Reload/Swap/One Shot/Pause/Refill/Exit) live on a
+    // separate scene from GameScene/PvpScene's shoot detection, which reads
+    // raw pointer state (activePointer.leftButtonDown()) — clicking/tapping a
+    // button was ALSO read as "mouse button is down" by the scene underneath,
+    // firing a real shot (and, for One Shot, wasting the perk instantly). Every
+    // button below calls claimPointer() on pointerdown; GameScene/PvpScene
+    // skip shoot input for whichever pointer id is currently claimed here.
+    this.input.on("pointerup", (p: Phaser.Input.Pointer) => {
+      if (this.registry.get("uiPointerId") === p.id) this.registry.set("uiPointerId", -1);
+    });
+    this.input.on("pointerupoutside", (p: Phaser.Input.Pointer) => {
+      if (this.registry.get("uiPointerId") === p.id) this.registry.set("uiPointerId", -1);
+    });
+
     this.hpBar = this.add.graphics();
     this.shieldBar = this.add.graphics();
     this.miniMap = this.add.graphics().setDepth(30);
@@ -159,9 +173,11 @@ export class HUDScene extends Phaser.Scene {
     }
     this.createReloadButton(width, height);
 
-    // v35: perks are single-player only — not wired into PvpScene at all, so
-    // these never render there regardless of ownership.
-    if (!this.isPvp) {
+    // v41: perks now work identically in PvP (see PvpScene.ts's
+    // triggerSwapWeapon()/triggerOneShot() and the perks/spareLoadout it now
+    // reads from the match-start payload) — render the same buttons/icons
+    // there too, not just single-player.
+    {
       const perks = this.registry.get("perks") as { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean } | undefined;
       let stackedAbove = 0;
       if (perks?.spareWeapon) {
@@ -206,6 +222,12 @@ export class HUDScene extends Phaser.Scene {
     gameScene.events.on("farm-wave-start", this.onFarmWaveStart, this);
   }
 
+  /** v41: marks this pointer as "consumed by UI" for the rest of this touch/
+   *  click — see the pointerup/pointerupoutside listeners in create(). */
+  private claimPointer(pointer: Phaser.Input.Pointer) {
+    this.registry.set("uiPointerId", pointer.id);
+  }
+
   /** v13: "GET READY: N" during the farm stage's opening 5s (no enemies yet). */
   private onFarmCountdown(secondsLeft: number) {
     if (secondsLeft <= 0) {
@@ -230,7 +252,8 @@ export class HUDScene extends Phaser.Scene {
       padding: { x: 8, y: 4 },
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
 
-    btn.on("pointerdown", () => {
+    btn.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      this.claimPointer(pointer);
       sfx.play("ui_click");
       const gameScene = this.scene.get("GameScene") as Phaser.Scene & { pauseGame: () => void };
       gameScene.pauseGame();
@@ -253,7 +276,8 @@ export class HUDScene extends Phaser.Scene {
       padding: { x: 8, y: 4 },
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
 
-    btn.on("pointerdown", () => {
+    btn.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      this.claimPointer(pointer);
       sfx.play("ui_click");
       const pvpScene = this.scene.get("PvpScene") as Phaser.Scene & { exitMatch: () => void };
       pvpScene.exitMatch();
@@ -272,7 +296,8 @@ export class HUDScene extends Phaser.Scene {
       padding: { x: 8, y: 4 },
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
 
-    btn.on("pointerdown", () => {
+    btn.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      this.claimPointer(pointer);
       sfx.play("ui_click");
       const gameScene = this.scene.get("GameScene") as Phaser.Scene & { openAmmoRefill: () => void };
       gameScene.openAmmoRefill();
@@ -309,7 +334,8 @@ export class HUDScene extends Phaser.Scene {
       fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#c5a97d", fontStyle: "bold",
     }).setOrigin(0.5).setDepth(21);
 
-    circle.on("pointerdown", () => {
+    circle.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      this.claimPointer(pointer);
       sfx.play("ui_click");
       const gameScene = this.scene.get(this.isPvp ? "PvpScene" : "GameScene") as Phaser.Scene & { triggerReload: () => void };
       gameScene.triggerReload();
@@ -340,9 +366,10 @@ export class HUDScene extends Phaser.Scene {
       fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#c5a97d", fontStyle: "bold", align: "center",
     }).setOrigin(0.5).setDepth(21);
 
-    this.swapCircle.on("pointerdown", () => {
+    this.swapCircle.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      this.claimPointer(pointer);
       sfx.play("ui_click");
-      const gameScene = this.scene.get("GameScene") as Phaser.Scene & { triggerSwapWeapon: () => void };
+      const gameScene = this.scene.get(this.isPvp ? "PvpScene" : "GameScene") as Phaser.Scene & { triggerSwapWeapon: () => void };
       gameScene.triggerSwapWeapon();
     });
     this.swapCircle.on("pointerover", () => this.swapCircle?.setStrokeStyle(2, 0xf3c98a));
@@ -357,9 +384,10 @@ export class HUDScene extends Phaser.Scene {
       .setStrokeStyle(2, 0xc5a97d).setDepth(20).setInteractive({ useHandCursor: true });
     this.oneShotText = this.add.text(cx, cy, "💀", { fontSize: "20px" }).setOrigin(0.5).setDepth(21);
 
-    this.oneShotCircle.on("pointerdown", () => {
+    this.oneShotCircle.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      this.claimPointer(pointer);
       sfx.play("ui_click");
-      const gameScene = this.scene.get("GameScene") as Phaser.Scene & { triggerOneShot: () => void };
+      const gameScene = this.scene.get(this.isPvp ? "PvpScene" : "GameScene") as Phaser.Scene & { triggerOneShot: () => void };
       gameScene.triggerOneShot();
     });
     this.oneShotCircle.on("pointerover", () => { if (this.oneShotCircle?.getData("ready")) this.oneShotCircle.setStrokeStyle(2, 0xf3c98a); });

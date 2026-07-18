@@ -721,7 +721,12 @@ export class GameScene extends Phaser.Scene {
     // also fired a shot at the same time. leftButtonDown() only reflects the
     // left button (and touch, which reports as button 0), so right-click no
     // longer fires.
-    let isShooting = this.shootKey.isDown || this.input.activePointer.leftButtonDown();
+    // v41: also excludes whichever pointer HUDScene just claimed for one of
+    // its own buttons (Reload/Swap/One Shot/Pause/Refill) — otherwise
+    // clicking/tapping those ALSO read as "left button down" here and fired a
+    // real shot underneath them (see HUDScene's claimPointer()).
+    const uiPointerId = this.registry.get("uiPointerId");
+    let isShooting = this.shootKey.isDown || (this.input.activePointer.leftButtonDown() && this.input.activePointer.id !== uiPointerId);
     // v13: the on-screen RELOAD button pulses this.reloadRequested for exactly
     // one frame, same one-shot semantics as JustDown(R) below.
     // v16: right-click also triggers a reload (see the pointerdown listener in create()).

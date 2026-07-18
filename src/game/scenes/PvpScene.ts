@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import type { RealtimeChannel } from "@supabase/supabase-js";
-import { Player } from "@/game/entities/Player";
+import { Player, type PlayerPerks } from "@/game/entities/Player";
 import { RemotePlayer, type RemoteSnapshot } from "@/game/entities/RemotePlayer";
 import { MobileControls } from "@/game/entities/MobileControls";
 import type { StageData } from "@/types/stage";
@@ -72,6 +72,8 @@ export class PvpScene extends Phaser.Scene {
     this.myId = this.registry.get("pvpMyId") as string;
     const opponentSpawn = this.registry.get("pvpOpponentSpawn") as { x: number; y: number };
     const character = this.registry.get("character") as CombatLoadout;
+    const spareLoadout = (this.registry.get("spareLoadout") as CombatLoadout | null) ?? null;
+    const perks = (this.registry.get("perks") as PlayerPerks | undefined) ?? { spareWeapon: false, regen: false, superShield: false, oneShot: false };
     this.failedAssetKeys = (this.registry.get("failedAssetKeys") as Set<string>) ?? new Set();
     this.matchEnded = false;
 
@@ -96,7 +98,7 @@ export class PvpScene extends Phaser.Scene {
 
     const spawnX = this.stageData.playerSpawnX || worldWidth * 0.15;
     const spawnY = this.stageData.playerSpawnY || worldHeight / 2;
-    this.player = new Player(this, spawnX, spawnY, this.bullets, character, this.failedAssetKeys);
+    this.player = new Player(this, spawnX, spawnY, this.bullets, character, this.failedAssetKeys, spareLoadout, perks);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
     this.cameras.main.setZoom(Number(this.registry.get("zoomLevel")) || 1);
 
@@ -285,7 +287,11 @@ export class PvpScene extends Phaser.Scene {
     let moveRight = this.cursors.right.isDown || this.wasd.D.isDown;
     let moveUp = this.cursors.up.isDown || this.wasd.W.isDown;
     let moveDown = this.cursors.down.isDown || this.wasd.S.isDown;
-    let isShooting = this.shootKey.isDown || this.input.activePointer.leftButtonDown();
+    // v41: excludes whichever pointer HUDScene just claimed for one of its own
+    // buttons (Reload/Swap/One Shot/Exit) — see GameScene.ts's matching fix
+    // and HUDScene's claimPointer().
+    const uiPointerId = this.registry.get("uiPointerId");
+    let isShooting = this.shootKey.isDown || (this.input.activePointer.leftButtonDown() && this.input.activePointer.id !== uiPointerId);
     const isReloading = Phaser.Input.Keyboard.JustDown(this.reloadKey) || this.reloadRequested;
     this.reloadRequested = false;
 
@@ -343,6 +349,13 @@ export class PvpScene extends Phaser.Scene {
       stageHeight: this.stageData.height,
       hideProgress: 0,
       isHidden: false,
+      perks: this.player.perks,
+      swapCooldownRemaining: this.player.getSwapCooldownRemaining(),
+      regenCooldownRemaining: this.player.getRegenCooldownRemaining(),
+      shieldCooldownRemaining: this.player.getShieldCooldownRemaining(),
+      shieldChargeRemaining: this.player.getShieldChargeRemaining(),
+      oneShotCooldownRemaining: this.player.getOneShotCooldownRemaining(),
+      oneShotArmed: this.player.isOneShotArmed(),
     });
   }
 
@@ -416,6 +429,19 @@ export class PvpScene extends Phaser.Scene {
   triggerReload() {
     if (this.matchEnded || this.scene.isPaused()) return;
     this.reloadRequested = true;
+  }
+
+  /** v41: PvP parity — same Spare Weapon / One Shot perk entry points as
+   *  GameScene.ts's triggerSwapWeapon()/triggerOneShot(), just gated on
+   *  matchEnded instead of stageEnded. */
+  triggerSwapWeapon() {
+    if (this.matchEnded) return;
+    this.player.swapWeapon();
+  }
+
+  triggerOneShot() {
+    if (this.matchEnded) return;
+    this.player.armOneShot();
   }
 
   pauseGame() {

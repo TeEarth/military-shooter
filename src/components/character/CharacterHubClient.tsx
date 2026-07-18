@@ -10,7 +10,7 @@ import { showRewardedAd } from "@/lib/ads-service";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
 import CurrencyBar from "@/components/ui/CurrencyBar";
 import { PERKS, PERK_ORDER, type PerkId } from "@/lib/perks";
-import { SKIN_COLORS, SKIN_COLOR_PRICE, SKIN_COLOR_HEX, type SkinColor } from "@/lib/skinColors";
+import { SKIN_COLORS, SKIN_COLOR_PRICE, SKIN_COLOR_HEX, isSkinColor, type SkinColor } from "@/lib/skinColors";
 
 interface Props {
   allCharacters: CharacterRow[];
@@ -85,9 +85,13 @@ export default function CharacterHubClient(props: Props) {
   const [playerPassives, setPlayerPassives] = useState(props.playerPassives);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  const [skinColor, setSkinColorState] = useState(props.skinColor);
+  const initialSkinColor: SkinColor = isSkinColor(props.skinColor) ? props.skinColor : "default";
+  const [skinColor, setSkinColorState] = useState<SkinColor>(initialSkinColor);
   const [ownedSkins, setOwnedSkins] = useState(props.ownedSkins);
   const [skinLoading, setSkinLoading] = useState(false);
+  // v41: the swatch currently PREVIEWED on the portrait — separate from
+  // `skinColor` (the actually-equipped one) until Confirm is pressed.
+  const [previewSkinColor, setPreviewSkinColor] = useState<SkinColor>(initialSkinColor);
 
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterRow>(
     props.allCharacters.find((c) => c.id === activeCharacterId) ?? props.allCharacters[0]
@@ -328,46 +332,56 @@ export default function CharacterHubClient(props: Props) {
     }
   }
 
-  async function buySkin(color: SkinColor) {
-    if (skinLoading) return;
+  // v41: previewing a color is purely local state — no network call, no cost —
+  // so clicking through swatches is instant and free. Confirming is the only
+  // action that actually buys/equips (see confirmSkin below).
+  async function confirmSkin(color: SkinColor) {
+    if (skinLoading || color === skinColor) return;
+    const owned = ownedSkins.includes(color);
     const prevOwned = ownedSkins;
     const prevCoin = coin;
-    setOwnedSkins((prev) => [...prev, color]);
-    setCoin((c) => c - SKIN_COLOR_PRICE);
-    setSkinLoading(true);
-    try {
-      const res = await fetch("/api/character/skin", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "buy", skinColor: color }),
-      });
-      const data = await res.json();
-      setMessage(data.message ?? data.error);
-      if (data.success) applyPlayerUpdate(data.updatedPlayer);
-      else { setOwnedSkins(prevOwned); setCoin(prevCoin); }
-    } catch {
-      setOwnedSkins(prevOwned);
-      setCoin(prevCoin);
-      setMessage("Network error — purchase not completed.");
-    } finally {
-      setSkinLoading(false);
-    }
-  }
+    const prevSkinColor = skinColor;
 
-  async function selectSkin(color: SkinColor) {
-    if (skinLoading) return;
-    const previous = skinColor;
+    if (!owned) setOwnedSkins((prev) => [...prev, color]);
+    if (!owned) setCoin((c) => c - SKIN_COLOR_PRICE);
     setSkinColorState(color);
     setSkinLoading(true);
     try {
-      const res = await fetch("/api/character/skin", {
+      if (!owned) {
+        const buyRes = await fetch("/api/character/skin", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "buy", skinColor: color }),
+        });
+        const buyData = await buyRes.json();
+        if (!buyData.success) {
+          setOwnedSkins(prevOwned);
+          setCoin(prevCoin);
+          setSkinColorState(prevSkinColor);
+          setPreviewSkinColor(prevSkinColor);
+          setMessage(buyData.error);
+          return;
+        }
+        applyPlayerUpdate(buyData.updatedPlayer);
+      }
+
+      const selectRes = await fetch("/api/character/skin", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "select", skinColor: color }),
       });
-      const data = await res.json();
-      if (!data.success) { setSkinColorState(previous); setMessage(data.error); }
+      const selectData = await selectRes.json();
+      if (!selectData.success) {
+        setSkinColorState(prevSkinColor);
+        setPreviewSkinColor(prevSkinColor);
+        setMessage(selectData.error);
+        return;
+      }
+      setMessage(owned ? `Equipped ${color} skin!` : `Bought and equipped the ${color} skin!`);
     } catch {
-      setSkinColorState(previous);
-      setMessage("Network error — selection not saved.");
+      setOwnedSkins(prevOwned);
+      setCoin(prevCoin);
+      setSkinColorState(prevSkinColor);
+      setPreviewSkinColor(prevSkinColor);
+      setMessage("Network error — skin not applied.");
     } finally {
       setSkinLoading(false);
     }
@@ -453,6 +467,28 @@ export default function CharacterHubClient(props: Props) {
                   className="w-32 h-32 object-contain"
                   style={{ filter: `drop-shadow(0 0 14px ${(CHARACTER_THEME[selectedCharacter.id] ?? DEFAULT_THEME).glow})` }}
                 />
+                {/* v41: color-skin preview — only meaningful on the character actually
+                 *  being played (skin is a player-level attribute, not per-character),
+                 *  so this never shows while just browsing a different roster entry.
+                 *  Approximates Phaser's in-game multiply tint via a mask-clipped,
+                 *  multiply-blended color layer shaped exactly like the sprite. */}
+                {selectedCharacter.id === activeCharacterId && SKIN_COLOR_HEX[previewSkinColor] !== null && (
+                  <div
+                    className="absolute inset-0 w-32 h-32 pointer-events-none"
+                    style={{
+                      backgroundColor: `#${SKIN_COLOR_HEX[previewSkinColor]!.toString(16).padStart(6, "0")}`,
+                      WebkitMaskImage: `url(${selectedCharacter.sprite})`,
+                      WebkitMaskSize: "contain",
+                      WebkitMaskRepeat: "no-repeat",
+                      WebkitMaskPosition: "center",
+                      maskImage: `url(${selectedCharacter.sprite})`,
+                      maskSize: "contain",
+                      maskRepeat: "no-repeat",
+                      maskPosition: "center",
+                      mixBlendMode: "multiply",
+                    }}
+                  />
+                )}
                 {/* v10 #3 / v24 fix: same grip-anchored positioning fix as HomeClient —
                  *  see its comment for why (was reading as a stick out of the head). */}
                 {equippedWeaponId && (
@@ -506,25 +542,40 @@ export default function CharacterHubClient(props: Props) {
 
             <div className="mt-4 pt-4 border-t border-military-steel/30">
               <h3 className="text-xs uppercase tracking-wider text-military-tan mb-2">Color Skin</h3>
-              <div className="flex gap-2 flex-wrap">
+              <p className="text-xs text-military-steel mb-2">Click a color to preview it, then Confirm to buy/equip.</p>
+              <div className="flex gap-2 flex-wrap items-center">
                 {SKIN_COLORS.map((color) => {
                   const hex = SKIN_COLOR_HEX[color];
                   const owned = ownedSkins.includes(color);
                   const active = skinColor === color;
+                  const previewed = previewSkinColor === color;
                   return (
                     <button
                       key={color}
-                      onClick={() => (owned ? selectSkin(color) : buySkin(color))}
-                      disabled={skinLoading || (!owned && coin < SKIN_COLOR_PRICE)}
+                      onClick={() => setPreviewSkinColor(color)}
                       title={color}
-                      className={`w-10 h-10 rounded-full border-2 flex items-center justify-center relative ${active ? "border-military-gold" : "border-military-steel"}`}
+                      className={`w-10 h-10 rounded-full border-2 flex items-center justify-center relative ${previewed ? "border-military-gold scale-110" : active ? "border-emerald-400" : "border-military-steel"}`}
                       style={{ background: hex !== null ? `#${hex.toString(16).padStart(6, "0")}` : "repeating-conic-gradient(#888 0% 25%, #ccc 0% 50%)" }}
                     >
-                      {active && <span className="absolute -top-1 -right-1 text-[10px] bg-military-gold text-military-darker rounded-full w-4 h-4 flex items-center justify-center">✓</span>}
+                      {active && <span className="absolute -top-1 -right-1 text-[10px] bg-emerald-400 text-military-darker rounded-full w-4 h-4 flex items-center justify-center">✓</span>}
                       {!owned && <span className="absolute -bottom-1 text-[8px] text-white bg-black/60 px-1 rounded">{SKIN_COLOR_PRICE}</span>}
                     </button>
                   );
                 })}
+
+                {previewSkinColor !== skinColor && (
+                  <button
+                    onClick={() => confirmSkin(previewSkinColor)}
+                    disabled={skinLoading || (!ownedSkins.includes(previewSkinColor) && coin < SKIN_COLOR_PRICE)}
+                    className="btn-military text-xs ml-2"
+                  >
+                    {skinLoading
+                      ? "..."
+                      : ownedSkins.includes(previewSkinColor)
+                        ? "CONFIRM — EQUIP"
+                        : `CONFIRM — 🪙 ${SKIN_COLOR_PRICE}`}
+                  </button>
+                )}
               </div>
             </div>
             </div>
