@@ -40,24 +40,31 @@ type SfxName =
   | "defeat"
   | "miss";
 
-/** Sample-backed sfx names → their WAV file + a per-sample playback gain
- *  (footstep is deliberately quiet per the user's request; gunshots/hits are
- *  already normalized to a sane level in the generator itself). */
+// v50: every sample-backed sfx normalized to the SAME playback gain — the
+// user flagged gunfire/footstep/hit/wall-impact sounds as inconsistently
+// loud. Previously footstep was deliberately quieter (0.35 vs ~0.7-0.85
+// everywhere else) per an earlier request; that's now superseded by this
+// explicit "make them all consistent" ask. Master volume (the one control
+// that scales everything together) lives in setVolume()/masterGain below —
+// this constant only balances sfx AGAINST EACH OTHER.
+const NORMALIZED_SFX_GAIN = 0.75;
+
+/** Sample-backed sfx names → their WAV file + a per-sample playback gain. */
 const SAMPLE_FILES: Partial<Record<SfxName, { url: string; gain: number }>> = {
-  shoot_pistol: { url: "/assets/audio/sfx/gunshot_pistol.wav", gain: 0.8 },
-  shoot_rifle: { url: "/assets/audio/sfx/gunshot_rifle.wav", gain: 0.8 },
-  shoot_shotgun: { url: "/assets/audio/sfx/gunshot_shotgun.wav", gain: 0.8 },
-  shoot_sniper: { url: "/assets/audio/sfx/gunshot_sniper.wav", gain: 0.85 },
-  shoot_rasor: { url: "/assets/audio/sfx/gunshot_rasor.wav", gain: 0.75 },
-  shoot_rocket: { url: "/assets/audio/sfx/gunshot_rocket.wav", gain: 0.8 },
-  explosion: { url: "/assets/audio/sfx/boom.wav", gain: 0.85 },
-  reload: { url: "/assets/audio/sfx/reload_all.wav", gain: 0.8 },
+  shoot_pistol: { url: "/assets/audio/sfx/gunshot_pistol.wav", gain: NORMALIZED_SFX_GAIN },
+  shoot_rifle: { url: "/assets/audio/sfx/gunshot_rifle.wav", gain: NORMALIZED_SFX_GAIN },
+  shoot_shotgun: { url: "/assets/audio/sfx/gunshot_shotgun.wav", gain: NORMALIZED_SFX_GAIN },
+  shoot_sniper: { url: "/assets/audio/sfx/gunshot_sniper.wav", gain: NORMALIZED_SFX_GAIN },
+  shoot_rasor: { url: "/assets/audio/sfx/gunshot_rasor.wav", gain: NORMALIZED_SFX_GAIN },
+  shoot_rocket: { url: "/assets/audio/sfx/gunshot_rocket.wav", gain: NORMALIZED_SFX_GAIN },
+  explosion: { url: "/assets/audio/sfx/boom.wav", gain: NORMALIZED_SFX_GAIN },
+  reload: { url: "/assets/audio/sfx/reload_all.wav", gain: NORMALIZED_SFX_GAIN },
   // v37: both sides share the one recorded "bullet hits a character" clip —
   // only one was provided, not separate player/enemy perspectives.
-  hit_enemy: { url: "/assets/audio/sfx/bullet_impact.wav", gain: 0.7 },
-  hurt_player: { url: "/assets/audio/sfx/bullet_impact.wav", gain: 0.8 },
-  ricochet: { url: "/assets/audio/sfx/ricochet.wav", gain: 0.7 },
-  footstep: { url: "/assets/audio/sfx/footstep.wav", gain: 0.35 },
+  hit_enemy: { url: "/assets/audio/sfx/bullet_impact.wav", gain: NORMALIZED_SFX_GAIN },
+  hurt_player: { url: "/assets/audio/sfx/bullet_impact.wav", gain: NORMALIZED_SFX_GAIN },
+  ricochet: { url: "/assets/audio/sfx/ricochet.wav", gain: NORMALIZED_SFX_GAIN },
+  footstep: { url: "/assets/audio/sfx/footstep.wav", gain: NORMALIZED_SFX_GAIN },
 };
 
 const MUSIC_LOOP_URL = "/assets/audio/music/battle_loop.wav";

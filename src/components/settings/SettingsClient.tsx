@@ -80,9 +80,20 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
   }
 
   function changeVolume(v: number) {
-    setVolume(v);
-    sfx.setVolume(v);
-    localStorage.setItem(VOLUME_KEY, String(v));
+    const clamped = Math.max(0, Math.min(1, v));
+    setVolume(clamped);
+    sfx.setVolume(clamped);
+    localStorage.setItem(VOLUME_KEY, String(clamped));
+  }
+
+  // v50: master volume — one control that scales EVERY game sound together
+  // (all sfx samples + battle/lobby music all route through sfx's single
+  // masterGain node), on top of each sfx already being normalized to the
+  // same relative level (see NORMALIZED_SFX_GAIN in sfx.ts). The +/- buttons
+  // are the explicit "up/down" control; the slider still works for fine-tuning.
+  function stepVolume(delta: number) {
+    sfx.play("ui_click");
+    changeVolume(volume + delta);
   }
 
   return (
@@ -120,7 +131,14 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
             </button>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-military-steel w-14">Volume</span>
+            <span className="text-xs text-military-steel w-24">Master Volume</span>
+            <button
+              onClick={() => stepVolume(-0.1)}
+              disabled={muted}
+              className="btn-military text-xs px-2 py-0.5 disabled:opacity-40"
+            >
+              −
+            </button>
             <input
               type="range"
               min={0}
@@ -131,8 +149,16 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
               onChange={(e) => changeVolume(Number(e.target.value))}
               className="flex-1"
             />
+            <button
+              onClick={() => stepVolume(0.1)}
+              disabled={muted}
+              className="btn-military text-xs px-2 py-0.5 disabled:opacity-40"
+            >
+              +
+            </button>
             <span className="text-xs text-military-steel w-10 text-right">{Math.round(volume * 100)}%</span>
           </div>
+          <p className="text-xs text-military-steel mt-2">Controls every game sound together — sound effects and music.</p>
         </div>
 
         <div className="card-military">
