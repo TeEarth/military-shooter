@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import Link from "next/link";
 import CurrencyBar from "@/components/ui/CurrencyBar";
+import Icon, { type IconName } from "@/components/ui/Icon";
 import { sfx } from "@/lib/sfx";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
 import { SKIN_COLOR_HEX, getEquippedSkinColor } from "@/lib/skinColors";
@@ -27,18 +28,18 @@ interface VipProgress {
   isMaxLevel: boolean;
 }
 
-const MENU_ITEMS = [
-  { href: "/play", label: "PLAY", icon: "⚔️", primary: true },
-  { href: "/pvp", label: "PVP", icon: "🔫", primary: true, subtitle: "Costs 5 🎟️ per round" },
-  { href: "/character", label: "CHARACTER / WEAPON", icon: "🪖" },
-  { href: "/inventory", label: "INVENTORY", icon: "🎒" },
-  { href: "/gacha", label: "GACHA", icon: "🏪" },
-  { href: "/shop", label: "TRADE", icon: "💱" },
-  { href: "/mission", label: "MISSION", icon: "🎯" },
-  { href: "/leaderboard", label: "LEADERBOARD", icon: "🏆" },
-  { href: "/mailbox", label: "MAILBOX", icon: "📬" },
-  { href: "/income", label: "INCOME", icon: "💰" },
-  { href: "/settings", label: "SETTINGS", icon: "⚙️" },
+const MENU_ITEMS: { href: string; label: string; icon: IconName; primary?: boolean; subtitle?: string }[] = [
+  { href: "/play", label: "PLAY", icon: "play", primary: true },
+  { href: "/pvp", label: "PVP", icon: "pvp", primary: true, subtitle: "Costs 5 tickets per round" },
+  { href: "/character", label: "CHARACTER / WEAPON", icon: "character" },
+  { href: "/inventory", label: "INVENTORY", icon: "inventory" },
+  { href: "/gacha", label: "GACHA", icon: "gacha" },
+  { href: "/shop", label: "TRADE", icon: "trade" },
+  { href: "/mission", label: "MISSION", icon: "mission" },
+  { href: "/leaderboard", label: "LEADERBOARD", icon: "leaderboard" },
+  { href: "/mailbox", label: "MAILBOX", icon: "mailbox" },
+  { href: "/income", label: "INCOME", icon: "income" },
+  { href: "/settings", label: "SETTINGS", icon: "settings" },
 ];
 
 export default function HomeClient({ player, characterSprite, characterName, equippedWeaponId, vipProgress, greenBanknoteBalance, unreadMailCount, claimableMissionCount }: { player: Player; characterSprite: string; characterName: string; equippedWeaponId: string; vipProgress: VipProgress; greenBanknoteBalance: number; unreadMailCount: number; claimableMissionCount: number }) {
@@ -148,7 +149,7 @@ export default function HomeClient({ player, characterSprite, characterName, equ
                 )}
               </div>
             ) : (
-              <div className="w-48 h-48 flex items-center justify-center text-6xl">🪖</div>
+              <div className="w-48 h-48 flex items-center justify-center"><Icon name="character" size={72} /></div>
             )}
             <p className="text-military-steel text-sm mt-2">{characterName}</p>
             <p className="text-military-steel text-xs">Stage Progress: {player.currentStage}</p>
@@ -160,12 +161,12 @@ export default function HomeClient({ player, characterSprite, characterName, equ
                 <span className="text-military-gold text-xs font-bold uppercase tracking-widest bg-military-darker/90 px-3 py-1 border border-military-gold rounded mb-1">
                   Press PLAY to start
                 </span>
-                <span className="text-2xl animate-bounce text-military-gold">▼</span>
+                <span className="animate-bounce text-military-gold"><Icon name="chevronDown" size={24} /></span>
               </div>
             )}
-            {(player.isAdmin ? [...MENU_ITEMS, { href: "/admin", label: "ADMIN", icon: "🛡️" }] : MENU_ITEMS).map((item) => {
+            {(player.isAdmin ? [...MENU_ITEMS, { href: "/admin", label: "ADMIN", icon: "admin" as IconName }] : MENU_ITEMS).map((item) => {
               const locked = !player.tutorialCompleted && item.href !== "/play";
-              const className = `relative card-military card-themed-glow flex flex-col items-center justify-center transition-all duration-200 ${
+              const className = `relative card-military card-themed-glow flex flex-col items-center justify-center transition-all duration-200 active:scale-95 hover:-translate-y-0.5 ${
                 item.primary
                   ? item.href === "/pvp"
                     ? "col-span-3 bg-military-danger border-red-400 hover:bg-red-700 text-xl py-6"
@@ -185,7 +186,7 @@ export default function HomeClient({ player, characterSprite, characterName, equ
                       {claimableMissionCount > 99 ? "99+" : claimableMissionCount}
                     </span>
                   )}
-                  <span className="text-2xl mb-1">{item.icon}</span>
+                  <Icon name={item.icon} size={item.primary ? 30 : 26} className="mb-1" />
                   <span className="text-xs tracking-wider">{item.label}</span>
                   {"subtitle" in item && item.subtitle && (
                     <span className="text-military-tan/80 text-[11px] mt-1">{item.subtitle}</span>
@@ -216,7 +217,7 @@ export default function HomeClient({ player, characterSprite, characterName, equ
           onClick={() => sfx.play("ui_click")}
           className="fixed bottom-4 right-4 z-20 card-military card-themed-glow px-4 py-2 flex items-center gap-2 text-sm font-bold text-military-tan hover:text-white"
         >
-          <span className="text-lg">❓</span> How to play?
+          <Icon name="howToPlay" size={20} /> How to play?
         </Link>
       )}
     </div>

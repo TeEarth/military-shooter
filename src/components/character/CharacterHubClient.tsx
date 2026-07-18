@@ -9,6 +9,7 @@ import type { PlayerPassiveRow } from "@/lib/db/passive";
 import { showRewardedAd } from "@/lib/ads-service";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
 import CurrencyBar from "@/components/ui/CurrencyBar";
+import Icon, { type IconName } from "@/components/ui/Icon";
 import { PERKS, PERK_ORDER, type PerkId } from "@/lib/perks";
 import { SKIN_COLORS, SKIN_COLOR_PRICE, SKIN_COLOR_HEX, getEquippedSkinColor, getOwnedSkinColors, type SkinColor } from "@/lib/skinColors";
 import { sfx } from "@/lib/sfx";
@@ -54,7 +55,19 @@ const PASSIVE_LABELS: Record<PassiveId, string> = {
   critDamagePercent: "Critical damage",
 };
 
-const CURRENCY_ICON: Record<string, string> = { coin: "🪙", diamond: "💎", ticket: "🎟️" };
+const CURRENCY_ICON_NAME: Record<string, IconName> = { coin: "coin", diamond: "diamond", ticket: "ticket" };
+
+/** Small "icon + formatted number" pair used everywhere a price/cost is
+ *  shown inline in a button — replaces the old `${emoji} ${amount}` string
+ *  template (a plain string can't embed a real <Icon/> component). */
+function CurrencyCost({ currency, amount }: { currency: string; amount: number }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Icon name={CURRENCY_ICON_NAME[currency] ?? "coin"} size={14} />
+      {amount.toLocaleString()}
+    </span>
+  );
+}
 
 /** Per-character card gradient/glow, sampled from each character's own sprite palette
  *  (bob=olive, jackson=bronze, ryzor=blue, mina=magenta, azzure=gold/teal). */
@@ -80,6 +93,19 @@ const PERK_THEME: Record<PerkId, { from: string; glow: string }> = {
 };
 
 const PERK_FIELD_NAME: Record<PerkId, keyof Props["perks"]> = {
+  spare_weapon: "spareWeapon",
+  regen: "regen",
+  super_shield: "superShield",
+  one_shot: "oneShot",
+  invisible: "invisible",
+  never_died: "neverDied",
+};
+
+// v51: perks.ts's own `icon` field stays a literal emoji glyph — it's also
+// rendered as real Phaser canvas TEXT in the guided tutorial (see
+// tutorialIntroSteps.ts's perk sub-steps), which can't use an SVG Icon
+// component. This is the separate mapping for the DOM-rendered Perks tab only.
+const PERK_ICON: Record<PerkId, IconName> = {
   spare_weapon: "spareWeapon",
   regen: "regen",
   super_shield: "superShield",
@@ -645,18 +671,18 @@ export default function CharacterHubClient(props: Props) {
 
             {!isCharOwned && specialOk && (selectedCharacter.unlockType === "PURCHASE" || selectedCharacter.unlockType === "DIAMOND" || selectedCharacter.unlockType === "TICKET" || selectedCharacter.unlockType === "SPECIAL") && (
               <button onClick={() => buyCharacter(selectedCharacter)} disabled={loading} className="btn-military">
-                {loading ? "..." : `${CURRENCY_ICON[selectedCharacter.unlockType === "PURCHASE" ? "coin" : selectedCharacter.unlockType === "DIAMOND" ? "diamond" : "ticket"]} ${selectedCharacter.unlockValue.toLocaleString()}`}
+                {loading ? "..." : <CurrencyCost currency={selectedCharacter.unlockType === "PURCHASE" ? "coin" : selectedCharacter.unlockType === "DIAMOND" ? "diamond" : "ticket"} amount={selectedCharacter.unlockValue} />}
               </button>
             )}
             {isCharOwned && !isCharActive && (
               <button onClick={() => equipCharacter(selectedCharacter)} disabled={loading} className="btn-military">{loading ? "..." : "EQUIP"}</button>
             )}
-            {isCharActive && <span className="text-green-400 text-sm font-bold">✓ ACTIVE</span>}
+            {isCharActive && <span className="text-green-400 text-sm font-bold inline-flex items-center gap-1"><Icon name="check" size={14} /> ACTIVE</span>}
 
             <div className="mt-4 pt-4 border-t border-military-steel/30">
               <h3 className="text-xs uppercase tracking-wider text-military-tan mb-2">Color Skin — {selectedCharacter.name} only</h3>
               {!isCharOwned ? (
-                <p className="text-xs text-red-400">🔒 Own {selectedCharacter.name} first to customize their color skin.</p>
+                <p className="text-xs text-red-400 flex items-center gap-1"><Icon name="lock" size={14} /> Own {selectedCharacter.name} first to customize their color skin.</p>
               ) : (
               <>
               <p className="text-xs text-military-steel mb-2">Every character keeps its own colors — this never touches any other character. Click a color to preview it, then Confirm to buy/equip.</p>
@@ -679,7 +705,7 @@ export default function CharacterHubClient(props: Props) {
                             className={`w-10 h-10 rounded-full border-2 flex items-center justify-center relative ${previewed ? "border-military-gold scale-110" : active ? "border-emerald-400" : "border-military-steel"}`}
                             style={{ background: hex !== null ? `#${hex.toString(16).padStart(6, "0")}` : "repeating-conic-gradient(#888 0% 25%, #ccc 0% 50%)" }}
                           >
-                            {active && <span className="absolute -top-1 -right-1 text-[10px] bg-emerald-400 text-military-darker rounded-full w-4 h-4 flex items-center justify-center">✓</span>}
+                            {active && <span className="absolute -top-1 -right-1 bg-emerald-400 text-military-darker rounded-full w-4 h-4 flex items-center justify-center"><Icon name="check" size={10} /></span>}
                             {!owned && <span className="absolute -bottom-1 text-[8px] text-white bg-black/60 px-1 rounded">{SKIN_COLOR_PRICE}</span>}
                           </button>
                         );
@@ -695,7 +721,7 @@ export default function CharacterHubClient(props: Props) {
                             ? "..."
                             : ownedForChar.includes(previewSkinColor)
                               ? "CONFIRM — EQUIP"
-                              : `CONFIRM — 🪙 ${SKIN_COLOR_PRICE}`}
+                              : <>CONFIRM — <CurrencyCost currency="coin" amount={SKIN_COLOR_PRICE} /></>}
                         </button>
                       )}
                     </>
@@ -709,7 +735,7 @@ export default function CharacterHubClient(props: Props) {
             <div className="mt-4 pt-4 border-t border-military-steel/30 relative">
               <h3 className="text-xs uppercase tracking-wider text-military-tan mb-2">Character Upgrade — {selectedCharacter.name} only</h3>
               {!isCharOwned ? (
-                <p className="text-xs text-red-400">🔒 Own {selectedCharacter.name} first to upgrade their HP.</p>
+                <p className="text-xs text-red-400 flex items-center gap-1"><Icon name="lock" size={14} /> Own {selectedCharacter.name} first to upgrade their HP.</p>
               ) : (
               <>
               <p className="text-xs text-military-steel mb-2">Permanent, uncapped HP upgrade. Independent per character — never touches any other character's own level.</p>
@@ -741,8 +767,8 @@ export default function CharacterHubClient(props: Props) {
                       {upgradeLoading
                         ? "..."
                         : canAfford
-                          ? `UPGRADE — 🪙 ${cost.toLocaleString()}`
-                          : `NOT ENOUGH COIN — 🪙 ${cost.toLocaleString()}`}
+                          ? <>UPGRADE — <CurrencyCost currency="coin" amount={cost} /></>
+                          : <>NOT ENOUGH COIN — <CurrencyCost currency="coin" amount={cost} /></>}
                     </button>
                   </div>
                 );
@@ -817,13 +843,13 @@ export default function CharacterHubClient(props: Props) {
 
             {!isWeaponOwned && weaponStageOk && (selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "DIAMOND" || selectedWeapon.unlockType === "TICKET" || selectedWeapon.unlockType === "STAGE" || selectedWeapon.unlockType === "FARM_WAVE") && (
               <button onClick={() => buyWeapon(selectedWeapon)} disabled={loading} className="btn-military">
-                {loading ? "..." : `${CURRENCY_ICON[selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "STAGE" ? "coin" : selectedWeapon.unlockType === "DIAMOND" ? "diamond" : "ticket"]} ${(selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "STAGE" ? selectedWeapon.priceCoin : selectedWeapon.unlockType === "DIAMOND" ? selectedWeapon.priceDiamond : selectedWeapon.priceTicket).toLocaleString()}`}
+                {loading ? "..." : <CurrencyCost currency={selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "STAGE" ? "coin" : selectedWeapon.unlockType === "DIAMOND" ? "diamond" : "ticket"} amount={selectedWeapon.unlockType === "PURCHASE" || selectedWeapon.unlockType === "STAGE" ? selectedWeapon.priceCoin : selectedWeapon.unlockType === "DIAMOND" ? selectedWeapon.priceDiamond : selectedWeapon.priceTicket} />}
               </button>
             )}
             {isWeaponOwned && !isWeaponActive && (
               <button onClick={() => equipWeapon(selectedWeapon)} disabled={loading} className="btn-military">{loading ? "..." : "EQUIP"}</button>
             )}
-            {isWeaponActive && <span className="text-green-400 text-sm font-bold">✓ EQUIPPED</span>}
+            {isWeaponActive && <span className="text-green-400 text-sm font-bold inline-flex items-center gap-1"><Icon name="check" size={14} /> EQUIPPED</span>}
 
             {isWeaponOwned && ammoInfo && (
               <div className="mt-4 pt-4 border-t border-military-steel">
@@ -837,10 +863,10 @@ export default function CharacterHubClient(props: Props) {
                 {ammoInfo.remaining < ammoInfo.dailyAmmo && (
                   <div className="flex gap-2">
                     <button onClick={() => refillAmmo("ad")} disabled={ammoLoading} className="btn-military text-xs flex-1 py-1">
-                      {ammoLoading ? "..." : "📺 Watch ad (+5%)"}
+                      {ammoLoading ? "..." : "Watch ad (+5%)"}
                     </button>
                     <button onClick={() => refillAmmo("diamond")} disabled={ammoLoading || diamond < 40} className="btn-gold text-xs flex-1 py-1">
-                      {ammoLoading ? "..." : "💎 40 — Refill 100%"}
+                      {ammoLoading ? "..." : <><CurrencyCost currency="diamond" amount={40} /> — Refill 100%</>}
                     </button>
                   </div>
                 )}
@@ -926,7 +952,7 @@ export default function CharacterHubClient(props: Props) {
                   <span className="text-green-400 text-xs font-bold">MAX TIER</span>
                 ) : nextConfig ? (
                   <button onClick={() => upgradePassive(passiveId)} disabled={loading} className="btn-military text-xs w-full py-1">
-                    {loading ? "..." : `+${nextConfig.bonusPercent}% — ${CURRENCY_ICON[nextConfig.currency]} ${nextConfig.cost.toLocaleString()}`}
+                    {loading ? "..." : <>+{nextConfig.bonusPercent}% — <CurrencyCost currency={nextConfig.currency} amount={nextConfig.cost} /></>}
                   </button>
                 ) : (
                   <span className="text-military-steel text-xs">Not configured</span>
@@ -954,10 +980,10 @@ export default function CharacterHubClient(props: Props) {
                 }}
               >
                 <div className="flex items-start gap-3 mb-3">
-                  <span className="text-4xl leading-none" style={{ filter: owned ? `drop-shadow(0 0 6px ${theme.glow})` : undefined }}>{def.icon}</span>
+                  <span style={{ filter: owned ? `drop-shadow(0 0 6px ${theme.glow})` : undefined }}><Icon name={PERK_ICON[perkId]} size={40} /></span>
                   <div className="flex-1">
                     <h3 className="font-black uppercase tracking-wide">{def.name}</h3>
-                    {owned && <span className="text-emerald-400 text-xs font-bold">✓ OWNED</span>}
+                    {owned && <span className="text-emerald-400 text-xs font-bold inline-flex items-center gap-1"><Icon name="check" size={12} /> OWNED</span>}
                   </div>
                 </div>
                 <p className="text-xs text-military-steel mb-4 leading-relaxed">{def.description}</p>
@@ -969,7 +995,7 @@ export default function CharacterHubClient(props: Props) {
                     disabled={loading || ticket < def.cost}
                     className="btn-gold text-xs w-full py-1.5"
                   >
-                    {loading ? "..." : `🎟️ ${def.cost.toLocaleString()}`}
+                    {loading ? "..." : <CurrencyCost currency="ticket" amount={def.cost} />}
                   </button>
                 )}
               </div>

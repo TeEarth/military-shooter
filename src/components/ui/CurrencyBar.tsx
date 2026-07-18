@@ -1,5 +1,7 @@
 "use client";
 
+import Icon from "./Icon";
+
 /** v16: the 4 official resources — coin/diamond/ticket plus the green
  *  banknote (v4 #5 boss/mission payout, 1 banknote = 1 THB, manual payout
  *  only). exp is no longer shown as its own currency — every exp grant now
@@ -21,20 +23,20 @@ export default function CurrencyBar({
   return (
     <div className="flex items-center gap-3 text-xs flex-wrap">
       <div className="flex items-center gap-1">
-        <span>🪙</span>
+        <Icon name="coin" size={18} />
         <span className="text-military-gold font-bold">{coin.toLocaleString()}</span>
       </div>
       <div className="flex items-center gap-1">
-        <span>💎</span>
+        <Icon name="diamond" size={18} />
         <span className="text-blue-400 font-bold">{diamond.toLocaleString()}</span>
       </div>
       <div className="flex items-center gap-1">
-        <span>🎟️</span>
+        <Icon name="ticket" size={18} />
         <span className="text-green-400 font-bold">{ticket.toLocaleString()}</span>
       </div>
       {greenBanknote !== undefined && (
         <div className="flex items-center gap-1">
-          <span>💵</span>
+          <Icon name="banknote" size={18} />
           <span className="text-emerald-400 font-bold">{greenBanknote.toLocaleString()}</span>
         </div>
       )}
