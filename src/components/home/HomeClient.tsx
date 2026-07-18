@@ -41,7 +41,7 @@ const MENU_ITEMS = [
   { href: "/settings", label: "SETTINGS", icon: "⚙️" },
 ];
 
-export default function HomeClient({ player, characterSprite, characterName, equippedWeaponId, vipProgress, greenBanknoteBalance, unreadMailCount }: { player: Player; characterSprite: string; characterName: string; equippedWeaponId: string; vipProgress: VipProgress; greenBanknoteBalance: number; unreadMailCount: number }) {
+export default function HomeClient({ player, characterSprite, characterName, equippedWeaponId, vipProgress, greenBanknoteBalance, unreadMailCount, claimableMissionCount }: { player: Player; characterSprite: string; characterName: string; equippedWeaponId: string; vipProgress: VipProgress; greenBanknoteBalance: number; unreadMailCount: number; claimableMissionCount: number }) {
 
   // Warm the server-side sheet cache for the screens the player is most likely to
   // open next, so /play and /character render instantly off a warm cache instead
@@ -178,6 +178,11 @@ export default function HomeClient({ player, characterSprite, characterName, equ
                   {item.href === "/mailbox" && unreadMailCount > 0 && (
                     <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center leading-none">
                       {unreadMailCount > 99 ? "99+" : unreadMailCount}
+                    </span>
+                  )}
+                  {item.href === "/mission" && claimableMissionCount > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                      {claimableMissionCount > 99 ? "99+" : claimableMissionCount}
                     </span>
                   )}
                   <span className="text-2xl mb-1">{item.icon}</span>

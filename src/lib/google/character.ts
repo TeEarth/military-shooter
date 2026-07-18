@@ -13,7 +13,15 @@ export interface CharacterRow {
   /** Only meaningful for unlockType SPECIAL (currently just Azzure) — extra AND-ed gates on top of unlockValue. */
   vipRequirement: number;
   waveRequirement: number;
-  hpCurrent: number;
+  /** v44: single source of truth for base HP — see src/lib/stats.ts's
+   *  computeFullStats(), the only place this feeds into the real HP a run
+   *  starts with. There used to be a second "hpCurrent" column that the UI
+   *  displayed (e.g. "100/200") but gameplay never actually read — the
+   *  Characters sheet's hpMax was a flat, undifferentiated 200 for every
+   *  character while hpCurrent held the real per-character intended value,
+   *  so displayed and in-game HP silently disagreed. hpMax now holds that
+   *  correct value directly (see scripts/migrate-fix-character-hp.ts) and is
+   *  the only HP field left. */
   hpMax: number;
   /** Raw stat on a "/10" scale, converted to px/s via PLAYER_CONFIG.speedMultiplier. */
   speed: number;
@@ -34,8 +42,7 @@ function rowToCharacter(row: Record<string, string>): CharacterRow {
     unlockValue: Number(row.unlockValue || 0),
     vipRequirement: Number(row.vipRequirement || 0),
     waveRequirement: Number(row.waveRequirement || 0),
-    hpCurrent: Number(row.hpCurrent || 100),
-    hpMax: Number(row.hpMax || 200),
+    hpMax: Number(row.hpMax || 100),
     speed: Number(row.speed || 5),
     accuracy: Number(row.accuracy || 0),
     regenPer5s: Number(row.regenPer5s || 1),

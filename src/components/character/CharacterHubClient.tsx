@@ -11,6 +11,8 @@ import { getWeaponSprite } from "@/lib/spriteHelpers";
 import CurrencyBar from "@/components/ui/CurrencyBar";
 import { PERKS, PERK_ORDER, type PerkId } from "@/lib/perks";
 import { SKIN_COLORS, SKIN_COLOR_PRICE, SKIN_COLOR_HEX, getEquippedSkinColor, getOwnedSkinColors, type SkinColor } from "@/lib/skinColors";
+import { sfx } from "@/lib/sfx";
+import { getUpgradedBaseHp, getUpgradeCost } from "@/lib/characterUpgrade";
 
 interface Props {
   allCharacters: CharacterRow[];
@@ -34,6 +36,8 @@ interface Props {
   skinColors: Record<string, string>;
   /** v42: owned color skins PER character id — e.g. {"bob": ["red", "gold"]}. */
   ownedSkinsByCharacter: Record<string, string[]>;
+  /** v46: permanent HP upgrade level PER character id — e.g. {"bob": 12}. */
+  characterUpgradeLevels: Record<string, number>;
 }
 
 const PASSIVE_LABELS: Record<PassiveId, string> = {
@@ -93,6 +97,9 @@ export default function CharacterHubClient(props: Props) {
   const [skinColors, setSkinColors] = useState(props.skinColors);
   const [ownedSkinsByCharacter, setOwnedSkinsByCharacter] = useState(props.ownedSkinsByCharacter);
   const [skinLoading, setSkinLoading] = useState(false);
+  const [characterUpgradeLevels, setCharacterUpgradeLevels] = useState(props.characterUpgradeLevels);
+  const [upgradeLoading, setUpgradeLoading] = useState(false);
+  const [upgradeSuccess, setUpgradeSuccess] = useState<{ hpGained: number } | null>(null);
 
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterRow>(
     props.allCharacters.find((c) => c.id === activeCharacterId) ?? props.allCharacters[0]
@@ -402,6 +409,42 @@ export default function CharacterHubClient(props: Props) {
     }
   }
 
+  // v46: permanent, uncapped, per-character HP upgrade — never touches any
+  // other character's own level (see confirmSkin above for the same pattern).
+  async function upgradeCharacter(charId: string) {
+    if (upgradeLoading) return;
+    const prevLevel = characterUpgradeLevels[charId] ?? 0;
+    const cost = getUpgradeCost(prevLevel);
+    const prevCoin = coin;
+
+    setCharacterUpgradeLevels((prev) => ({ ...prev, [charId]: prevLevel + 1 }));
+    setCoin((c) => c - cost);
+    setUpgradeLoading(true);
+    try {
+      const res = await fetch("/api/character/upgrade", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ characterId: charId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        applyPlayerUpdate(data.updatedPlayer);
+        sfx.play("pickup_item");
+        setUpgradeSuccess({ hpGained: data.hpGained });
+        setTimeout(() => setUpgradeSuccess(null), 2000);
+      } else {
+        setCharacterUpgradeLevels((prev) => ({ ...prev, [charId]: prevLevel }));
+        setCoin(prevCoin);
+        setMessage(data.error);
+      }
+    } catch {
+      setCharacterUpgradeLevels((prev) => ({ ...prev, [charId]: prevLevel }));
+      setCoin(prevCoin);
+      setMessage("Network error — upgrade not completed.");
+    } finally {
+      setUpgradeLoading(false);
+    }
+  }
+
   const isCharOwned = ownedCharacterIds.includes(selectedCharacter.id) || isCharacterUnlocked(selectedCharacter, props.currentStage);
   const isCharActive = selectedCharacter.id === activeCharacterId;
   const specialOk = selectedCharacter.unlockType !== "SPECIAL" || (props.vipLevel >= selectedCharacter.vipRequirement && props.farmStageMaxWave > selectedCharacter.waveRequirement);
@@ -523,7 +566,7 @@ export default function CharacterHubClient(props: Props) {
 
             <div className="grid grid-cols-2 gap-3 my-4">
               {[
-                ["HP", `${selectedCharacter.hpCurrent}/${selectedCharacter.hpMax}`],
+                ["HP", `${getUpgradedBaseHp(selectedCharacter.hpMax, characterUpgradeLevels[selectedCharacter.id] ?? 0)}`],
                 ["SPEED", `${selectedCharacter.speed}/10`],
                 ["ACCURACY", `+${selectedCharacter.accuracy}%`],
                 ["REGEN", `+${selectedCharacter.regenPer5s}/5s`],
@@ -600,6 +643,50 @@ export default function CharacterHubClient(props: Props) {
                   );
                 })()}
               </div>
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-military-steel/30 relative">
+              <h3 className="text-xs uppercase tracking-wider text-military-tan mb-2">Character Upgrade — {selectedCharacter.name} only</h3>
+              <p className="text-xs text-military-steel mb-2">Permanent, uncapped HP upgrade. Independent per character — never touches any other character's own level.</p>
+              {(() => {
+                const level = characterUpgradeLevels[selectedCharacter.id] ?? 0;
+                const currentHp = getUpgradedBaseHp(selectedCharacter.hpMax, level);
+                const nextHp = getUpgradedBaseHp(selectedCharacter.hpMax, level + 1);
+                const cost = getUpgradeCost(level);
+                const canAfford = coin >= cost;
+                return (
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="bg-military-darker p-2 border border-military-steel">
+                      <div className="text-xs text-military-steel">LEVEL</div>
+                      <div className="text-white font-bold">Lv.{level}</div>
+                    </div>
+                    <div className="bg-military-darker p-2 border border-military-steel">
+                      <div className="text-xs text-military-steel">CURRENT HP</div>
+                      <div className="text-white font-bold">{currentHp}</div>
+                    </div>
+                    <div className="bg-military-darker p-2 border border-emerald-600">
+                      <div className="text-xs text-military-steel">NEXT HP</div>
+                      <div className="text-emerald-400 font-bold">{nextHp}</div>
+                    </div>
+                    <button
+                      onClick={() => upgradeCharacter(selectedCharacter.id)}
+                      disabled={upgradeLoading || !canAfford}
+                      className={`btn-military text-xs px-4 py-2 ${!canAfford ? "opacity-40 grayscale cursor-not-allowed" : ""}`}
+                    >
+                      {upgradeLoading ? "..." : canAfford ? `UPGRADE — 🪙 ${cost.toLocaleString()}` : "NOT ENOUGH COIN"}
+                    </button>
+                  </div>
+                );
+              })()}
+
+              {upgradeSuccess && (
+                <div className="absolute inset-0 flex items-center justify-center bg-military-darker/90 animate-[pvp-pay-flourish_0.9s_ease-out]">
+                  <div className="text-center">
+                    <p className="text-emerald-400 font-black text-lg uppercase tracking-widest">Upgrade Success!</p>
+                    <p className="text-military-gold font-bold text-2xl">+{upgradeSuccess.hpGained} HP</p>
+                  </div>
+                </div>
+              )}
             </div>
             </div>
           </div>

@@ -9,7 +9,7 @@ import { getEquippedWeaponId } from "@/lib/db/inventory";
 import { getRemainingAmmo } from "@/lib/db/weaponAmmo";
 import { isStageCompleted } from "@/lib/db/stageProgress";
 import { computeFullStats, statsToLoadout } from "@/lib/stats";
-import { parseStageNumber, templateStageId, stageStatMultiplier, extraEnemyCount } from "@/lib/stageTemplate";
+import { parseStageNumber, templateStageId, stageStatMultiplier, extraEnemyCount, earlyStageDifficultyMultiplier } from "@/lib/stageTemplate";
 import { getBossConfigForEncounter, getBossEncounterCount } from "@/lib/db/bossStage";
 import { getCompletedStageIds } from "@/lib/db/stageProgress";
 import { buildPerkPayload } from "@/lib/perkPayload";
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Out of ammo for this weapon today. Watch an ad or spend diamonds to refill." }, { status: 400 });
   }
 
-  const multiplier = requestedNum ? stageStatMultiplier(requestedNum) : 1;
+  const multiplier = requestedNum ? stageStatMultiplier(requestedNum) * earlyStageDifficultyMultiplier(requestedNum) : 1;
 
   // v12: the stage-layout PDF's stage10 description explicitly calls out that
   // enemy #5 (Rocket) gets 5x its normal HP on that map — tied to the stage10

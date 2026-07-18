@@ -47,6 +47,7 @@ export default async function CharacterPage() {
       greenBanknote={income.greenBanknoteBalance}
       skinColors={player.skinColors}
       ownedSkinsByCharacter={player.ownedSkinsByCharacter}
+      characterUpgradeLevels={player.characterUpgradeLevels}
       perks={{
         spareWeapon: player.perkSpareWeapon,
         regen: player.perkRegen,

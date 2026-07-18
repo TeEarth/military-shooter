@@ -71,6 +71,16 @@ export interface Player {
   /** v39: last tutorial state reached — quitting mid-tutorial resumes here
    *  instead of restarting (see TutorialState in TutorialScene.ts). */
   tutorialStep: string;
+  /** v45: requires scripts/sql/011_v45_ad_coin_reward.sql — held back until
+   *  confirmed run. "Watch Ad for 30 Coin" daily count, same lazy
+   *  reset-on-read pattern as dailyWithdrawnBaht/Date above. */
+  dailyAdCoinWatches: number;
+  dailyAdCoinDate: string;
+  /** v46: requires scripts/sql/012_v46_character_upgrade.sql — held back
+   *  until confirmed run. Permanent, uncapped, PER CHARACTER HP upgrade level
+   *  (see src/lib/characterUpgrade.ts) — e.g. {"bob": 12}. Missing/0 = never
+   *  upgraded. */
+  characterUpgradeLevels: Record<string, number>;
 }
 
 /** DB row (snake_case) -> app-facing Player (camelCase) — same shape callers
@@ -116,6 +126,9 @@ function rowToPlayer(row: any): Player {
     ownedSkinsByCharacter: (row.owned_skins_by_character && typeof row.owned_skins_by_character === "object" && !Array.isArray(row.owned_skins_by_character)) ? row.owned_skins_by_character : {},
     tutorialCompleted: Boolean(row.tutorial_completed),
     tutorialStep: row.tutorial_step ?? "MOVE",
+    dailyAdCoinWatches: Number(row.daily_ad_coin_watches ?? 0),
+    dailyAdCoinDate: row.daily_ad_coin_date ?? "",
+    characterUpgradeLevels: (row.character_upgrade_levels && typeof row.character_upgrade_levels === "object" && !Array.isArray(row.character_upgrade_levels)) ? row.character_upgrade_levels : {},
   };
 }
 
@@ -199,6 +212,13 @@ export async function createPlayer(params: { email: string; username: string; pa
     // 009_v39_tutorial.sql), same reasoning as the v16/v35/v38 fields above.
     tutorialCompleted: false,
     tutorialStep: "MOVE",
+    // v45: also not included in .insert() below — DB-level defaults (see
+    // 011_v45_ad_coin_reward.sql), same reasoning as the fields above.
+    dailyAdCoinWatches: 0,
+    dailyAdCoinDate: "",
+    // v46: also not included in .insert() below — DB-level default (see
+    // 012_v46_character_upgrade.sql), same reasoning as the fields above.
+    characterUpgradeLevels: {},
   };
 
   const supabase = getSupabaseClient();
@@ -274,17 +294,20 @@ const CAMEL_TO_SNAKE: Record<string, string> = {
   ownedSkinsByCharacter: "owned_skins_by_character",
   tutorialCompleted: "tutorial_completed",
   tutorialStep: "tutorial_step",
+  dailyAdCoinWatches: "daily_ad_coin_watches",
+  dailyAdCoinDate: "daily_ad_coin_date",
+  characterUpgradeLevels: "character_upgrade_levels",
 };
 
-function toSnakeUpdates(updates: Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]>>): Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]>> {
-  const out: Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]>> = {};
+function toSnakeUpdates(updates: Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]> | Record<string, number>>): Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]> | Record<string, number>> {
+  const out: Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]> | Record<string, number>> = {};
   for (const [key, value] of Object.entries(updates)) {
     out[CAMEL_TO_SNAKE[key] ?? key] = value;
   }
   return out;
 }
 
-export async function updatePlayerByEmail(email: string, updates: Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]>>): Promise<void> {
+export async function updatePlayerByEmail(email: string, updates: Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]> | Record<string, number>>): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from(TABLE)
@@ -293,7 +316,7 @@ export async function updatePlayerByEmail(email: string, updates: Record<string,
   if (error) throw new Error(`updatePlayerByEmail: ${error.message}`);
 }
 
-export async function updatePlayer(id: string, updates: Partial<Record<keyof Player, string | number | boolean | string[] | Record<string, string> | Record<string, string[]>>>): Promise<void> {
+export async function updatePlayer(id: string, updates: Partial<Record<keyof Player, string | number | boolean | string[] | Record<string, string> | Record<string, string[]> | Record<string, number>>>): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from(TABLE)

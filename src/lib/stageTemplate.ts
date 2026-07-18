@@ -33,6 +33,15 @@ export function stageStatMultiplier(stageNumber: number): number {
   return Math.pow(1 + ENEMY_CONFIG.difficultyScaling.statMultiplierPerTier, tier);
 }
 
+/** Stages 1-3 felt too hard for brand-new accounts (per user feedback) — half
+ *  enemy HP and damage there specifically, on top of the normal tier
+ *  multiplier above (which is 1.0 for the whole first 10 stages anyway, so
+ *  this is the only difficulty adjustment stages 1-3 get). Every other stage
+ *  is untouched. */
+export function earlyStageDifficultyMultiplier(stageNumber: number): number {
+  return stageNumber <= 3 ? 0.5 : 1;
+}
+
 /** Extra enemies to add on top of the template's normal spawn list. */
 export function extraEnemyCount(stageNumber: number): number {
   return difficultyTier(stageNumber) * ENEMY_CONFIG.difficultyScaling.extraEnemiesPerTier;

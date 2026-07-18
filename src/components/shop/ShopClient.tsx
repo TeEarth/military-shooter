@@ -4,16 +4,48 @@ import { useState } from "react";
 import Link from "next/link";
 import type { CurrencyExchangeRow } from "@/lib/google/exchange";
 import { sfx } from "@/lib/sfx";
+import { showRewardedAd } from "@/lib/ads-service";
 import CurrencyBar from "@/components/ui/CurrencyBar";
 
 const CURRENCY_ICON: Record<string, string> = { coin: "🪙", diamond: "💎", ticket: "🎟️" };
+const AD_COIN_REWARD = 30;
+const DAILY_AD_WATCH_CAP = 10;
 
-export default function ShopClient({ rates, coin: initialCoin, diamond: initialDiamond, ticket: initialTicket, exp, greenBanknote }: { rates: CurrencyExchangeRow[]; coin: number; diamond: number; ticket: number; exp: number; greenBanknote: number }) {
+export default function ShopClient({ rates, coin: initialCoin, diamond: initialDiamond, ticket: initialTicket, exp, greenBanknote, adWatchesToday }: { rates: CurrencyExchangeRow[]; coin: number; diamond: number; ticket: number; exp: number; greenBanknote: number; adWatchesToday: number }) {
   const [coin, setCoin] = useState(initialCoin);
   const [diamond, setDiamond] = useState(initialDiamond);
   const [ticket, setTicket] = useState(initialTicket);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [adLoading, setAdLoading] = useState(false);
+  const [adWatches, setAdWatches] = useState(adWatchesToday);
+
+  async function watchAdForCoin() {
+    if (adLoading || adWatches >= DAILY_AD_WATCH_CAP) return;
+    setAdLoading(true);
+    setMessage("");
+    try {
+      const adResult = await showRewardedAd();
+      if (!adResult.success) {
+        setMessage(adResult.error ?? "Ad failed to load");
+        return;
+      }
+      const res = await fetch("/api/shop/watch-ad", { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        sfx.play("pickup_coin");
+        setCoin(data.updatedPlayer.coin);
+        setAdWatches(DAILY_AD_WATCH_CAP - data.watchesRemaining);
+        setMessage(`+${data.reward} 🪙`);
+      } else {
+        setMessage(data.error);
+      }
+    } catch {
+      setMessage("Network error — reward not granted.");
+    } finally {
+      setAdLoading(false);
+    }
+  }
 
   const balances: Record<string, number> = { coin, diamond, ticket };
 
@@ -107,6 +139,18 @@ export default function ShopClient({ rates, coin: initialCoin, diamond: initialD
       {message && <div className="max-w-2xl mx-auto mb-4 text-military-gold text-sm">{message}</div>}
 
       <div className="max-w-2xl mx-auto space-y-4">
+        <div className="card-military">
+          <h2 className="font-bold text-military-tan mb-3 uppercase tracking-wider">📺 Watch Ad → 🪙 {AD_COIN_REWARD}</h2>
+          <p className="text-xs text-military-steel mb-3">{adWatches}/{DAILY_AD_WATCH_CAP} watched today</p>
+          <button
+            onClick={watchAdForCoin}
+            disabled={adLoading || adWatches >= DAILY_AD_WATCH_CAP}
+            className="btn-gold w-full py-2 text-sm disabled:opacity-40"
+          >
+            {adLoading ? "Loading ad..." : adWatches >= DAILY_AD_WATCH_CAP ? "Daily limit reached" : `📺 Watch Ad for ${AD_COIN_REWARD} Coin`}
+          </button>
+        </div>
+
         {renderGroup("diamond", "coin")}
         {renderGroup("ticket", "diamond")}
         {rates.length === 0 && <p className="text-military-steel text-sm text-center py-12">No exchange rates configured yet.</p>}

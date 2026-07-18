@@ -17,6 +17,9 @@ export default async function ShopPage() {
     getPlayerIncome(player.id),
   ]);
 
+  const today = new Date().toISOString().slice(0, 10);
+  const adWatchesToday = player.dailyAdCoinDate === today ? player.dailyAdCoinWatches : 0;
+
   return (
     <ShopClient
       rates={rates}
@@ -25,6 +28,7 @@ export default async function ShopPage() {
       ticket={player.ticket}
       exp={player.exp}
       greenBanknote={income.greenBanknoteBalance}
+      adWatchesToday={adWatchesToday}
     />
   );
 }

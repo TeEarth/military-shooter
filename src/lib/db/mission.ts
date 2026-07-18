@@ -104,6 +104,22 @@ export async function setMissionProgressIfHigher(playerId: string, metric: strin
   }
 }
 
+/** Count of missions that are complete (progress >= target) but not yet
+ *  claimed — drives a Mailbox-style notification badge on the Home page's
+ *  Mission button. */
+export async function getClaimableMissionCount(playerId: string): Promise<number> {
+  const [missions, progressRows] = await Promise.all([
+    getAllMissionsForPlayer(playerId),
+    getPlayerMissionProgress(playerId),
+  ]);
+  const progressByMission = new Map(progressRows.map((r) => [r.missionId, r]));
+  return missions.filter((m) => {
+    const row = progressByMission.get(m.id);
+    if (!row || row.claimed) return false;
+    return row.progress >= m.targetValue;
+  }).length;
+}
+
 export async function claimMission(playerId: string, missionId: string): Promise<{ rewardCoin: number; rewardExp: number; rewardDiamond: number }> {
   const missions = await getAllMissionsForPlayer(playerId);
   const mission = missions.find((m) => m.id === missionId);
