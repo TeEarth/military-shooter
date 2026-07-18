@@ -187,7 +187,7 @@ export class TutorialScene extends GameScene {
   private introDim?: Phaser.GameObjects.Rectangle;
   private introWorldRing?: Phaser.GameObjects.Arc;
   private introScreenRing?: Phaser.GameObjects.Graphics;
-  private introBox!: Phaser.GameObjects.Container;
+  private introBoxParts: Phaser.GameObjects.GameObject[] = [];
   private introTitleText!: Phaser.GameObjects.Text;
   private introDescText!: Phaser.GameObjects.Text;
   private introProgressText!: Phaser.GameObjects.Text;
@@ -220,6 +220,7 @@ export class TutorialScene extends GameScene {
     this.currentState = resumeStep;
 
     if (resumeStep === "MOVE") {
+      this.registry.set("tutorialIntroActive", true);
       this.spawnIntroEnemy();
       this.buildIntroUI();
       this.showIntroStep(0);
@@ -317,26 +318,34 @@ export class TutorialScene extends GameScene {
     this.introRingTween = this.tweens.add({ targets: [this.introWorldRing, this.introScreenRing], alpha: 0.35, duration: 500, yoyo: true, repeat: -1 });
 
     const boxWidth = Math.min(520, width - 32);
-    const bg = this.add.rectangle(0, 0, boxWidth, 150, 0x1a1a2e, 0.97).setStrokeStyle(2, 0xc5a97d);
-    this.introTitleText = this.add.text(0, -56, "", {
-      fontFamily: "Orbitron, monospace", fontSize: "15px", color: "#f3c98a", fontStyle: "bold",
-    }).setOrigin(0.5);
-    this.introDescText = this.add.text(0, -34, "", {
-      fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#ffffff", align: "center", wordWrap: { width: boxWidth - 40 },
-    }).setOrigin(0.5, 0);
-    this.introProgressText = this.add.text(0, 50, "", {
-      fontFamily: "Orbitron, monospace", fontSize: "9px", color: "#8a8a9a",
-    }).setOrigin(0.5);
-    this.introNextBtn = this.add.text(boxWidth / 2 - 70, 66, "[ NEXT ]", {
-      fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#4ade80", fontStyle: "bold",
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
-    this.introSkipBtn = this.add.text(-boxWidth / 2 + 60, 66, "Skip Tutorial", {
-      fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#c0392b",
-    }).setOrigin(0.5).setInteractive({ useHandCursor: true });
+    const centerX = width / 2;
+    const centerY = height - 130;
 
-    this.introBox = this.add.container(width / 2, height - 130, [
-      bg, this.introTitleText, this.introDescText, this.introProgressText, this.introNextBtn, this.introSkipBtn,
-    ]).setScrollFactor(0).setDepth(160);
+    // v48 fix: absolute-positioned GameObjects (same convention every other
+    // interactive HUD button in this codebase already uses — see HUDScene's
+    // createReloadButton/createSwapButton/etc.) instead of nesting interactive
+    // children inside a Container. Not proven to be the cause of a reported
+    // "Next doesn't respond" bug, but this matches the one interactive-button
+    // pattern already confirmed working everywhere else in the game, so it's
+    // the safer structure regardless.
+    const bg = this.add.rectangle(centerX, centerY, boxWidth, 150, 0x1a1a2e, 0.97).setStrokeStyle(2, 0xc5a97d).setScrollFactor(0).setDepth(160);
+    this.introTitleText = this.add.text(centerX, centerY - 56, "", {
+      fontFamily: "Orbitron, monospace", fontSize: "15px", color: "#f3c98a", fontStyle: "bold",
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(161);
+    this.introDescText = this.add.text(centerX, centerY - 34, "", {
+      fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#ffffff", align: "center", wordWrap: { width: boxWidth - 40 },
+    }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(161);
+    this.introProgressText = this.add.text(centerX, centerY + 50, "", {
+      fontFamily: "Orbitron, monospace", fontSize: "9px", color: "#8a8a9a",
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(161);
+    this.introNextBtn = this.add.text(centerX + boxWidth / 2 - 70, centerY + 66, "[ NEXT ]", {
+      fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#4ade80", fontStyle: "bold",
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
+    this.introSkipBtn = this.add.text(centerX - boxWidth / 2 + 60, centerY + 66, "Skip Tutorial", {
+      fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#c0392b",
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
+
+    this.introBoxParts = [bg, this.introTitleText, this.introDescText, this.introProgressText, this.introNextBtn, this.introSkipBtn];
 
     this.introNextBtn.on("pointerdown", () => this.introNext());
     this.introSkipBtn.on("pointerdown", () => this.showSkipConfirm());
@@ -385,11 +394,13 @@ export class TutorialScene extends GameScene {
 
   private endIntro() {
     this.introStepIndex = -1;
+    this.registry.set("tutorialIntroActive", false);
     this.introRingTween?.stop();
     this.introDim?.destroy();
     this.introWorldRing?.destroy();
     this.introScreenRing?.destroy();
-    this.introBox?.destroy();
+    this.introBoxParts.forEach((o) => o.destroy());
+    this.introBoxParts = [];
 
     this.instructionBox.setVisible(true);
     const step = this.currentState;

@@ -131,6 +131,17 @@ export class MobileControls {
     // Pause/Exit + Refill cluster, top-right.
     if (x >= width - 100 && y <= 118) return true;
 
+    // v48: Tutorial's guided-intro box (Next/Skip buttons + description),
+    // bottom-center — reserved so tapping Next/Skip on mobile doesn't ALSO
+    // register as a move/fire touch underneath. Only ever occupied outside
+    // TutorialScene's intro, so this is a no-op zone in every other mode.
+    if (this.scene.registry.get("tutorialIntroActive")) {
+      const boxWidth = Math.min(520, width - 32);
+      const centerX = width / 2;
+      const centerY = height - 130;
+      if (x >= centerX - boxWidth / 2 && x <= centerX + boxWidth / 2 && y >= centerY - 75 && y <= centerY + 75) return true;
+    }
+
     const radius = 30;
     const raised = this.scheme === "joystick";
     const cx = raised ? width - 130 : width - 56;
