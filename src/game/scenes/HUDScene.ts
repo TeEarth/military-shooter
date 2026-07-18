@@ -36,11 +36,11 @@ interface HudUpdatePayload {
   perks?: { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean };
   /** v35: -1 if the Spare Weapon perk/slot isn't set up at all. */
   swapCooldownRemaining?: number;
-  /** v35: name of whichever weapon ISN'T active, for the SWAP button's label. */
-  inactiveWeaponName?: string | null;
   /** v35: -1 if that perk isn't owned. */
   regenCooldownRemaining?: number;
   shieldCooldownRemaining?: number;
+  /** v36: -1 unless shield is currently counting down toward a trigger. */
+  shieldChargeRemaining?: number;
   oneShotCooldownRemaining?: number;
   oneShotArmed?: boolean;
 }
@@ -370,7 +370,7 @@ export class HUDScene extends Phaser.Scene {
    *  Refill button (top-right) — ready (bright) vs on-cooldown (dim, with a
    *  countdown). Purely informational, no click handler. */
   private createPerkStatusIcons(width: number, hasRegen: boolean, hasShield: boolean) {
-    let y = 108;
+    let y = 118;
     if (hasRegen) {
       this.regenIcon = this.add.text(width - 10, y, "💚 REGEN", {
         fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#4ade80",
@@ -378,7 +378,7 @@ export class HUDScene extends Phaser.Scene {
       this.regenCooldownText = this.add.text(width - 10, y + 13, "", {
         fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#94a3b8",
       }).setOrigin(1, 0);
-      y += 30;
+      y += 34;
     }
     if (hasShield) {
       this.shieldIcon = this.add.text(width - 10, y, "🛡️ SHIELD", {
@@ -461,7 +461,10 @@ export class HUDScene extends Phaser.Scene {
       const remaining = data.swapCooldownRemaining ?? -1;
       const ready = remaining <= 0;
       this.swapCircle.setStrokeStyle(2, ready ? 0xc5a97d : 0x555555).setAlpha(ready ? 1 : 0.5);
-      this.swapText.setText(ready ? `SWAP\n${data.inactiveWeaponName ?? ""}` : `${remaining.toFixed(0)}s`);
+      // v36: no weapon name — it overflowed past the button's edge. The name
+      // is still shown on the Character/Inventory pages; in-stage this is
+      // just a quick "can I swap right now" glance.
+      this.swapText.setText(ready ? "SWAP" : `${remaining.toFixed(0)}s`);
     }
 
     if (this.oneShotCircle && this.oneShotText) {
@@ -479,7 +482,21 @@ export class HUDScene extends Phaser.Scene {
     }
 
     this.applyPerkCooldownVisual(this.regenIcon, this.regenCooldownText, data.regenCooldownRemaining ?? -1, "#4ade80");
-    this.applyPerkCooldownVisual(this.shieldIcon, this.shieldCooldownText, data.shieldCooldownRemaining ?? -1, "#60a5fa");
+
+    // v36: Super Shield has a third state Regen doesn't — the 15s "arming"
+    // countdown while shield sits empty, distinct from the 60s cooldown
+    // after it actually fires. Shown in amber so it reads as "something is
+    // building up", not confused with either the green ready or dim/gray states.
+    if (this.shieldIcon) {
+      const cooldown = data.shieldCooldownRemaining ?? -1;
+      const charging = data.shieldChargeRemaining ?? -1;
+      if (charging > 0) {
+        this.shieldIcon.setAlpha(1).setColor("#f59e0b");
+        this.shieldCooldownText?.setText(`ARMING ${charging.toFixed(0)}s`);
+      } else {
+        this.applyPerkCooldownVisual(this.shieldIcon, this.shieldCooldownText, cooldown, "#60a5fa");
+      }
+    }
   }
 
   /** v24: big, unmissable hp bar for the boss itself — top-center, well above

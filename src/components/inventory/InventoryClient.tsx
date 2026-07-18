@@ -35,7 +35,7 @@ interface Props {
   spareWeaponId: string;
 }
 
-type DropTarget = "weapon" | EquipmentSlot;
+type DropTarget = "weapon" | "spareWeapon" | EquipmentSlot;
 type DragKind = "weapon" | "equipment";
 interface DragPayload {
   kind: DragKind;
@@ -52,6 +52,7 @@ const RARITY_BORDER: Record<Rarity, string> = {
   epic: "border-purple-400",
   legendary: "border-military-gold",
 };
+const RARITY_RANK: Record<Rarity, number> = { legendary: 3, epic: 2, rare: 1, common: 0 };
 const RARITY_TEXT: Record<Rarity, string> = {
   common: "text-gray-300",
   rare: "text-blue-400",
@@ -138,7 +139,8 @@ function DraggableItem({ dragId, payload, sprite, equipped, upgradeLevel, rarity
   );
 }
 
-/** One of the 4 corner equip slots — also a droppable target. */
+/** One of the 4 corner equip slots (or the standalone Spare Weapon slot,
+ *  passing position="" to skip absolute positioning) — also a droppable target. */
 function CornerSlot({ position, target, icon, label, itemSprite, itemName, onClick }: {
   position: string; target: DropTarget; icon: string; label: string; itemSprite?: string; itemName?: string; onClick: () => void;
 }) {
@@ -147,7 +149,7 @@ function CornerSlot({ position, target, icon, label, itemSprite, itemName, onCli
     <button
       ref={setNodeRef}
       onClick={onClick}
-      className={`absolute ${position} w-24 h-24 border-2 flex flex-col items-center justify-center bg-military-dark transition-colors px-1 ${
+      className={`${position ? `absolute ${position}` : ""} w-24 h-24 border-2 flex flex-col items-center justify-center bg-military-dark transition-colors px-1 ${
         isOver ? "border-military-gold bg-military-olive/30" : itemName ? "border-military-tan" : "border-military-steel border-dashed"
       } hover:border-military-tan`}
     >
@@ -170,7 +172,7 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
   const [spareLoading, setSpareLoading] = useState(false);
   const [equipment, setEquipment] = useState(initialEquipment);
   const [message, setMessage] = useState("");
-  const [openPicker, setOpenPicker] = useState<"weapon" | EquipmentSlot | null>(null);
+  const [openPicker, setOpenPicker] = useState<"weapon" | "spareWeapon" | EquipmentSlot | null>(null);
   const [tab, setTab] = useState<"weapon" | EquipmentSlot>("weapon");
   const [stats, setStats] = useState<FullStatBreakdown | null>(null);
   const [activeDrag, setActiveDrag] = useState<DragPayload | null>(null);
@@ -195,6 +197,10 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
     boots: equipment.find((e) => e.slot === "boots" && e.equipped),
   };
   const equippedWeapon = ownedWeapons.find((w) => w.id === equippedWeaponId);
+  // v36: reversed per request (was front-to-back in acquisition order).
+  const sortedWeapons = [...ownedWeapons].reverse();
+  // v36: highest rarity first, per request.
+  const sortedEquipment = [...equipment].sort((a, b) => RARITY_RANK[b.rarity] - RARITY_RANK[a.rarity]);
 
   async function equipWeapon(weaponId: string) {
     // v9 #3: optimistic — flip the equipped weapon immediately, roll back if the server rejects it.
@@ -251,6 +257,7 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
   async function setSpareWeapon(weaponId: string) {
     if (spareLoading) return;
     setSpareLoading(true);
+    setOpenPicker(null);
     const previous = spareWeaponId;
     setSpareWeaponId(weaponId);
     try {
@@ -297,6 +304,21 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
       return;
     }
 
+    if (target === "spareWeapon") {
+      if (payload.kind === "weapon") {
+        if (payload.id === equippedWeaponId) {
+          setMessage(`${payload.name} is already your main weapon.`);
+          sfx.play("miss");
+        } else {
+          setSpareWeapon(payload.id);
+        }
+      } else {
+        setMessage(`${payload.name} doesn't go in the Spare Weapon slot.`);
+        sfx.play("miss");
+      }
+      return;
+    }
+
     if (payload.kind === "equipment" && payload.slot === target) {
       equipItem(payload.id, target);
     } else {
@@ -322,35 +344,13 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
 
         {message && <div className="text-center mb-2 text-military-gold text-sm">{message}</div>}
 
-        {/* v35: Spare Weapon perk — a plain dropdown rather than a drag-drop
-         *  slot like the main weapon/equipment, since this is a simple
-         *  "pick one owned weapon" choice with no visual placement to it. */}
-        {hasSpareWeaponPerk && (
-          <div className="max-w-md mx-auto mb-6 card-military flex items-center gap-3">
-            <span className="text-2xl">🔫</span>
-            <div className="flex-1">
-              <p className="text-xs text-military-tan font-bold uppercase tracking-wider mb-1">Spare Weapon</p>
-              <select
-                value={spareWeaponId}
-                disabled={spareLoading}
-                onChange={(e) => setSpareWeapon(e.target.value)}
-                className="w-full bg-military-darker border border-military-steel text-sm p-1.5 rounded"
-              >
-                <option value="">— choose a weapon —</option>
-                {ownedWeapons.filter((w) => w.id !== equippedWeaponId).map((w) => (
-                  <option key={w.id} value={w.id}>{w.name}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-        )}
-
         {/* Character + 4 corner slots + item picker, all stacked in ONE left
          *  column (stat panel is a separate, independently-sized right column)
          *  so the item grid sits directly under the slots instead of being
          *  pushed down by however tall the stat panel happens to be. */}
         <div className="flex flex-col lg:flex-row gap-8 max-w-5xl mx-auto items-start">
           <div className="flex-1 w-full min-w-0">
+            <div className={hasSpareWeaponPerk ? "flex items-center justify-center gap-4" : ""}>
             <div className="relative mx-auto" style={{ width: 300, minHeight: 300 }}>
               <div className="absolute inset-0 flex items-center justify-center">
                 <div className="w-28 h-28 rounded-full bg-military-dark border-2 border-military-tan flex items-center justify-center overflow-hidden">
@@ -367,6 +367,24 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
               <CornerSlot position="top-0 right-0" target="helmet" icon={SLOT_ICON.helmet} label={SLOT_LABEL.helmet} itemSprite={equippedByslot.helmet ? getEquipmentSprite(equippedByslot.helmet.id) : undefined} itemName={equippedByslot.helmet?.name} onClick={() => setOpenPicker("helmet")} />
               <CornerSlot position="bottom-0 left-0" target="vest" icon={SLOT_ICON.vest} label={SLOT_LABEL.vest} itemSprite={equippedByslot.vest ? getEquipmentSprite(equippedByslot.vest.id) : undefined} itemName={equippedByslot.vest?.name} onClick={() => setOpenPicker("vest")} />
               <CornerSlot position="bottom-0 right-0" target="boots" icon={SLOT_ICON.boots} label={SLOT_LABEL.boots} itemSprite={equippedByslot.boots ? getEquipmentSprite(equippedByslot.boots.id) : undefined} itemName={equippedByslot.boots?.name} onClick={() => setOpenPicker("boots")} />
+            </div>
+
+            {/* v36: Spare Weapon perk — a real drag-drop slot next to the
+             *  character diagram (was a plain dropdown), same visual language
+             *  as the 4 corner slots. position="" skips their absolute
+             *  positioning since this one just needs to sit beside, not
+             *  overlay, the diagram. */}
+            {hasSpareWeaponPerk && (
+              <CornerSlot
+                position=""
+                target="spareWeapon"
+                icon="🔫"
+                label="Spare"
+                itemSprite={spareWeaponId ? getWeaponSprite(spareWeaponId) : undefined}
+                itemName={ownedWeapons.find((w) => w.id === spareWeaponId)?.name}
+                onClick={() => setOpenPicker("spareWeapon")}
+              />
+            )}
             </div>
 
             {/* Categorized inventory tabs — weapon / helmet / vest / boots, not one mixed grid.
@@ -388,7 +406,7 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
               </div>
 
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-2">
-                {tab === "weapon" && ownedWeapons.map((w) => (
+                {tab === "weapon" && sortedWeapons.map((w) => (
                   <DraggableItem
                     key={`w-${w.id}`}
                     dragId={`w-${w.id}`}
@@ -398,7 +416,7 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
                     onOpen={() => setDetailWeapon(w)}
                   />
                 ))}
-                {tab !== "weapon" && equipment.filter((e) => e.slot === tab).map((e) => (
+                {tab !== "weapon" && sortedEquipment.filter((e) => e.slot === tab).map((e) => (
                   <DraggableItem
                     key={`e-${e.id}`}
                     dragId={`e-${e.id}`}
@@ -506,42 +524,55 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
           <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50" onClick={() => setOpenPicker(null)}>
             <div className="card-military max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
               <h3 className="font-bold text-military-tan mb-3 uppercase">
-                {openPicker === "weapon" ? "Choose weapon" : `Choose ${SLOT_LABEL[openPicker]}`}
+                {openPicker === "weapon" ? "Choose weapon" : openPicker === "spareWeapon" ? "Choose spare weapon" : `Choose ${SLOT_LABEL[openPicker]}`}
               </h3>
               <div className="space-y-2 max-h-80 overflow-y-auto">
-                {openPicker === "weapon"
-                  ? ownedWeapons.map((w) => (
-                      <button key={w.id} onClick={() => equipWeapon(w.id)} className={`w-full text-left p-2 border text-sm flex items-center gap-2 ${w.id === equippedWeaponId ? "border-military-tan bg-military-dark" : "border-military-steel"}`}>
+                {openPicker === "weapon" ? (
+                  sortedWeapons.map((w) => (
+                    <button key={w.id} onClick={() => equipWeapon(w.id)} className={`w-full text-left p-2 border text-sm flex items-center gap-2 ${w.id === equippedWeaponId ? "border-military-tan bg-military-dark" : "border-military-steel"}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={getWeaponSprite(w.id)} alt="" className="w-6 h-6 object-contain" />
+                      {w.name}
+                    </button>
+                  ))
+                ) : openPicker === "spareWeapon" ? (
+                  ownedWeapons.filter((w) => w.id !== equippedWeaponId).map((w) => (
+                    <button key={w.id} onClick={() => setSpareWeapon(w.id)} className={`w-full text-left p-2 border text-sm flex items-center gap-2 ${w.id === spareWeaponId ? "border-military-tan bg-military-dark" : "border-military-steel"}`}>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={getWeaponSprite(w.id)} alt="" className="w-6 h-6 object-contain" />
+                      {w.name}
+                    </button>
+                  ))
+                ) : (
+                  sortedEquipment.filter((e) => e.slot === openPicker).map((e) => {
+                    const bonus = equipmentBonus(e, e.upgradeLevel);
+                    return (
+                      <button key={e.id} onClick={() => equipItem(e.id, e.slot)} className={`w-full text-left p-2 border text-sm flex items-center gap-2 ${e.equipped ? "border-military-tan bg-military-dark" : "border-military-steel"}`}>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={getWeaponSprite(w.id)} alt="" className="w-6 h-6 object-contain" />
-                        {w.name}
-                      </button>
-                    ))
-                  : equipment.filter((e) => e.slot === openPicker).map((e) => {
-                      const bonus = equipmentBonus(e, e.upgradeLevel);
-                      return (
-                        <button key={e.id} onClick={() => equipItem(e.id, e.slot)} className={`w-full text-left p-2 border text-sm flex items-center gap-2 ${e.equipped ? "border-military-tan bg-military-dark" : "border-military-steel"}`}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={getEquipmentSprite(e.id)} alt="" className="w-6 h-6 object-contain flex-shrink-0" />
-                          <div className="min-w-0">
-                            <div>
-                              {e.name} <span className={RARITY_TEXT[e.rarity]}>({e.rarity}{e.upgradeLevel > 0 ? `, ★${e.upgradeLevel}` : ""})</span>
-                            </div>
-                            <div className="text-xs text-military-steel flex flex-wrap gap-x-2">
-                              {bonus.hpPercent > 0 && <span>HP +{bonus.hpPercent}%</span>}
-                              {bonus.damagePercent > 0 && <span>ATK +{bonus.damagePercent}%</span>}
-                              {bonus.critChancePercent > 0 && <span>Crit% +{bonus.critChancePercent}%</span>}
-                              {bonus.critDamagePercent > 0 && <span>CritDMG +{bonus.critDamagePercent}%</span>}
-                              {bonus.shieldValue > 0 && <span>Shield +{bonus.shieldValue}</span>}
-                            </div>
+                        <img src={getEquipmentSprite(e.id)} alt="" className="w-6 h-6 object-contain flex-shrink-0" />
+                        <div className="min-w-0">
+                          <div>
+                            {e.name} <span className={RARITY_TEXT[e.rarity]}>({e.rarity}{e.upgradeLevel > 0 ? `, ★${e.upgradeLevel}` : ""})</span>
                           </div>
-                        </button>
-                      );
-                    })}
-                {openPicker !== "weapon" && equipment.filter((e) => e.slot === openPicker).length === 0 && (
+                          <div className="text-xs text-military-steel flex flex-wrap gap-x-2">
+                            {bonus.hpPercent > 0 && <span>HP +{bonus.hpPercent}%</span>}
+                            {bonus.damagePercent > 0 && <span>ATK +{bonus.damagePercent}%</span>}
+                            {bonus.critChancePercent > 0 && <span>Crit% +{bonus.critChancePercent}%</span>}
+                            {bonus.critDamagePercent > 0 && <span>CritDMG +{bonus.critDamagePercent}%</span>}
+                            {bonus.shieldValue > 0 && <span>Shield +{bonus.shieldValue}</span>}
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
+                {openPicker !== "weapon" && openPicker !== "spareWeapon" && equipment.filter((e) => e.slot === openPicker).length === 0 && (
                   <p className="text-military-steel text-xs">No {SLOT_LABEL[openPicker]} owned yet — pull the Gacha.</p>
                 )}
                 {openPicker === "weapon" && ownedWeapons.length === 0 && <p className="text-military-steel text-xs">No weapons owned yet.</p>}
+                {openPicker === "spareWeapon" && ownedWeapons.filter((w) => w.id !== equippedWeaponId).length === 0 && (
+                  <p className="text-military-steel text-xs">No other weapons owned yet.</p>
+                )}
               </div>
             </div>
           </div>

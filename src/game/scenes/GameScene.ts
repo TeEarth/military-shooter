@@ -795,9 +795,9 @@ export class GameScene extends Phaser.Scene {
       bossMaxHp: this.isBossStage && this.bossEnemy ? this.bossEnemy.getMaxHp() : undefined,
       perks: this.player.perks,
       swapCooldownRemaining: this.player.getSwapCooldownRemaining(),
-      inactiveWeaponName: this.player.getInactiveWeaponName(),
       regenCooldownRemaining: this.player.getRegenCooldownRemaining(),
       shieldCooldownRemaining: this.player.getShieldCooldownRemaining(),
+      shieldChargeRemaining: this.player.getShieldChargeRemaining(),
       oneShotCooldownRemaining: this.player.getOneShotCooldownRemaining(),
       oneShotArmed: this.player.isOneShotArmed(),
     });

@@ -6,15 +6,16 @@ import { fireShots } from "./WeaponFire";
 import { sfx } from "@/lib/sfx";
 import { RECOIL_KICK_PX, decayRecoil, spawnMuzzleEffect, reloadWiggle } from "./WeaponFx";
 
-const HEAVY_AUTO_WEAPONS = new Set(["gatling", "ak47", "rasor_gun"]);
-const RIFLE_WEAPONS = new Set(["m16a1", "m16a4"]);
-const IMPACT_WEAPONS = new Set(["rocket_launcher", "grenade_launcher"]); // explosion plays on impact, not on fire
+// v36: all 4 share ONE recorded clip (see sfx.ts's shoot_rifle sample) —
+// rasor_gun split out to its own dedicated recording (shoot_rasor).
+const RIFLE_WEAPONS = new Set(["gatling", "ak47", "m16a1", "m16a4"]);
 
-function shootSfxForWeapon(weaponId: string): "shoot_pistol" | "shoot_rifle" | "shoot_shotgun" | "shoot_sniper" | "shoot_heavy" | null {
-  if (IMPACT_WEAPONS.has(weaponId)) return null;
+function shootSfxForWeapon(weaponId: string): "shoot_pistol" | "shoot_rifle" | "shoot_shotgun" | "shoot_sniper" | "shoot_rasor" | "shoot_rocket" | null {
+  if (weaponId === "grenade_launcher") return null; // no fire sound provided — explosion still plays on impact
+  if (weaponId === "rocket_launcher") return "shoot_rocket";
   if (weaponId === "shotgun") return "shoot_shotgun";
   if (weaponId === "sniper") return "shoot_sniper";
-  if (HEAVY_AUTO_WEAPONS.has(weaponId)) return "shoot_heavy";
+  if (weaponId === "rasor_gun") return "shoot_rasor";
   if (RIFLE_WEAPONS.has(weaponId)) return "shoot_rifle";
   return "shoot_pistol"; // pistol / double_pistol default
 }
@@ -379,13 +380,23 @@ export class Player {
     return Math.max(0, this.regenCooldownUntil - this.scene.time.now) / 1000;
   }
 
-  /** v35: same as getRegenCooldownRemaining but for Super Shield. Returns 0
-   *  (ready) even while the 15s empty-shield timer is still counting down —
-   *  that timer isn't a "cooldown" the player caused, it's just waiting for
-   *  the trigger condition, so the HUD icon should read "ready" throughout. */
+  /** v35: same as getRegenCooldownRemaining but for Super Shield — this is
+   *  specifically the POST-trigger 60s cooldown, 0 throughout the 15s
+   *  empty-shield wait (see getShieldChargeRemaining for that). */
   getShieldCooldownRemaining(): number {
     if (!this.perks.superShield) return -1;
     return Math.max(0, this.shieldCooldownUntil - this.scene.time.now) / 1000;
+  }
+
+  /** v36: seconds left until Super Shield WOULD trigger (counting down from
+   *  15s once shield hits 0), or -1 if not currently counting down (shield
+   *  isn't empty, perk not owned, or it's on its post-trigger cooldown
+   *  instead — those are mutually exclusive states the HUD shows differently). */
+  getShieldChargeRemaining(): number {
+    if (!this.perks.superShield || this.shieldEmptySince === null) return -1;
+    if (this.scene.time.now < this.shieldCooldownUntil) return -1;
+    const remaining = SHIELD_EMPTY_TRIGGER_MS - (this.scene.time.now - this.shieldEmptySince);
+    return remaining > 0 ? remaining / 1000 : -1;
   }
 
   /** v35: One Shot perk — called by the HUD's skull button. Arms the very
@@ -449,13 +460,6 @@ export class Player {
   getSwapCooldownRemaining(): number {
     if (!this.spareLoadout) return -1;
     return Math.max(0, SWAP_COOLDOWN_MS - (this.scene.time.now - this.lastSwapTime)) / 1000;
-  }
-
-  /** Name of whichever weapon ISN'T currently active, for the HUD's swap
-   *  button label — or null if the perk/spare weapon isn't set up. */
-  getInactiveWeaponName(): string | null {
-    if (!this.spareLoadout) return null;
-    return this.usingSpare ? this.mainLoadout.name : this.spareLoadout.name;
   }
 
   private shoot(target: Phaser.Math.Vector2) {

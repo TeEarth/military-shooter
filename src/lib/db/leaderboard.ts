@@ -66,6 +66,8 @@ async function resetAllWeeklyWaves(): Promise<void> {
 export interface LeaderboardEntry {
   username: string;
   wave: number;
+  /** v36: coin earned during the specific run that set this wave record —
+   *  not the player's overall balance (see recordWeeklyFarmWave). */
   coin: number;
 }
 
@@ -90,8 +92,8 @@ export async function getLeaderboard(): Promise<{ entries: LeaderboardEntry[]; w
   const players = await getAllPlayers();
   const entries = players
     .filter((p) => !p.isBanned && p.weeklyFarmMaxWave > 0)
-    .map((p) => ({ username: p.username, wave: p.weeklyFarmMaxWave, coin: p.coin }))
-    // Ties on wave are broken by coin balance — whoever has more coin ranks higher.
+    .map((p) => ({ username: p.username, wave: p.weeklyFarmMaxWave, coin: p.weeklyFarmMaxWaveCoin }))
+    // Ties on wave are broken by that same run's coin — whoever earned more ranks higher.
     .sort((a, b) => b.wave - a.wave || b.coin - a.coin)
     .slice(0, 50);
 
@@ -100,14 +102,16 @@ export async function getLeaderboard(): Promise<{ entries: LeaderboardEntry[]; w
 
 /** Records a new personal-best farm wave for THIS leaderboard week — call
  *  alongside recordFarmWave (the permanent, never-reset record) whenever a
- *  farm run ends. */
-export async function recordWeeklyFarmWave(playerId: string, waveReached: number): Promise<void> {
+ *  farm run ends. `coinThisRun` (killCoin earned during that specific run,
+ *  not the player's balance) is stored alongside it so the leaderboard shows
+ *  what was actually earned reaching that wave, not an unrelated total. */
+export async function recordWeeklyFarmWave(playerId: string, waveReached: number, coinThisRun: number): Promise<void> {
   const supabase = getSupabaseClient();
   const { data, error } = await supabase.from("players").select("weekly_farm_max_wave").eq("id", playerId).maybeSingle();
   if (error) throw new Error(`recordWeeklyFarmWave (read): ${error.message}`);
   const current = Number(data?.weekly_farm_max_wave ?? 0);
   if (waveReached > current) {
-    const { error: updateError } = await supabase.from("players").update({ weekly_farm_max_wave: waveReached }).eq("id", playerId);
+    const { error: updateError } = await supabase.from("players").update({ weekly_farm_max_wave: waveReached, weekly_farm_max_wave_coin: Math.round(coinThisRun) }).eq("id", playerId);
     if (updateError) throw new Error(`recordWeeklyFarmWave (write): ${updateError.message}`);
   }
 }

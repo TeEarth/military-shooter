@@ -267,20 +267,20 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
   function cardFront(result: GachaPullResult, big: boolean) {
     if (result.rewardType === "currency") {
       return (
-        <div className={`gacha-flip-face gacha-flip-face-front ${big ? "w-44 h-44" : "w-full h-full"} rounded-lg border-2 border-military-steel bg-military-darker flex flex-col items-center justify-center gap-1`}>
-          <span className={big ? "text-6xl" : "text-3xl"}>{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
-          <p className={`text-military-gold font-bold ${big ? "text-xl" : "text-xs"}`}>+{result.rewardAmount}</p>
+        <div className={`gacha-flip-face gacha-flip-face-front ${big ? "w-64 h-64" : "w-full h-full"} rounded-lg border-2 border-military-steel bg-military-darker flex flex-col items-center justify-center gap-1`}>
+          <span className={big ? "text-8xl" : "text-4xl"}>{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
+          <p className={`text-military-gold font-bold ${big ? "text-2xl" : "text-sm"}`}>+{result.rewardAmount}</p>
         </div>
       );
     }
     const rarity = (result.rarity ?? "common") as Rarity;
     const isLegendary = rarity === "legendary";
     return (
-      <div className={`gacha-flip-face gacha-flip-face-front ${big ? "w-44 h-44" : "w-full h-full"} rounded-lg border-2 ${RARITY_BORDER[rarity]} ${isLegendary ? "gacha-anim-glow-legendary" : ""} bg-military-darker flex flex-col items-center justify-center p-2 gap-1`}>
+      <div className={`gacha-flip-face gacha-flip-face-front ${big ? "w-64 h-64" : "w-full h-full"} rounded-lg border-2 ${RARITY_BORDER[rarity]} ${isLegendary ? "gacha-anim-glow-legendary" : ""} bg-military-darker flex flex-col items-center justify-center p-2 gap-1`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={getEquipmentSprite(result.equipmentId ?? "")} alt={result.equipmentName ?? ""} className={big ? "w-24 h-24 object-contain" : "w-14 h-14 object-contain"} />
-        <p className={`font-bold uppercase ${big ? "text-sm" : "text-[10px]"} ${RARITY_COLOR[rarity]}`}>{rarity}</p>
-        {result.isDupe && <p className="text-green-400 text-[10px]">+lvl {result.newUpgradeLevel}</p>}
+        <img src={getEquipmentSprite(result.equipmentId ?? "")} alt={result.equipmentName ?? ""} className={big ? "w-36 h-36 object-contain" : "w-20 h-20 object-contain"} />
+        <p className={`font-bold uppercase ${big ? "text-lg" : "text-xs"} ${RARITY_COLOR[rarity]}`}>{rarity}</p>
+        {result.isDupe && <p className="text-green-400 text-xs">+lvl {result.newUpgradeLevel}</p>}
       </div>
     );
   }
@@ -419,9 +419,9 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
                         } as React.CSSProperties}
                         onClick={() => flipCard(i)}
                       >
-                        <div className={`gacha-flip-outer ${big ? "w-44 h-44" : "w-20 h-20"}`}>
+                        <div className={`gacha-flip-outer ${big ? "w-64 h-64" : "w-32 h-32"}`}>
                           <div className={`gacha-flip-inner ${isFlipped ? "is-flipped" : ""}`}>
-                            {cardBack(big ? "w-44 h-44" : "w-20 h-20")}
+                            {cardBack(big ? "w-64 h-64" : "w-32 h-32")}
                             {cardFront(results[i], big)}
                           </div>
                           {isFlipped && <div className="gacha-anim-shine absolute inset-0 pointer-events-none rounded-lg" style={{ background: "linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.5) 50%, transparent 70%)" }} />}

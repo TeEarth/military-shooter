@@ -3,20 +3,26 @@
  *
  * v14: gunshot/hit/footstep sounds now play real generated WAV samples
  * (public/assets/audio/sfx/*.wav — synthesized offline for realism, not
- * recorded) instead of the old toy oscillator "blip". UI chimes/explosion/
- * reload stay procedural since those already sounded fine and don't need a
- * sample. If a sample hasn't finished loading yet (e.g. the very first shot
- * fired before its fetch completes), falls back to the old procedural blip
- * so there's never a missing sound.
+ * recorded) instead of the old toy oscillator "blip".
+ * v36: replaced with the user's own recorded clips (trimmed to just the
+ * actual shot/explosion/reload transient — see the source zip's original
+ * files, which ran 1-6s each and would have badly lagged behind the actual
+ * fire rate). shoot_heavy now also covers ak47/gatling AND m16a1/m16a4 (one
+ * shared recording), rasor_gun gets its own dedicated shoot_rasor, and
+ * rocket_launcher gets a real launch sound (previously silent on fire —
+ * only explosion played on impact). reload/explosion are sample-backed now
+ * too, replacing the old procedural versions. Any sfx here without a
+ * sample still falls back to the procedural blip below.
  */
 
 type SfxName =
   | "shoot_pistol"
-  | "shoot_rifle"
+  | "shoot_rifle" // m16a1 / m16a4 / ak47 / gatling — one shared recording
   | "shoot_shotgun"
   | "shoot_sniper"
-  | "shoot_heavy" // gatling / ak / rasor rapid guns
-  | "explosion" // rocket / grenade
+  | "shoot_rasor"
+  | "shoot_rocket"
+  | "explosion" // rocket / grenade impact
   | "reload"
   | "hit_enemy"
   | "hurt_player"
@@ -41,7 +47,10 @@ const SAMPLE_FILES: Partial<Record<SfxName, { url: string; gain: number }>> = {
   shoot_rifle: { url: "/assets/audio/sfx/gunshot_rifle.wav", gain: 0.8 },
   shoot_shotgun: { url: "/assets/audio/sfx/gunshot_shotgun.wav", gain: 0.8 },
   shoot_sniper: { url: "/assets/audio/sfx/gunshot_sniper.wav", gain: 0.85 },
-  shoot_heavy: { url: "/assets/audio/sfx/gunshot_heavy.wav", gain: 0.75 },
+  shoot_rasor: { url: "/assets/audio/sfx/gunshot_rasor.wav", gain: 0.75 },
+  shoot_rocket: { url: "/assets/audio/sfx/gunshot_rocket.wav", gain: 0.8 },
+  explosion: { url: "/assets/audio/sfx/boom.wav", gain: 0.85 },
+  reload: { url: "/assets/audio/sfx/reload_all.wav", gain: 0.8 },
   hit_enemy: { url: "/assets/audio/sfx/hit_enemy.wav", gain: 0.7 },
   hurt_player: { url: "/assets/audio/sfx/hurt_player.wav", gain: 0.8 },
   footstep: { url: "/assets/audio/sfx/footstep.wav", gain: 0.35 },
@@ -175,8 +184,11 @@ class SfxEngine {
         case "shoot_sniper":
           this.blip(ctx, out, { freq: 140, decay: 0.35, noiseMix: 0.4, type: "sawtooth", crack: true });
           break;
-        case "shoot_heavy":
+        case "shoot_rasor":
           this.blip(ctx, out, { freq: 300, decay: 0.05, noiseMix: 0.7, type: "square" });
+          break;
+        case "shoot_rocket":
+          this.blip(ctx, out, { freq: 200, decay: 0.12, noiseMix: 0.75, type: "sawtooth" });
           break;
         case "explosion":
           this.explosion(ctx, out);

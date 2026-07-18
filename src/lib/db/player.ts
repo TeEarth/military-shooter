@@ -36,6 +36,11 @@ export interface Player {
    *  permanent farmStageMaxWave (which gates Azzure + farm_wave missions
    *  forever and must never be reset). */
   weeklyFarmMaxWave: number;
+  /** v36: coin earned during the specific run that set weeklyFarmMaxWave —
+   *  what the leaderboard actually displays, not the player's overall coin
+   *  balance (which was only ever a tiebreaker). Requires
+   *  scripts/sql/005_v36_leaderboard_coin.sql. */
+  weeklyFarmMaxWaveCoin: number;
   /** v16: daily TrueMoney withdrawal cap tracking (100 baht/day), reset lazily
    *  like this project's other daily counters (ammo, missions). */
   dailyWithdrawnBaht: number;
@@ -83,6 +88,7 @@ function rowToPlayer(row: any): Player {
     isTestAccount: Boolean(row.is_test_account),
     isAdmin: Boolean(row.is_admin),
     weeklyFarmMaxWave: Number(row.weekly_farm_max_wave ?? 0),
+    weeklyFarmMaxWaveCoin: Number(row.weekly_farm_max_wave_coin ?? 0),
     dailyWithdrawnBaht: Number(row.daily_withdrawn_baht ?? 0),
     dailyWithdrawnDate: row.daily_withdrawn_date ?? "",
     perkSpareWeapon: Boolean(row.perk_spare_weapon),
@@ -155,6 +161,7 @@ export async function createPlayer(params: { email: string; username: string; pa
     // yet. This object's values are just for the in-memory return below.
     isAdmin: false,
     weeklyFarmMaxWave: 0,
+    weeklyFarmMaxWaveCoin: 0,
     dailyWithdrawnBaht: 0,
     dailyWithdrawnDate: "",
     // v35: also not included in .insert() below — DB-level defaults (see
@@ -227,6 +234,7 @@ const CAMEL_TO_SNAKE: Record<string, string> = {
   passwordHash: "password_hash",
   isAdmin: "is_admin",
   weeklyFarmMaxWave: "weekly_farm_max_wave",
+  weeklyFarmMaxWaveCoin: "weekly_farm_max_wave_coin",
   dailyWithdrawnBaht: "daily_withdrawn_baht",
   dailyWithdrawnDate: "daily_withdrawn_date",
   perkSpareWeapon: "perk_spare_weapon",

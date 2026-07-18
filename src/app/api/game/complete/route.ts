@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     if (clearedWave) {
       tasks.push(recordFarmWave(player.id, farmWaveReached));
       // v16: leaderboard's own weekly-reset counter, separate from the permanent record above.
-      tasks.push(recordWeeklyFarmWave(player.id, farmWaveReached));
+      tasks.push(recordWeeklyFarmWave(player.id, farmWaveReached, killCoin));
       // v10 #2: farm-wave milestone missions are a high-water mark, not additive —
       // this is the personal-best wave reached THIS run, not a delta to sum.
       after(() => setMissionProgressIfHigher(player.id, "farm_wave", farmWaveReached).catch(() => {}));
