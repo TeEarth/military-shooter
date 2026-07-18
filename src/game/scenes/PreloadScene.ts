@@ -140,6 +140,11 @@ export class PreloadScene extends Phaser.Scene {
 
   create() {
     this.registry.set("failedAssetKeys", this.failedKeys);
-    this.scene.start(this.registry.get("pvpMatchId") ? "PvpScene" : "GameScene");
+    const nextScene = this.registry.get("pvpMatchId")
+      ? "PvpScene"
+      : this.registry.get("stageId") === "tutorial"
+        ? "TutorialScene"
+        : "GameScene";
+    this.scene.start(nextScene);
   }
 }

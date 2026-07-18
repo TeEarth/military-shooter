@@ -55,6 +55,17 @@ export interface Player {
    *  swap slot — only meaningful once perkSpareWeapon is true. Empty string
    *  if never set. */
   spareWeaponId: string;
+  /** v38: requires scripts/sql/008_v38_skins.sql — held back until confirmed
+   *  run. Currently-equipped color-tint skin (see src/lib/skinColors.ts). */
+  skinColor: string;
+  /** v38: every skin id ever purchased (or "default", free from the start). */
+  ownedSkins: string[];
+  /** v39: requires scripts/sql/009_v39_tutorial.sql — held back until confirmed
+   *  run. Gates the first-time Training Mode flow (see src/game/scenes/TutorialScene.ts). */
+  tutorialCompleted: boolean;
+  /** v39: last tutorial state reached — quitting mid-tutorial resumes here
+   *  instead of restarting (see TutorialState in TutorialScene.ts). */
+  tutorialStep: string;
 }
 
 /** DB row (snake_case) -> app-facing Player (camelCase) — same shape callers
@@ -96,6 +107,10 @@ function rowToPlayer(row: any): Player {
     perkSuperShield: Boolean(row.perk_super_shield),
     perkOneShot: Boolean(row.perk_one_shot),
     spareWeaponId: row.spare_weapon_id ?? "",
+    skinColor: row.skin_color ?? "default",
+    ownedSkins: Array.isArray(row.owned_skins) ? row.owned_skins : ["default"],
+    tutorialCompleted: Boolean(row.tutorial_completed),
+    tutorialStep: row.tutorial_step ?? "MOVE",
   };
 }
 
@@ -171,6 +186,14 @@ export async function createPlayer(params: { email: string; username: string; pa
     perkSuperShield: false,
     perkOneShot: false,
     spareWeaponId: "",
+    // v38: also not included in .insert() below — DB-level defaults (see
+    // 008_v38_skins.sql), same reasoning as the v16/v35 fields above.
+    skinColor: "default",
+    ownedSkins: ["default"],
+    // v39: also not included in .insert() below — DB-level defaults (see
+    // 009_v39_tutorial.sql), same reasoning as the v16/v35/v38 fields above.
+    tutorialCompleted: false,
+    tutorialStep: "MOVE",
   };
 
   const supabase = getSupabaseClient();
@@ -242,17 +265,21 @@ const CAMEL_TO_SNAKE: Record<string, string> = {
   perkSuperShield: "perk_super_shield",
   perkOneShot: "perk_one_shot",
   spareWeaponId: "spare_weapon_id",
+  skinColor: "skin_color",
+  ownedSkins: "owned_skins",
+  tutorialCompleted: "tutorial_completed",
+  tutorialStep: "tutorial_step",
 };
 
-function toSnakeUpdates(updates: Record<string, string | number | boolean>): Record<string, string | number | boolean> {
-  const out: Record<string, string | number | boolean> = {};
+function toSnakeUpdates(updates: Record<string, string | number | boolean | string[]>): Record<string, string | number | boolean | string[]> {
+  const out: Record<string, string | number | boolean | string[]> = {};
   for (const [key, value] of Object.entries(updates)) {
     out[CAMEL_TO_SNAKE[key] ?? key] = value;
   }
   return out;
 }
 
-export async function updatePlayerByEmail(email: string, updates: Record<string, string | number | boolean>): Promise<void> {
+export async function updatePlayerByEmail(email: string, updates: Record<string, string | number | boolean | string[]>): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from(TABLE)
@@ -261,7 +288,7 @@ export async function updatePlayerByEmail(email: string, updates: Record<string,
   if (error) throw new Error(`updatePlayerByEmail: ${error.message}`);
 }
 
-export async function updatePlayer(id: string, updates: Partial<Record<keyof Player, string | number | boolean>>): Promise<void> {
+export async function updatePlayer(id: string, updates: Partial<Record<keyof Player, string | number | boolean | string[]>>): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from(TABLE)

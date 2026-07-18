@@ -32,73 +32,73 @@ const FARM_ENEMY_UNLOCK_WAVE: Record<string, number> = {
 };
 
 export class GameScene extends Phaser.Scene {
-  private player!: Player;
-  private enemies: Enemy[] = [];
-  private enemyGroup!: Phaser.Physics.Arcade.Group;
-  private covers!: Phaser.Physics.Arcade.StaticGroup;
-  private bullets!: Phaser.Physics.Arcade.Group;
-  private enemyBullets!: Phaser.Physics.Arcade.Group;
+  public player!: Player;
+  public enemies: Enemy[] = [];
+  public enemyGroup!: Phaser.Physics.Arcade.Group;
+  protected covers!: Phaser.Physics.Arcade.StaticGroup;
+  public bullets!: Phaser.Physics.Arcade.Group;
+  public enemyBullets!: Phaser.Physics.Arcade.Group;
 
-  private stageData!: StageData;
-  private isFarmStage = false;
+  protected stageData!: StageData;
+  protected isFarmStage = false;
   /** v17: boss arena — no cover at all, and the boss periodically calls in
    *  reinforcements (see spawnBossMinion()). The stage ends the instant the
    *  boss itself dies, regardless of any minions still alive. */
-  private isBossStage = false;
-  private bossEnemy: Enemy | null = null;
-  private enemyRoster: EnemyData[] = [];
-  private currentWave = 1;
-  private highestWaveCleared = 0;
+  protected isBossStage = false;
+  protected bossEnemy: Enemy | null = null;
+  protected enemyRoster: EnemyData[] = [];
+  protected currentWave = 1;
+  protected highestWaveCleared = 0;
 
   // v13: farm stage start sequence — 5s with no enemies so the player can get
   // their bearings, then wave 1 spawns but stays "frozen" (no movement, no
   // damage either direction) for 3s before combat actually starts. Only the
   // opening sequence gets this treatment; later wave transitions keep the
   // existing 1s gap + a banner, no freeze.
-  private farmPhase: "countdown" | "freeze" | "active" = "active";
-  private farmPhaseElapsed = 0;
-  private static readonly FARM_COUNTDOWN_MS = 5000;
-  private static readonly FARM_FREEZE_MS = 3000;
+  protected farmPhase: "countdown" | "freeze" | "active" = "active";
+  protected farmPhaseElapsed = 0;
+  protected static readonly FARM_COUNTDOWN_MS = 5000;
+  protected static readonly FARM_FREEZE_MS = 3000;
 
   // v19: one ticket-funded revive per game — see handlePlayerDeath()/showRevivePrompt().
-  private reviveUsedThisGame = false;
-  private awaitingRevive = false;
-  private reviveUI: Phaser.GameObjects.GameObject[] = [];
+  protected reviveUsedThisGame = false;
+  protected awaitingRevive = false;
+  protected reviveUI: Phaser.GameObjects.GameObject[] = [];
 
-  private kills = 0;
-  private deaths = 0;
-  private startTime = 0;
-  private score = 0;
+  protected kills = 0;
+  protected deaths = 0;
+  protected startTime = 0;
+  protected score = 0;
   /** Real currency earned from kills this run (sum of each killed enemy's coinReward) —
    *  separate from `score`, which is a cosmetic HUD number only. This is what actually
    *  gets sent to /api/game/complete and credited to the player's coin balance. */
-  private killCoin = 0;
-  private stageEnded = false;
+  protected killCoin = 0;
+  protected stageEnded = false;
 
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
-  private wasd!: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key };
-  private shootKey!: Phaser.Input.Keyboard.Key;
-  private reloadKey!: Phaser.Input.Keyboard.Key;
-  private failedAssetKeys!: Set<string>;
+  protected cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+  protected wasd!: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key };
+  protected shootKey!: Phaser.Input.Keyboard.Key;
+  protected reloadKey!: Phaser.Input.Keyboard.Key;
+  public failedAssetKeys!: Set<string>;
   /** v13: set by the HUD's on-screen RELOAD button, consumed (and reset) by update(). */
-  private reloadRequested = false;
-  private mobileControls?: MobileControls;
+  protected reloadRequested = false;
+  protected mobileControls?: MobileControls;
 
   // v14: tree stealth mechanic — standing still, not attacking, and not being
   // attacked inside a tree's zone for HIDE_DURATION_MS makes the player
   // undetectable by enemy AI (Enemy.update() forced to "patrol" regardless of
   // distance). Any of those conditions breaking resets the timer to 0.
-  private treeCovers: CoverObject[] = [];
-  private hideTimer = 0;
-  private isHidden = false;
-  private playerHitThisFrame = false;
-  private static readonly HIDE_DURATION_MS = 1000;
+  public treeCovers: CoverObject[] = [];
+  protected hideTimer = 0;
+  public isHidden = false;
+  protected playerHitThisFrame = false;
+  protected static readonly HIDE_DURATION_MS = 1000;
   /** Generous "in the bush" radius — bigger than the tiny bullet-pass-through
    *  hitbox, since this is a gameplay zone, not a pixel-precise collision. */
-  private static readonly TREE_STEALTH_RADIUS = COVER_SIZES.tree.width * 0.7;
+  protected static readonly TREE_STEALTH_RADIUS = COVER_SIZES.tree.width * 0.5;
 
-  constructor() {
-    super({ key: "GameScene" });
+  constructor(config: string | Phaser.Types.Scenes.SettingsConfig = { key: "GameScene" }) {
+    super(config);
   }
 
   create() {
@@ -118,6 +118,22 @@ export class GameScene extends Phaser.Scene {
     // v14: quiet background battle music for the duration of the stage.
     sfx.startMusicLoop();
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => sfx.stopMusicLoop());
+    // Safety net for progress (farm wave reached, ammo used, kills) that would
+    // otherwise be silently lost — covers ANY teardown that skips the Pause
+    // menu's "Exit to Home" button entirely (browser back button, closing the
+    // tab, an in-app Link navigating away mid-stage). Game.destroy() runs each
+    // active scene's shutdown lifecycle, which fires this same SHUTDOWN event,
+    // so this fires even then. reportProgressOnExit() already no-ops via its
+    // own `stageEnded` guard if the run already ended normally (win/loss/exit
+    // button), so this never double-reports.
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.reportProgressOnExit());
+    // v40: stop any still-looping reload sound (player or any still-alive
+    // enemy) that the stage ending mid-reload would otherwise leave playing
+    // forever — see Player.ts/Enemy.ts's stopSounds().
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.player?.stopSounds();
+      for (const enemy of this.enemies) enemy.stopSounds();
+    });
 
     const { width: worldWidth, height: worldHeight } = this.stageData;
 
@@ -139,6 +155,7 @@ export class GameScene extends Phaser.Scene {
     const spawnY = this.stageData.playerSpawnY || worldHeight / 2;
     this.player = new Player(this, spawnX, spawnY, this.bullets, character, this.failedAssetKeys, spareLoadout, perks);
     this.cameras.main.startFollow(this.player.sprite, true, 0.1, 0.1);
+    this.cameras.main.setZoom(Number(this.registry.get("zoomLevel")) || 1);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = {
@@ -242,7 +259,7 @@ export class GameScene extends Phaser.Scene {
     this.scene.launch("HUDScene", { stageData: this.stageData });
   }
 
-  private createBackground(worldWidth: number, worldHeight: number) {
+  protected createBackground(worldWidth: number, worldHeight: number) {
     const hasBg = this.textures.exists("stage_bg") && !this.failedAssetKeys.has("stage_bg");
 
     if (hasBg) {
@@ -260,7 +277,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private createCovers(worldWidth: number, worldHeight: number) {
+  protected createCovers(worldWidth: number, worldHeight: number) {
     // v17: the boss arena has zero cover, full stop — no fallback scatter
     // (unlike a normal stage with no StageCover row, which falls through to
     // the random scatter below since "no row" there just means "not yet
@@ -315,7 +332,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private randomSpawnPoint(): { x: number; y: number } {
+  protected randomSpawnPoint(): { x: number; y: number } {
     const { width, height } = this.stageData;
     return {
       x: Phaser.Math.Between(width * 0.3, width - 80),
@@ -329,7 +346,7 @@ export class GameScene extends Phaser.Scene {
    *  which read as an unfair ambush rather than a wave "arriving". Retries a
    *  handful of times, then just takes the farthest of the attempts if it
    *  never finds a fully-clear spot (small/oddly-shaped arenas). */
-  private randomSpawnPointAwayFromPlayer(): { x: number; y: number } {
+  protected randomSpawnPointAwayFromPlayer(): { x: number; y: number } {
     const minDistance = ENEMY_CONFIG.detectionRange * 1.5;
     const playerX = this.player.sprite.x;
     const playerY = this.player.sprite.y;
@@ -354,7 +371,7 @@ export class GameScene extends Phaser.Scene {
    *  boss's own current position (a small ring around it) instead of a
    *  map-wide random point — minions are supposed to read as the boss calling
    *  in backup, not enemies teleporting in from nowhere across the arena. */
-  private spawnBossMinion() {
+  protected spawnBossMinion() {
     if (this.stageEnded || this.enemyRoster.length === 0) return;
     const template = this.enemyRoster[0];
     const { x, y } = this.bossEnemy && !this.bossEnemy.isDead
@@ -367,7 +384,7 @@ export class GameScene extends Phaser.Scene {
   /** A point in a small ring just outside the boss's own hitbox, clamped to
    *  stay inside the arena — used so summoned minions visibly emerge from the
    *  boss instead of spawning on top of it or off in a random corner. */
-  private spawnPointNearBoss(): { x: number; y: number } {
+  protected spawnPointNearBoss(): { x: number; y: number } {
     const boss = this.bossEnemy!;
     const { width, height } = this.stageData;
     const angle = Phaser.Math.FloatBetween(0, Math.PI * 2);
@@ -377,7 +394,7 @@ export class GameScene extends Phaser.Scene {
     return { x, y };
   }
 
-  private spawnWave(wave: number) {
+  protected spawnWave(wave: number) {
     if (this.enemyRoster.length === 0) return;
     const enemyCount = FARM_BASE_ENEMY_COUNT + Math.floor((wave - 1) / 3);
     const multiplier = Math.pow(FARM_SCALING_PER_WAVE, wave - 1);
@@ -411,7 +428,7 @@ export class GameScene extends Phaser.Scene {
 
   /** v14: frozen enemies blink (alpha yoyo) for the whole freeze window, so
    *  it's visually obvious they can't be hit/can't hit back right now. */
-  private startFreezeBlink() {
+  protected startFreezeBlink() {
     for (const enemy of this.enemies) {
       if (enemy.isDead) continue;
       this.tweens.add({
@@ -424,7 +441,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private stopFreezeBlink() {
+  protected stopFreezeBlink() {
     for (const enemy of this.enemies) {
       if (enemy.isDead) continue;
       this.tweens.killTweensOf(enemy.sprite);
@@ -436,7 +453,7 @@ export class GameScene extends Phaser.Scene {
    *  wave 1 spawns but stays frozen (no movement/damage either direction) for
    *  3s more. Called every frame from update() while isFarmStage; a no-op
    *  once farmPhase reaches "active". */
-  private updateFarmPhase(delta: number) {
+  protected updateFarmPhase(delta: number) {
     if (this.farmPhase === "active") return;
     this.farmPhaseElapsed += delta;
 
@@ -453,7 +470,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private detonateBullet(bullet: Phaser.Physics.Arcade.Image, isPlayerBullet: boolean) {
+  protected detonateBullet(bullet: Phaser.Physics.Arcade.Image, isPlayerBullet: boolean) {
     if (bullet.getData("isAoe")) {
       sfx.play("explosion");
       const radius = Number(bullet.getData("explosionRadius") ?? PLAYER_CONFIG.aoeRadius);
@@ -467,10 +484,10 @@ export class GameScene extends Phaser.Scene {
   /** v8 #11: a target standing right where the explosion lands takes full damage;
    *  anyone else in the radius but not at that exact point takes a flat 60% splash
    *  share — deliberately just these 2 tiers, not a distance-scaled falloff. */
-  private static readonly DIRECT_HIT_EPSILON = 10;
-  private static readonly SPLASH_DAMAGE_FRACTION = 0.6;
+  protected static readonly DIRECT_HIT_EPSILON = 10;
+  protected static readonly SPLASH_DAMAGE_FRACTION = 0.6;
 
-  private applyAoeSplash(x: number, y: number, damage: number, isPlayerBullet: boolean, radius: number = PLAYER_CONFIG.aoeRadius) {
+  protected applyAoeSplash(x: number, y: number, damage: number, isPlayerBullet: boolean, radius: number = PLAYER_CONFIG.aoeRadius) {
     if (damage <= 0) return;
     if (this.farmPhase === "freeze") return; // v13: no damage either direction during the farm-stage freeze window
     const explosion = this.add.circle(x, y, radius, 0xff8800, 0.35).setDepth(15);
@@ -505,7 +522,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private onBulletHitEnemy(bullet: Phaser.Physics.Arcade.Image, enemySprite: Phaser.Physics.Arcade.Image) {
+  protected onBulletHitEnemy(bullet: Phaser.Physics.Arcade.Image, enemySprite: Phaser.Physics.Arcade.Image) {
     // Guard against a single bullet ever damaging more than one enemy: Arcade's
     // overlap() reports every overlapping pair within the same physics step, so
     // if a bullet is briefly overlapping two enemies at once, only the first
@@ -557,7 +574,7 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  private onEnemyBulletHitPlayer(bullet: Phaser.Physics.Arcade.Image) {
+  protected onEnemyBulletHitPlayer(bullet: Phaser.Physics.Arcade.Image) {
     if (!bullet.active || bullet.getData("hasHit")) return;
     bullet.setData("hasHit", true);
 
@@ -599,7 +616,7 @@ export class GameScene extends Phaser.Scene {
    *  EXCEPT for the one ticket-funded revive offered below (once per game).
    *  Declining, running out of tickets, or having already used the revive all
    *  fall through to the normal GAME OVER. */
-  private handlePlayerDeath() {
+  protected handlePlayerDeath() {
     if (!this.reviveUsedThisGame) {
       this.awaitingRevive = true;
       // v25 fix: awaitingRevive only short-circuits THIS scene's own update()
@@ -623,7 +640,7 @@ export class GameScene extends Phaser.Scene {
    *  camera (scrollFactor 0) since the world keeps its scroll position under it.
    *  update() is short-circuited by awaitingRevive, so the whole scene is
    *  effectively paused (enemies included) while this is on screen. */
-  private showRevivePrompt() {
+  protected showRevivePrompt() {
     const { width, height } = this.cameras.main;
     const textStyle = { fontFamily: "Orbitron, monospace" };
 
@@ -667,14 +684,14 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
-  private showFloatingText(x: number, y: number, text: string, color: string) {
+  protected showFloatingText(x: number, y: number, text: string, color: string) {
     const label = this.add.text(x, y, text, { fontFamily: "Orbitron, monospace", fontSize: "12px", color }).setOrigin(0.5).setDepth(20);
     this.tweens.add({ targets: label, y: y - 30, alpha: 0, duration: 600, onComplete: () => label.destroy() });
   }
 
   /** Coin icon + amount floating up from an enemy's death spot — same
    *  float-up-and-fade pattern as showFloatingText's damage numbers. */
-  private showCoinPopup(x: number, y: number, coinReward: number) {
+  protected showCoinPopup(x: number, y: number, coinReward: number) {
     const hasIcon = this.textures.exists("coin_pop");
     const icon = hasIcon
       ? this.add.image(x - 10, y, "coin_pop").setDepth(20)
@@ -813,7 +830,7 @@ export class GameScene extends Phaser.Scene {
    *  being hit all reset the timer to 0.
    *  v16: an enemy walking into that SAME tree's zone also breaks/blocks it —
    *  the hiding spot isn't secret anymore once an enemy is standing in it too. */
-  private updateStealth(isMoving: boolean, isShooting: boolean, delta: number) {
+  protected updateStealth(isMoving: boolean, isShooting: boolean, delta: number) {
     const playerTrees = this.treeCovers.filter(
       (t) => Phaser.Math.Distance.Between(this.player.sprite.x, this.player.sprite.y, t.sprite.x, t.sprite.y) <= GameScene.TREE_STEALTH_RADIUS
     );
@@ -840,7 +857,7 @@ export class GameScene extends Phaser.Scene {
     this.player.sprite.setAlpha(this.isHidden ? 0.35 : 1);
   }
 
-  private checkWinCondition() {
+  protected checkWinCondition() {
     // v17: the boss fight ends the instant the boss itself dies — any
     // still-living minions it summoned don't need to be cleared too.
     if (this.isBossStage) {
@@ -961,7 +978,7 @@ export class GameScene extends Phaser.Scene {
   /** v35: ammoUsed for the main weapon, plus spareWeaponId/spareAmmoUsed if
    *  the Spare Weapon perk's slot was ever actually swapped to this run —
    *  /api/game/complete deducts both weapons' daily quotas separately. */
-  private buildAmmoUsagePayload() {
+  protected buildAmmoUsagePayload() {
     const [main, spare] = this.player.getAmmoUsageBreakdown();
     return spare
       ? { ammoUsed: main.ammoUsed, spareWeaponId: spare.weaponId, spareAmmoUsed: spare.ammoUsed }

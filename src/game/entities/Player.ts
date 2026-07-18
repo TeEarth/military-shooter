@@ -1,5 +1,6 @@
 import Phaser from "phaser";
 import type { CombatLoadout } from "@/types/loadout";
+import { SKIN_COLOR_HEX, isSkinColor } from "@/lib/skinColors";
 import { PLAYER_CONFIG, UNIT_DISPLAY_SIZE } from "../../../config/player";
 import { bulletSpeedForWeapon } from "../../../config/game";
 import { fireShots } from "./WeaponFire";
@@ -153,6 +154,10 @@ export class Player {
     this.sprite.setCollideWorldBounds(true);
     this.sprite.setDepth(10);
     (this.sprite.body as Phaser.Physics.Arcade.Body).setCircle(UNIT_DISPLAY_SIZE / 2);
+    if (loadout.skinColor && isSkinColor(loadout.skinColor)) {
+      const hex = SKIN_COLOR_HEX[loadout.skinColor];
+      if (hex !== null) this.sprite.setTint(hex);
+    }
 
     this.laserSight = scene.add.graphics().setDepth(11);
 
@@ -516,6 +521,7 @@ export class Player {
         this.recoilAmount = RECOIL_KICK_PX;
         const fireAngle = Phaser.Math.Angle.Between(this.sprite.x, this.sprite.y, target.x, target.y);
         spawnMuzzleEffect(this.scene, this.sprite.x, this.sprite.y, fireAngle, this.loadout.bulletSprite);
+        this.scene.events.emit("player-fired"); // v39: tutorial's SHOOT step listens for this
       },
       stats: {
         damage,
@@ -626,7 +632,18 @@ export class Player {
     this.isDead = true;
     this.sprite.setAlpha(0.3);
     (this.sprite.body as Phaser.Physics.Arcade.Body).setVelocity(0, 0);
-    // v37: don't leave the reload loop playing over a dead player.
+    this.stopSounds();
+  }
+
+  /** v40: the reload loop (see startReload()) only ever gets stopped by its
+   *  own completion timer or by dying mid-reload — if the stage instead ends
+   *  from UNDER a still-reloading, still-alive player (cleared the last enemy,
+   *  or exited via Pause) while mid-reload, nothing was cancelling the timer
+   *  or the loop, so the reload sound played forever afterward (into
+   *  GameOverScene, and even back at Home, since Web Audio loops aren't tied
+   *  to any Phaser scene lifecycle). Called from GameScene's SHUTDOWN handler
+   *  as a catch-all, same as sfx.stopMusicLoop(). */
+  stopSounds() {
     this.reloadLoopHandle?.stop();
     this.reloadLoopHandle = null;
     this.isReloading = false;

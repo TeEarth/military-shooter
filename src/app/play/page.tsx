@@ -51,6 +51,7 @@ export default async function PlayPage() {
       completedStageIds={completedStageIds}
       boss={boss}
       unlockedMultiverse={unlockedMultiverse}
+      tutorialCompleted={player.tutorialCompleted}
     />
   );
 }

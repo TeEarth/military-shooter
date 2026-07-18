@@ -38,7 +38,7 @@ async function buildPerkPayload(player: Player, weaponId: string) {
     if (spareCharacter && spareWeapon) {
       const spareStats = await computeFullStats(player.id, spareCharacter, spareWeapon);
       const spareAmmo = await getRemainingAmmo(player.id, player.spareWeaponId, Math.round(spareStats.dailyAmmo.final));
-      spareLoadout = statsToLoadout(spareCharacter, spareWeapon, spareStats, spareAmmo);
+      spareLoadout = statsToLoadout(spareCharacter, spareWeapon, spareStats, spareAmmo, player.skinColor);
     }
   }
 
@@ -56,6 +56,10 @@ export async function POST(req: NextRequest) {
 
   if (stageId === "boss_next") {
     return startBossStage(player.id);
+  }
+
+  if (stageId === "tutorial") {
+    return startTutorialStage(player);
   }
 
   // Story stages loop every 10 numbers (stage 11 reuses stage 1's map, scaled harder)
@@ -182,7 +186,7 @@ export async function POST(req: NextRequest) {
     ).filter((e) => e !== null);
   }
 
-  const loadout = statsToLoadout(character, weapon, stats, remainingAmmo);
+  const loadout = statsToLoadout(character, weapon, stats, remainingAmmo, player.skinColor);
   const { perks, spareLoadout } = await buildPerkPayload(player, weaponId);
 
   return NextResponse.json({
@@ -272,7 +276,7 @@ async function startBossStage(playerId: string) {
   const minionWeapon = minionTemplate ? await getWeaponById(minionTemplate.weaponId) : null;
   const enemyRoster = minionTemplate && minionWeapon ? [{ ...minionTemplate, weapon: minionWeapon }] : [];
 
-  const loadout = statsToLoadout(character, weapon, stats, remainingAmmo);
+  const loadout = statsToLoadout(character, weapon, stats, remainingAmmo, player.skinColor);
   const { perks, spareLoadout } = await buildPerkPayload(player, weaponId);
 
   return NextResponse.json({
@@ -298,5 +302,59 @@ async function startBossStage(playerId: string) {
     covers: [],
     character: loadout,
     weaponId,
+  });
+}
+
+const TUTORIAL_WIDTH = 1280;
+const TUTORIAL_HEIGHT = 720;
+/** Doesn't touch the player's real daily ammo pool — the tutorial always has
+ *  plenty to complete the SHOOT/RELOAD/KILL_ENEMY steps regardless of how
+ *  much (if any) real ammo the account has left today. */
+const TUTORIAL_AMMO = 999;
+
+/**
+ * Synthetic stage for the first-time Training Mode flow (see
+ * src/game/scenes/TutorialScene.ts) — modeled on startBossStage()'s
+ * synthetic-payload pattern. Uses the player's REAL equipped character/weapon
+ * so the tutorial teaches the actual loadout they'll play with, but on a
+ * small dedicated map (one tree, enemies spawned by the scene's state
+ * machine, not StageEnemy rows) instead of any real story/farm stage.
+ */
+async function startTutorialStage(player: Player) {
+  const [character, equippedWeaponId] = await Promise.all([
+    getCharacterById(player.currentCharacter),
+    getEquippedWeaponId(player.id),
+  ]);
+  if (!character) return NextResponse.json({ error: "Character not found" }, { status: 404 });
+
+  const weaponId = equippedWeaponId ?? DEFAULT_WEAPON_ID;
+  const weapon = await getWeaponById(weaponId);
+  if (!weapon) return NextResponse.json({ error: "Weapon not found" }, { status: 404 });
+
+  const stats = await computeFullStats(player.id, character, weapon);
+  const loadout = statsToLoadout(character, weapon, stats, TUTORIAL_AMMO, player.skinColor);
+
+  return NextResponse.json({
+    success: true,
+    stageData: {
+      id: "tutorial",
+      name: "Training Grounds — Tutorial",
+      background: "/assets/sprites/background/battlefield_ground.svg",
+      width: TUTORIAL_WIDTH,
+      height: TUTORIAL_HEIGHT,
+      rewardCoin: 0,
+      rewardExp: 0,
+      isRepeatable: false,
+      playerSpawnX: 120,
+      playerSpawnY: TUTORIAL_HEIGHT / 2,
+    },
+    enemies: [],
+    enemyRoster: [],
+    covers: [{ coverType: "tree", x: 760, y: TUTORIAL_HEIGHT / 2 }],
+    character: loadout,
+    weaponId,
+    perks: { spareWeapon: false, regen: false, superShield: false, oneShot: false },
+    spareLoadout: null,
+    tutorialStep: player.tutorialStep,
   });
 }

@@ -111,11 +111,21 @@ export class Enemy {
 
   /** Always within the stage's actual bounds — a patrol target generated off-map
    *  (e.g. near an edge, offset outward) was letting enemies drift against the
-   *  world-bounds wall indefinitely trying to reach an unreachable point. */
+   *  world-bounds wall indefinitely trying to reach an unreachable point.
+   *
+   *  v40 fix: offsetting from the enemy's CURRENT position every time (rather
+   *  than a fixed anchor) made patrolling a genuine random walk — over many
+   *  picks (e.g. the player hiding in a tree for a long stretch, which forces
+   *  "patrol" every single frame) enemies would gradually wander into a
+   *  corner. Once cornered, every new target got clamped right back to
+   *  roughly the same spot, which read as the enemy having frozen and stopped
+   *  patrolling entirely. Anchoring to the enemy's original spawn point keeps
+   *  the wander area fixed and bounded, so it can never drift somewhere it
+   *  gets stuck. */
   private pickNewPatrolTarget() {
     const margin = UNIT_DISPLAY_SIZE;
-    const x = Phaser.Math.Clamp(this.sprite.x + Phaser.Math.Between(-150, 150), margin, this.worldWidth - margin);
-    const y = Phaser.Math.Clamp(this.sprite.y + Phaser.Math.Between(-150, 150), margin, this.worldHeight - margin);
+    const x = Phaser.Math.Clamp(this.data.spawnX + Phaser.Math.Between(-150, 150), margin, this.worldWidth - margin);
+    const y = Phaser.Math.Clamp(this.data.spawnY + Phaser.Math.Between(-150, 150), margin, this.worldHeight - margin);
     this.patrolTarget.set(x, y);
   }
 
@@ -321,13 +331,21 @@ export class Enemy {
     this.hpBar.destroy();
     this.reloadText.destroy();
     // v37: don't leave the reload loop playing over a dead enemy.
-    this.reloadLoopHandle?.stop();
-    this.reloadLoopHandle = null;
+    this.stopSounds();
     this.scene.tweens.add({ targets: this.sprite, alpha: 0, duration: 800, onComplete: () => this.sprite.destroy() });
     if (this.weaponSprite) {
       const weaponSprite = this.weaponSprite;
       this.scene.tweens.add({ targets: weaponSprite, alpha: 0, duration: 800, onComplete: () => weaponSprite.destroy() });
     }
+  }
+
+  /** v40: same leaked-loop fix as Player.ts's stopSounds() — a still-alive,
+   *  still-reloading enemy whose stage ends out from under it (cleared/exited
+   *  mid-reload) otherwise keeps its reload sound looping forever. Called
+   *  from GameScene's SHUTDOWN handler for every enemy still alive. */
+  stopSounds() {
+    this.reloadLoopHandle?.stop();
+    this.reloadLoopHandle = null;
   }
 
   private updateHpBar() {

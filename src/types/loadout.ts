@@ -21,6 +21,9 @@ export interface CombatLoadout {
   bulletSprite: string;
   /** Total cosmetic spread arc in degrees for this weapon's fire mode — see WeaponFire.ts. */
   spreadDegrees: number;
+  /** Purchased color-tint skin id (e.g. "red"), applied as a Phaser tint over the
+   *  base character sprite — undefined/"default" means no tint. */
+  skinColor?: string;
 
   hpMax: number;
   /** Flat raw points from equipped gear — a separate absorb-first pool, not a % of HP. */

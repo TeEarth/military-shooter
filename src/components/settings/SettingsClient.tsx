@@ -7,6 +7,7 @@ import {
   getControlScheme, setControlScheme, type ControlScheme,
   getMoveScale, setMoveScale, getFireScale, setFireScale,
   MIN_CONTROL_SCALE, MAX_CONTROL_SCALE,
+  getZoomLevel, setZoomLevel, ZOOM_LEVELS, type ZoomLevel,
 } from "@/lib/controlScheme";
 
 interface Props {
@@ -30,6 +31,7 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
   const [controlScheme, setControlSchemeState] = useState<ControlScheme>("joystick");
   const [moveScale, setMoveScaleState] = useState(1);
   const [fireScale, setFireScaleState] = useState(1);
+  const [zoomLevel, setZoomLevelState] = useState<ZoomLevel>(1);
 
   // Restore + apply the saved audio preference on mount — sfx itself defaults
   // to unmuted/0.6 volume, so without this every fresh page load would ignore
@@ -44,7 +46,14 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
     setControlSchemeState(getControlScheme());
     setMoveScaleState(getMoveScale());
     setFireScaleState(getFireScale());
+    setZoomLevelState(getZoomLevel());
   }, []);
+
+  function chooseZoomLevel(zoom: ZoomLevel) {
+    sfx.play("ui_click");
+    setZoomLevelState(zoom);
+    setZoomLevel(zoom);
+  }
 
   function chooseControlScheme(scheme: ControlScheme) {
     sfx.play("ui_click");
@@ -184,6 +193,22 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
               />
               <span className="text-xs text-military-steel w-10 text-right">{Math.round(fireScale * 100)}%</span>
             </div>
+          </div>
+        </div>
+
+        <div className="card-military">
+          <h2 className="font-bold text-military-tan mb-2 uppercase tracking-wider">Camera Zoom</h2>
+          <p className="text-xs text-military-steel mb-3">Applies to every game mode — PvE and PvP.</p>
+          <div className="grid grid-cols-3 gap-2">
+            {ZOOM_LEVELS.map((zoom) => (
+              <button
+                key={zoom}
+                onClick={() => chooseZoomLevel(zoom)}
+                className={`text-xs px-3 py-2 border ${zoomLevel === zoom ? "border-military-tan bg-military-dark text-military-gold font-bold" : "border-military-steel"}`}
+              >
+                {Math.round(zoom * 100)}%
+              </button>
+            ))}
           </div>
         </div>
 

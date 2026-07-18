@@ -31,13 +31,14 @@ interface Props {
   boss: BossStatus;
   /** v17: highest multiverse unlocked so far — 1 + bosses defeated. */
   unlockedMultiverse: number;
+  tutorialCompleted: boolean;
 }
 
 function stageNumber(stageId: string): number {
   return Number(stageId.replace(/\D/g, "")) || 0;
 }
 
-export default function StageSelectClient({ stages, currentStage, completedStageIds, boss, unlockedMultiverse }: Props) {
+export default function StageSelectClient({ stages, currentStage, completedStageIds, boss, unlockedMultiverse, tutorialCompleted }: Props) {
   const router = useRouter();
   const multiverseNumbers = Array.from(new Set(stages.map((s) => s.multiverse))).sort((a, b) => a - b);
   const [selectedMultiverse, setSelectedMultiverse] = useState(1);
@@ -85,6 +86,33 @@ export default function StageSelectClient({ stages, currentStage, completedStage
         {stage.comingSoon && <p className="text-military-steel text-xs mt-1">Stage layout not designed yet — check back soon.</p>}
         {isCompleted && <p className="text-military-steel text-xs mt-1">This mission has been cleared and cannot be replayed.</p>}
         {!stage.isRepeatable && !isCompleted && !stage.comingSoon && <p className="text-red-400 text-xs mt-1">Eliminate every enemy to clear — one attempt, no replays after clearing.</p>}
+      </div>
+    );
+  }
+
+  if (!tutorialCompleted) {
+    return (
+      <div className="min-h-screen page-bg-themed p-6">
+        <div className="flex items-center gap-4 mb-6">
+          <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest opacity-50">Select Mission</h1>
+        </div>
+        <div className="max-w-md mx-auto flex flex-col items-center">
+          <span className="text-military-gold text-xs font-bold uppercase tracking-widest bg-military-darker/90 px-3 py-1 border border-military-gold rounded mb-1">
+            Select the training stage
+          </span>
+          <span className="text-2xl animate-bounce text-military-gold mb-4">▼</span>
+          <div
+            className="card-military border-green-700 cursor-pointer hover:border-military-tan w-full"
+            onClick={() => handlePlay("tutorial")}
+          >
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-military-steel text-xs">Tutorial</span>
+              <span className="text-green-400 text-xs font-bold">TRAINING</span>
+            </div>
+            <h3 className="font-bold text-white mb-1">Training Grounds</h3>
+            <p className="text-military-steel text-xs">Learn the controls before heading into real combat.</p>
+          </div>
+        </div>
       </div>
     );
   }

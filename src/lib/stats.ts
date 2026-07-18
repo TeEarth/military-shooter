@@ -91,7 +91,7 @@ export function buildStatBreakdown(
   };
 }
 
-export function statsToLoadout(character: CharacterRow, weapon: WeaponRow, stats: FullStatBreakdown, remainingAmmo: number): CombatLoadout {
+export function statsToLoadout(character: CharacterRow, weapon: WeaponRow, stats: FullStatBreakdown, remainingAmmo: number, skinColor?: string): CombatLoadout {
   return {
     id: character.id,
     name: `${character.name} + ${weapon.name}`,
@@ -99,6 +99,7 @@ export function statsToLoadout(character: CharacterRow, weapon: WeaponRow, stats
     sprite: character.sprite,
     bulletSprite: weapon.sprite,
     spreadDegrees: weapon.spreadDegrees,
+    skinColor,
 
     hpMax: Math.round(stats.hp.final),
     shieldMax: Math.round(stats.shieldMax),

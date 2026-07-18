@@ -44,3 +44,20 @@ export function getFireScale(): number {
 export function setFireScale(scale: number): void {
   localStorage.setItem(FIRE_SCALE_KEY, String(scale));
 }
+
+// Camera zoom — 3 fixed levels, adjustable on the Settings page. Applied to
+// both GameScene (PvE/farm) and PvpScene's cameras so every mode feels consistent.
+export const ZOOM_LEVELS = [1, 1.2, 1.4] as const;
+export type ZoomLevel = (typeof ZOOM_LEVELS)[number];
+const ZOOM_KEY = "camera_zoom_level";
+const DEFAULT_ZOOM: ZoomLevel = 1;
+
+export function getZoomLevel(): ZoomLevel {
+  if (typeof window === "undefined") return DEFAULT_ZOOM;
+  const saved = Number(localStorage.getItem(ZOOM_KEY));
+  return (ZOOM_LEVELS as readonly number[]).includes(saved) ? (saved as ZoomLevel) : DEFAULT_ZOOM;
+}
+
+export function setZoomLevel(zoom: ZoomLevel): void {
+  localStorage.setItem(ZOOM_KEY, String(zoom));
+}

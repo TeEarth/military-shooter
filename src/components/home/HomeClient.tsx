@@ -14,6 +14,7 @@ interface Player {
   ticket: number;
   currentStage: number;
   isAdmin?: boolean;
+  tutorialCompleted: boolean;
 }
 
 interface VipProgress {
@@ -314,44 +315,64 @@ export default function HomeClient({ player, characterSprite, characterName, equ
             <p className="text-military-steel text-xs">Stage Progress: {player.currentStage}</p>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 w-full max-w-lg">
-            {(player.isAdmin ? [...MENU_ITEMS, { href: "/admin", label: "ADMIN", icon: "🛡️" }] : MENU_ITEMS).map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => sfx.play("ui_click")}
-                className={`relative card-military card-themed-glow flex flex-col items-center justify-center transition-all duration-200 ${
-                  item.primary
-                    ? item.href === "/pvp"
-                      ? "col-span-3 bg-military-danger border-red-400 hover:bg-red-700 text-xl py-6"
-                      : "col-span-3 bg-military-green border-military-tan hover:bg-military-olive text-xl py-6"
-                    : "p-4"
-                }`}
-              >
-                {item.href === "/mailbox" && unreadMailCount > 0 && (
-                  <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center leading-none">
-                    {unreadMailCount > 99 ? "99+" : unreadMailCount}
-                  </span>
-                )}
-                <span className="text-2xl mb-1">{item.icon}</span>
-                <span className="text-xs tracking-wider">{item.label}</span>
-                {"subtitle" in item && item.subtitle && (
-                  <span className="text-military-tan/80 text-[11px] mt-1">{item.subtitle}</span>
-                )}
-              </Link>
-            ))}
+          <div className="grid grid-cols-3 gap-3 w-full max-w-lg relative">
+            {!player.tutorialCompleted && (
+              <div className="absolute -top-10 left-0 right-0 flex flex-col items-center pointer-events-none z-20">
+                <span className="text-military-gold text-xs font-bold uppercase tracking-widest bg-military-darker/90 px-3 py-1 border border-military-gold rounded mb-1">
+                  Press PLAY to start
+                </span>
+                <span className="text-2xl animate-bounce text-military-gold">▼</span>
+              </div>
+            )}
+            {(player.isAdmin ? [...MENU_ITEMS, { href: "/admin", label: "ADMIN", icon: "🛡️" }] : MENU_ITEMS).map((item) => {
+              const locked = !player.tutorialCompleted && item.href !== "/play";
+              const className = `relative card-military card-themed-glow flex flex-col items-center justify-center transition-all duration-200 ${
+                item.primary
+                  ? item.href === "/pvp"
+                    ? "col-span-3 bg-military-danger border-red-400 hover:bg-red-700 text-xl py-6"
+                    : "col-span-3 bg-military-green border-military-tan hover:bg-military-olive text-xl py-6"
+                  : "p-4"
+              } ${locked ? "opacity-30 pointer-events-none grayscale" : ""}`;
+
+              const content = (
+                <>
+                  {item.href === "/mailbox" && unreadMailCount > 0 && (
+                    <span className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-red-600 text-white text-[10px] font-bold flex items-center justify-center leading-none">
+                      {unreadMailCount > 99 ? "99+" : unreadMailCount}
+                    </span>
+                  )}
+                  <span className="text-2xl mb-1">{item.icon}</span>
+                  <span className="text-xs tracking-wider">{item.label}</span>
+                  {"subtitle" in item && item.subtitle && (
+                    <span className="text-military-tan/80 text-[11px] mt-1">{item.subtitle}</span>
+                  )}
+                </>
+              );
+
+              if (locked) {
+                return <div key={item.href} className={className} aria-disabled>{content}</div>;
+              }
+              return (
+                <Link key={item.href} href={item.href} onClick={() => sfx.play("ui_click")} className={className}>
+                  {content}
+                </Link>
+              );
+            })}
           </div>
         </div>
       </div>
 
       {/* v24: "How to play?" — a quick reference for new players, tucked out of the
-          way bottom-right so it never competes with the main menu grid. */}
-      <button
-        onClick={() => { sfx.play("ui_click"); setHowToPlayOpen(true); }}
-        className="fixed bottom-4 right-4 z-20 card-military card-themed-glow px-4 py-2 flex items-center gap-2 text-sm font-bold text-military-tan hover:text-white"
-      >
-        <span className="text-lg">❓</span> How to play?
-      </button>
+          way bottom-right so it never competes with the main menu grid. Hidden
+          during the first-time tutorial, same as every other non-Play button. */}
+      {player.tutorialCompleted && (
+        <button
+          onClick={() => { sfx.play("ui_click"); setHowToPlayOpen(true); }}
+          className="fixed bottom-4 right-4 z-20 card-military card-themed-glow px-4 py-2 flex items-center gap-2 text-sm font-bold text-military-tan hover:text-white"
+        >
+          <span className="text-lg">❓</span> How to play?
+        </button>
+      )}
 
       {howToPlayOpen && (() => {
         const activeTopic = HOW_TO_PLAY_TOPICS.find((t) => t.id === howToPlayTopicId) ?? HOW_TO_PLAY_TOPICS[0];

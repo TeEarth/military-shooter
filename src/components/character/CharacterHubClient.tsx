@@ -10,6 +10,7 @@ import { showRewardedAd } from "@/lib/ads-service";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
 import CurrencyBar from "@/components/ui/CurrencyBar";
 import { PERKS, PERK_ORDER, type PerkId } from "@/lib/perks";
+import { SKIN_COLORS, SKIN_COLOR_PRICE, SKIN_COLOR_HEX, type SkinColor } from "@/lib/skinColors";
 
 interface Props {
   allCharacters: CharacterRow[];
@@ -29,6 +30,8 @@ interface Props {
   exp: number;
   greenBanknote: number;
   perks: { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean };
+  skinColor: string;
+  ownedSkins: string[];
 }
 
 const PASSIVE_LABELS: Record<PassiveId, string> = {
@@ -82,6 +85,9 @@ export default function CharacterHubClient(props: Props) {
   const [playerPassives, setPlayerPassives] = useState(props.playerPassives);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [skinColor, setSkinColorState] = useState(props.skinColor);
+  const [ownedSkins, setOwnedSkins] = useState(props.ownedSkins);
+  const [skinLoading, setSkinLoading] = useState(false);
 
   const [selectedCharacter, setSelectedCharacter] = useState<CharacterRow>(
     props.allCharacters.find((c) => c.id === activeCharacterId) ?? props.allCharacters[0]
@@ -322,6 +328,51 @@ export default function CharacterHubClient(props: Props) {
     }
   }
 
+  async function buySkin(color: SkinColor) {
+    if (skinLoading) return;
+    const prevOwned = ownedSkins;
+    const prevCoin = coin;
+    setOwnedSkins((prev) => [...prev, color]);
+    setCoin((c) => c - SKIN_COLOR_PRICE);
+    setSkinLoading(true);
+    try {
+      const res = await fetch("/api/character/skin", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "buy", skinColor: color }),
+      });
+      const data = await res.json();
+      setMessage(data.message ?? data.error);
+      if (data.success) applyPlayerUpdate(data.updatedPlayer);
+      else { setOwnedSkins(prevOwned); setCoin(prevCoin); }
+    } catch {
+      setOwnedSkins(prevOwned);
+      setCoin(prevCoin);
+      setMessage("Network error — purchase not completed.");
+    } finally {
+      setSkinLoading(false);
+    }
+  }
+
+  async function selectSkin(color: SkinColor) {
+    if (skinLoading) return;
+    const previous = skinColor;
+    setSkinColorState(color);
+    setSkinLoading(true);
+    try {
+      const res = await fetch("/api/character/skin", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "select", skinColor: color }),
+      });
+      const data = await res.json();
+      if (!data.success) { setSkinColorState(previous); setMessage(data.error); }
+    } catch {
+      setSkinColorState(previous);
+      setMessage("Network error — selection not saved.");
+    } finally {
+      setSkinLoading(false);
+    }
+  }
+
   const isCharOwned = ownedCharacterIds.includes(selectedCharacter.id) || isCharacterUnlocked(selectedCharacter, props.currentStage);
   const isCharActive = selectedCharacter.id === activeCharacterId;
   const specialOk = selectedCharacter.unlockType !== "SPECIAL" || (props.vipLevel >= selectedCharacter.vipRequirement && props.farmStageMaxWave > selectedCharacter.waveRequirement);
@@ -452,6 +503,30 @@ export default function CharacterHubClient(props: Props) {
               <button onClick={() => equipCharacter(selectedCharacter)} disabled={loading} className="btn-military">{loading ? "..." : "EQUIP"}</button>
             )}
             {isCharActive && <span className="text-green-400 text-sm font-bold">✓ ACTIVE</span>}
+
+            <div className="mt-4 pt-4 border-t border-military-steel/30">
+              <h3 className="text-xs uppercase tracking-wider text-military-tan mb-2">Color Skin</h3>
+              <div className="flex gap-2 flex-wrap">
+                {SKIN_COLORS.map((color) => {
+                  const hex = SKIN_COLOR_HEX[color];
+                  const owned = ownedSkins.includes(color);
+                  const active = skinColor === color;
+                  return (
+                    <button
+                      key={color}
+                      onClick={() => (owned ? selectSkin(color) : buySkin(color))}
+                      disabled={skinLoading || (!owned && coin < SKIN_COLOR_PRICE)}
+                      title={color}
+                      className={`w-10 h-10 rounded-full border-2 flex items-center justify-center relative ${active ? "border-military-gold" : "border-military-steel"}`}
+                      style={{ background: hex !== null ? `#${hex.toString(16).padStart(6, "0")}` : "repeating-conic-gradient(#888 0% 25%, #ccc 0% 50%)" }}
+                    >
+                      {active && <span className="absolute -top-1 -right-1 text-[10px] bg-military-gold text-military-darker rounded-full w-4 h-4 flex items-center justify-center">✓</span>}
+                      {!owned && <span className="absolute -bottom-1 text-[8px] text-white bg-black/60 px-1 rounded">{SKIN_COLOR_PRICE}</span>}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
             </div>
           </div>
         </div>

@@ -5,7 +5,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import type { StageData } from "@/types/stage";
 import type { EnemySpawn } from "@/types/enemy";
 import type { CombatLoadout } from "@/types/loadout";
-import { getControlScheme } from "@/lib/controlScheme";
+import { getControlScheme, getZoomLevel } from "@/lib/controlScheme";
 
 export default function GameClient() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -27,7 +27,8 @@ export default function GameClient() {
         // Fetch stage/enemy/loadout data and dynamically import Phaser + scenes
         // in parallel — they don't depend on each other, so there's no reason
         // to wait for the network round-trip before starting the JS chunk loads.
-        const [startRes, PhaserModule, BootSceneModule, PreloadSceneModule, GameSceneModule, HUDSceneModule, GameOverSceneModule, PauseSceneModule, AmmoRefillSceneModule, gameConfigModule] = await Promise.all([
+        const isTutorial = stageId === "tutorial";
+        const [startRes, PhaserModule, BootSceneModule, PreloadSceneModule, GameSceneModule, TutorialSceneModule, HUDSceneModule, GameOverSceneModule, PauseSceneModule, AmmoRefillSceneModule, gameConfigModule] = await Promise.all([
           fetch("/api/game/start", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -37,6 +38,7 @@ export default function GameClient() {
           import("@/game/scenes/BootScene"),
           import("@/game/scenes/PreloadScene"),
           import("@/game/scenes/GameScene"),
+          import("@/game/scenes/TutorialScene"),
           import("@/game/scenes/HUDScene"),
           import("@/game/scenes/GameOverScene"),
           import("@/game/scenes/PauseScene"),
@@ -65,6 +67,7 @@ export default function GameClient() {
         const { BootScene } = BootSceneModule;
         const { PreloadScene } = PreloadSceneModule;
         const { GameScene } = GameSceneModule;
+        const { TutorialScene } = TutorialSceneModule;
         const { HUDScene } = HUDSceneModule;
         const { GameOverScene } = GameOverSceneModule;
         const { PauseScene } = PauseSceneModule;
@@ -102,11 +105,12 @@ export default function GameClient() {
             default: "arcade",
             arcade: { gravity: { x: 0, y: 0 }, debug: GAME_CONFIG.physics.debug },
           },
-          scene: [BootScene, PreloadScene, GameScene, HUDScene, GameOverScene, PauseScene, AmmoRefillScene],
+          scene: [BootScene, PreloadScene, GameScene, TutorialScene, HUDScene, GameOverScene, PauseScene, AmmoRefillScene],
         });
 
         game.registry.set("isMobile", isMobile);
         game.registry.set("mobileControlScheme", getControlScheme());
+        game.registry.set("zoomLevel", getZoomLevel());
         game.registry.set("stageData", stageData);
         game.registry.set("stageId", stageId);
         game.registry.set("enemySpawns", enemies);
@@ -115,6 +119,7 @@ export default function GameClient() {
         game.registry.set("character", character);
         game.registry.set("spareLoadout", spareLoadout);
         game.registry.set("perks", perks);
+        if (isTutorial) game.registry.set("tutorialStep", startRes.tutorialStep ?? "MOVE");
         game.registry.set("onGameEnd", async (result: { kills: number; deaths: number; timeTaken: number; score: number; killCoin: number; completed: boolean; ammoUsed: number; farmWaveReached?: number }) => {
           await fetch("/api/game/complete", {
             method: "POST",

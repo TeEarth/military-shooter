@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
   // someone get locked out of PvP by an empty single-player ammo pool, which
   // isn't the point of a separate mode. Magazine size still applies normally.
   const remainingAmmo = await getRemainingAmmo(player.id, weaponId, Math.round(stats.dailyAmmo.final));
-  const loadout = statsToLoadout(character, weapon, stats, Math.max(remainingAmmo, stats.dailyAmmo.final));
+  const loadout = statsToLoadout(character, weapon, stats, Math.max(remainingAmmo, stats.dailyAmmo.final), player.skinColor);
 
   const mySpawn = isPlayer1
     ? { x: ARENA_WIDTH * 0.15, y: ARENA_HEIGHT / 2 }
@@ -91,6 +91,7 @@ export async function POST(req: NextRequest) {
       username: opponent?.username ?? "Opponent",
       sprite: opponentCharacter?.sprite ?? "",
       weaponId: opponentWeaponId ?? DEFAULT_WEAPON_ID,
+      skinColor: opponent?.skinColor,
     },
     stageData: {
       id: `pvp_${matchId}`,
