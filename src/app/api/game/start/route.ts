@@ -13,6 +13,7 @@ import { parseStageNumber, templateStageId, stageStatMultiplier, extraEnemyCount
 import { getBossConfigForEncounter, getBossEncounterCount } from "@/lib/db/bossStage";
 import { getCompletedStageIds } from "@/lib/db/stageProgress";
 import { buildPerkPayload } from "@/lib/perkPayload";
+import { getEquippedSkinColor } from "@/lib/skinColors";
 
 const DEFAULT_WEAPON_ID = "pistol";
 
@@ -157,7 +158,7 @@ export async function POST(req: NextRequest) {
     ).filter((e) => e !== null);
   }
 
-  const loadout = statsToLoadout(character, weapon, stats, remainingAmmo, player.skinColor);
+  const loadout = statsToLoadout(character, weapon, stats, remainingAmmo, getEquippedSkinColor(player.skinColors, character.id));
   const { perks, spareLoadout } = await buildPerkPayload(player, weaponId);
 
   return NextResponse.json({
@@ -247,7 +248,7 @@ async function startBossStage(playerId: string) {
   const minionWeapon = minionTemplate ? await getWeaponById(minionTemplate.weaponId) : null;
   const enemyRoster = minionTemplate && minionWeapon ? [{ ...minionTemplate, weapon: minionWeapon }] : [];
 
-  const loadout = statsToLoadout(character, weapon, stats, remainingAmmo, player.skinColor);
+  const loadout = statsToLoadout(character, weapon, stats, remainingAmmo, getEquippedSkinColor(player.skinColors, character.id));
   const { perks, spareLoadout } = await buildPerkPayload(player, weaponId);
 
   return NextResponse.json({
@@ -303,7 +304,7 @@ async function startTutorialStage(player: Player) {
   if (!weapon) return NextResponse.json({ error: "Weapon not found" }, { status: 404 });
 
   const stats = await computeFullStats(player.id, character, weapon);
-  const loadout = statsToLoadout(character, weapon, stats, TUTORIAL_AMMO, player.skinColor);
+  const loadout = statsToLoadout(character, weapon, stats, TUTORIAL_AMMO, getEquippedSkinColor(player.skinColors, character.id));
 
   return NextResponse.json({
     success: true,

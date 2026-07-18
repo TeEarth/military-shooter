@@ -5,6 +5,7 @@ import Link from "next/link";
 import CurrencyBar from "@/components/ui/CurrencyBar";
 import { sfx } from "@/lib/sfx";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
+import { SKIN_COLOR_HEX, getEquippedSkinColor } from "@/lib/skinColors";
 
 interface Player {
   id: string;
@@ -15,6 +16,8 @@ interface Player {
   currentStage: number;
   isAdmin?: boolean;
   tutorialCompleted: boolean;
+  currentCharacter: string;
+  skinColors: Record<string, string>;
 }
 
 interface VipProgress {
@@ -290,6 +293,29 @@ export default function HomeClient({ player, characterSprite, characterName, equ
                   className="w-48 h-48 object-contain"
                   style={{ filter: "drop-shadow(0 0 24px rgba(197,169,125,0.4))" }}
                 />
+                {/* v42: same equipped color skin shown everywhere else (Character page,
+                 *  in-game, PvP) — this character's own entry in skinColors, never
+                 *  shared with any other character. */}
+                {(() => {
+                  const hex = SKIN_COLOR_HEX[getEquippedSkinColor(player.skinColors, player.currentCharacter)];
+                  return hex !== null ? (
+                    <div
+                      className="absolute inset-0 w-48 h-48 pointer-events-none"
+                      style={{
+                        backgroundColor: `#${hex.toString(16).padStart(6, "0")}`,
+                        WebkitMaskImage: `url(${characterSprite})`,
+                        WebkitMaskSize: "contain",
+                        WebkitMaskRepeat: "no-repeat",
+                        WebkitMaskPosition: "center",
+                        maskImage: `url(${characterSprite})`,
+                        maskSize: "contain",
+                        maskRepeat: "no-repeat",
+                        maskPosition: "center",
+                        mixBlendMode: "multiply",
+                      }}
+                    />
+                  ) : null;
+                })()}
                 {/* v10 #3 / v24 fix: weapon shown in-hand, matching in-game — anchored
                  *  at roughly the character's grip/hand height (66% down) with the
                  *  image's OWN grip point (72% down its own height, same 0.5/0.7

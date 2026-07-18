@@ -55,11 +55,16 @@ export interface Player {
    *  swap slot — only meaningful once perkSpareWeapon is true. Empty string
    *  if never set. */
   spareWeaponId: string;
-  /** v38: requires scripts/sql/008_v38_skins.sql — held back until confirmed
-   *  run. Currently-equipped color-tint skin (see src/lib/skinColors.ts). */
-  skinColor: string;
-  /** v38: every skin id ever purchased (or "default", free from the start). */
-  ownedSkins: string[];
+  /** v42: requires scripts/sql/010_v42_per_character_skins.sql — held back
+   *  until confirmed run. Currently-equipped color-tint skin, PER CHARACTER
+   *  id (see src/lib/skinColors.ts) — e.g. {"bob": "red"}. A character with
+   *  no entry (or an entry Object.keys never touched) is "default". Replaces
+   *  the old global skin_color column (008_v38_skins.sql, kept but unused —
+   *  sharing one skin across every character was the actual bug). */
+  skinColors: Record<string, string>;
+  /** v42: every skin id ever purchased, PER CHARACTER id — e.g.
+   *  {"bob": ["red", "gold"]}. Replaces the old global owned_skins column. */
+  ownedSkinsByCharacter: Record<string, string[]>;
   /** v39: requires scripts/sql/009_v39_tutorial.sql — held back until confirmed
    *  run. Gates the first-time Training Mode flow (see src/game/scenes/TutorialScene.ts). */
   tutorialCompleted: boolean;
@@ -107,8 +112,8 @@ function rowToPlayer(row: any): Player {
     perkSuperShield: Boolean(row.perk_super_shield),
     perkOneShot: Boolean(row.perk_one_shot),
     spareWeaponId: row.spare_weapon_id ?? "",
-    skinColor: row.skin_color ?? "default",
-    ownedSkins: Array.isArray(row.owned_skins) ? row.owned_skins : ["default"],
+    skinColors: (row.skin_colors && typeof row.skin_colors === "object" && !Array.isArray(row.skin_colors)) ? row.skin_colors : {},
+    ownedSkinsByCharacter: (row.owned_skins_by_character && typeof row.owned_skins_by_character === "object" && !Array.isArray(row.owned_skins_by_character)) ? row.owned_skins_by_character : {},
     tutorialCompleted: Boolean(row.tutorial_completed),
     tutorialStep: row.tutorial_step ?? "MOVE",
   };
@@ -186,10 +191,10 @@ export async function createPlayer(params: { email: string; username: string; pa
     perkSuperShield: false,
     perkOneShot: false,
     spareWeaponId: "",
-    // v38: also not included in .insert() below — DB-level defaults (see
-    // 008_v38_skins.sql), same reasoning as the v16/v35 fields above.
-    skinColor: "default",
-    ownedSkins: ["default"],
+    // v42: also not included in .insert() below — DB-level defaults (see
+    // 010_v42_per_character_skins.sql), same reasoning as the v16/v35 fields above.
+    skinColors: {},
+    ownedSkinsByCharacter: {},
     // v39: also not included in .insert() below — DB-level defaults (see
     // 009_v39_tutorial.sql), same reasoning as the v16/v35/v38 fields above.
     tutorialCompleted: false,
@@ -265,21 +270,21 @@ const CAMEL_TO_SNAKE: Record<string, string> = {
   perkSuperShield: "perk_super_shield",
   perkOneShot: "perk_one_shot",
   spareWeaponId: "spare_weapon_id",
-  skinColor: "skin_color",
-  ownedSkins: "owned_skins",
+  skinColors: "skin_colors",
+  ownedSkinsByCharacter: "owned_skins_by_character",
   tutorialCompleted: "tutorial_completed",
   tutorialStep: "tutorial_step",
 };
 
-function toSnakeUpdates(updates: Record<string, string | number | boolean | string[]>): Record<string, string | number | boolean | string[]> {
-  const out: Record<string, string | number | boolean | string[]> = {};
+function toSnakeUpdates(updates: Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]>>): Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]>> {
+  const out: Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]>> = {};
   for (const [key, value] of Object.entries(updates)) {
     out[CAMEL_TO_SNAKE[key] ?? key] = value;
   }
   return out;
 }
 
-export async function updatePlayerByEmail(email: string, updates: Record<string, string | number | boolean | string[]>): Promise<void> {
+export async function updatePlayerByEmail(email: string, updates: Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]>>): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from(TABLE)
@@ -288,7 +293,7 @@ export async function updatePlayerByEmail(email: string, updates: Record<string,
   if (error) throw new Error(`updatePlayerByEmail: ${error.message}`);
 }
 
-export async function updatePlayer(id: string, updates: Partial<Record<keyof Player, string | number | boolean | string[]>>): Promise<void> {
+export async function updatePlayer(id: string, updates: Partial<Record<keyof Player, string | number | boolean | string[] | Record<string, string> | Record<string, string[]>>>): Promise<void> {
   const supabase = getSupabaseClient();
   const { error } = await supabase
     .from(TABLE)

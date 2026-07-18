@@ -19,3 +19,20 @@ export const SKIN_COLOR_HEX: Record<SkinColor, number | null> = {
 export function isSkinColor(value: string): value is SkinColor {
   return (SKIN_COLORS as readonly string[]).includes(value);
 }
+
+/** v42: skin ownership/equip state is scoped PER CHARACTER — sharing one
+ *  global skinColor across every character was the actual bug report (buying
+ *  a color for one character silently recolored every other one too). These
+ *  two helpers are the single place that reads a per-character entry out of
+ *  the player's {characterId: colorId} / {characterId: colorId[]} maps, with
+ *  a safe "default" fallback for a character never touched yet. */
+export function getEquippedSkinColor(skinColors: Record<string, string>, characterId: string): SkinColor {
+  const value = skinColors[characterId];
+  return value && isSkinColor(value) ? value : "default";
+}
+
+export function getOwnedSkinColors(ownedSkinsByCharacter: Record<string, string[]>, characterId: string): SkinColor[] {
+  const owned = ownedSkinsByCharacter[characterId];
+  const valid = Array.isArray(owned) ? owned.filter(isSkinColor) : [];
+  return valid.includes("default") ? valid : ["default", ...valid];
+}

@@ -45,8 +45,8 @@ export default async function CharacterPage() {
       ticket={player.ticket}
       exp={player.exp}
       greenBanknote={income.greenBanknoteBalance}
-      skinColor={player.skinColor}
-      ownedSkins={player.ownedSkins}
+      skinColors={player.skinColors}
+      ownedSkinsByCharacter={player.ownedSkinsByCharacter}
       perks={{
         spareWeapon: player.perkSpareWeapon,
         regen: player.perkRegen,
