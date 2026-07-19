@@ -22,6 +22,8 @@ interface BossStatus {
   available: boolean;
   encounterNumber: number;
   hp: number;
+  multiverse: number;
+  requiredStageId: string;
 }
 
 interface Props {
@@ -144,21 +146,36 @@ export default function StageSelectClient({ stages, currentStage, completedStage
         </div>
       )}
 
-      {boss.available && selectedMultiverse === 1 && (
+      {/* v52 fix: always rendered for its OWN multiverse now (never hidden),
+          locked or unlocked — previously hardcoded to only ever show under
+          Multiverse 1 regardless of which multiverse the boss actually
+          belonged to, which is how Multiverse 3's boss card ended up
+          visible while browsing Multiverse 1. */}
+      {selectedMultiverse === boss.multiverse && (
         <div className="max-w-4xl mx-auto mb-6">
-          <div
-            className="card-military border-red-600 cursor-pointer hover:border-red-400 transition-all duration-200"
-            onClick={() => handlePlay("boss_next")}
-          >
-            <div className="flex items-start justify-between mb-2">
-              <span className="text-red-400 text-xs font-bold">⚠ BOSS STAGE UNLOCKED</span>
+          {boss.available ? (
+            <div
+              className="card-military border-red-600 cursor-pointer hover:border-red-400 transition-all duration-200"
+              onClick={() => handlePlay("boss_next")}
+            >
+              <div className="flex items-start justify-between mb-2">
+                <span className="text-red-400 text-xs font-bold">⚠ BOSS STAGE UNLOCKED</span>
+              </div>
+              <h3 className="font-bold text-white mb-1">Boss Encounter #{boss.encounterNumber}</h3>
+              <p className="text-xs text-military-steel">
+                HP: {boss.hp} — dual-wields Double Pistol and calls in a fresh pistol reinforcement every minute. No cover on this map.
+                Reward: 500 coin, 50 diamond, 10 ticket, 1 green banknote. Clearing it unlocks the next Multiverse.
+              </p>
             </div>
-            <h3 className="font-bold text-white mb-1">Boss Encounter #{boss.encounterNumber}</h3>
-            <p className="text-xs text-military-steel">
-              HP: {boss.hp} — dual-wields Double Pistol and calls in a fresh pistol reinforcement every minute. No cover on this map.
-              Reward: 500 coin, 50 diamond, 10 ticket, 1 green banknote. Clearing it unlocks the next Multiverse.
-            </p>
-          </div>
+          ) : (
+            <div className="card-military opacity-60 cursor-not-allowed">
+              <div className="flex items-start justify-between mb-2">
+                <span className="text-military-steel text-xs">🔒 Boss Encounter #{boss.encounterNumber}</span>
+              </div>
+              <h3 className="font-bold text-white mb-1">Locked</h3>
+              <p className="text-xs text-military-steel">Clear Stage {stageNumber(boss.requiredStageId)} to unlock this boss fight.</p>
+            </div>
+          )}
         </div>
       )}
 

@@ -190,9 +190,12 @@ export class GameScene extends Phaser.Scene {
       this.farmPhaseElapsed = 0;
     } else {
       for (const spawn of enemySpawns) {
-        const enemy = new Enemy(this, spawn.spawnX, spawn.spawnY, spawn, this.enemyBullets, this.enemyGroup, 1, 1, this.failedAssetKeys);
+        // v52: bosses detect/shoot from 3x the normal range — everyone else
+        // keeps the shared default (rangeMultiplier 1).
+        const isBoss = this.isBossStage && spawn.id === "boss";
+        const enemy = new Enemy(this, spawn.spawnX, spawn.spawnY, spawn, this.enemyBullets, this.enemyGroup, 1, 1, this.failedAssetKeys, isBoss ? 3 : 1);
         this.enemies.push(enemy);
-        if (this.isBossStage && spawn.id === "boss") this.bossEnemy = enemy;
+        if (isBoss) this.bossEnemy = enemy;
       }
 
       // v17/v29: boss calls in a fresh minion on a per-multiverse cadence

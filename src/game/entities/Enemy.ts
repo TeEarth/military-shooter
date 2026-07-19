@@ -44,8 +44,13 @@ export class Enemy {
   private preferredRange: number;
   private worldWidth: number;
   private worldHeight: number;
+  /** v52: multiplies detectionRange/shootRange for this one enemy — bosses
+   *  pass 3 here (see GameScene.ts's boss spawn) so they detect/engage from
+   *  much farther away than a normal enemy; everyone else defaults to 1
+   *  (no change from the shared ENEMY_CONFIG distances). */
+  private rangeMultiplier: number;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, data: EnemySpawn, enemyBullets: Phaser.Physics.Arcade.Group, group: Phaser.Physics.Arcade.Group, hpMultiplier: number, damageMultiplier: number, failedAssetKeys?: Set<string>) {
+  constructor(scene: Phaser.Scene, x: number, y: number, data: EnemySpawn, enemyBullets: Phaser.Physics.Arcade.Group, group: Phaser.Physics.Arcade.Group, hpMultiplier: number, damageMultiplier: number, failedAssetKeys?: Set<string>, rangeMultiplier = 1) {
     this.scene = scene;
     this.data = { ...data, hp: Math.round(data.hp * hpMultiplier), weapon: { ...data.weapon, damage: Math.round(data.weapon.damage * damageMultiplier) } };
 
@@ -63,6 +68,7 @@ export class Enemy {
     this.preferredRange = Math.min(200, 60 + this.data.weapon.accuracy * 1.5);
     this.worldWidth = scene.physics.world.bounds.width;
     this.worldHeight = scene.physics.world.bounds.height;
+    this.rangeMultiplier = rangeMultiplier;
 
     // Loaded at the exact same UNIT_DISPLAY_SIZE as the player (see PreloadScene.ts) —
     // no runtime up/downscaling, so the body radius below always matches the
@@ -161,13 +167,16 @@ export class Enemy {
     const dist = Phaser.Math.Distance.Between(this.sprite.x, this.sprite.y, playerX, playerY);
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
 
+    const shootRange = ENEMY_CONFIG.shootRange * this.rangeMultiplier;
+    const detectionRange = ENEMY_CONFIG.detectionRange * this.rangeMultiplier;
+
     if (this.data.immobile) {
-      this.state = dist <= ENEMY_CONFIG.shootRange ? "shoot" : "patrol";
+      this.state = dist <= shootRange ? "shoot" : "patrol";
     } else if (dist <= this.preferredRange) {
       this.state = "shoot";
-    } else if (dist <= ENEMY_CONFIG.detectionRange) {
+    } else if (dist <= detectionRange) {
       this.state = "chase";
-    } else if (dist <= ENEMY_CONFIG.shootRange) {
+    } else if (dist <= shootRange) {
       this.state = "approach";
     } else {
       this.state = "patrol";

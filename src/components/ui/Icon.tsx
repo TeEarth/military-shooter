@@ -33,35 +33,38 @@ interface IconProps {
   to?: string;
 }
 
+// v54: bumped every stop noticeably brighter/more saturated — the first pass
+// read as flat/washed out on the actual buttons. Ticket flips to red (was
+// green, per request — green stays reserved for Regeneration/HP-ish things).
 const DEFAULT_COLORS: Record<IconName, [string, string]> = {
-  coin: ["#ffe08a", "#c8891a"],
-  diamond: ["#8fd3ff", "#2f7fd1"],
-  ticket: ["#8affa0", "#1e9c4a"],
-  banknote: ["#a8f0c6", "#1f9d63"],
-  play: ["#e8d9a0", "#8a6a1a"],
-  pvp: ["#ff9a8a", "#a3271b"],
-  character: ["#d8c9a3", "#7a6a3a"],
-  inventory: ["#c9b998", "#6a5a35"],
-  gacha: ["#e0b13a", "#8a6a1a"],
-  trade: ["#8ae0c9", "#1a8a6a"],
-  mission: ["#ff9a9a", "#a32b2b"],
-  leaderboard: ["#ffe08a", "#c8891a"],
-  mailbox: ["#a3c9e0", "#2a5a8a"],
-  income: ["#a8f0c6", "#1f9d63"],
-  settings: ["#c9c9d8", "#5a5a6a"],
-  admin: ["#8fc9ff", "#2a5a9a"],
-  howToPlay: ["#e0d0a3", "#8a7a3a"],
-  spareWeapon: ["#d8c9a3", "#7a6a3a"],
-  regen: ["#9affb0", "#1a9a3a"],
-  superShield: ["#8fd0ff", "#2a6ab0"],
-  oneShot: ["#ffcf8a", "#c8621a"],
-  invisible: ["#c9a3ff", "#6a3ab0"],
-  neverDied: ["#ff9ac2", "#c02a6a"],
-  lock: ["#c9c9c9", "#6a6a6a"],
-  check: ["#9affb0", "#1a9a3a"],
-  close: ["#ff9a9a", "#a32b2b"],
-  warning: ["#ffe08a", "#c8891a"],
-  star: ["#ffe08a", "#c8891a"],
+  coin: ["#ffe27a", "#e08a00"],
+  diamond: ["#7fe0ff", "#0064e0"],
+  ticket: ["#ff8a8a", "#d40000"],
+  banknote: ["#8bffb8", "#00a84a"],
+  play: ["#ffcf6b", "#b35400"],
+  pvp: ["#ff8a6b", "#c81e0e"],
+  character: ["#ffd98a", "#8a5a10"],
+  inventory: ["#ffdb8a", "#a06a10"],
+  gacha: ["#ffcf3a", "#c85a00"],
+  trade: ["#5bffcf", "#00996a"],
+  mission: ["#ff6b6b", "#b30000"],
+  leaderboard: ["#ffe27a", "#e08a00"],
+  mailbox: ["#7ec3ff", "#0055a0"],
+  income: ["#8bffb8", "#00a84a"],
+  settings: ["#e6e6ff", "#3a3a8a"],
+  admin: ["#7ec3ff", "#0055a0"],
+  howToPlay: ["#ffdb8a", "#a06a10"],
+  spareWeapon: ["#ffb15c", "#c85a00"],
+  regen: ["#7bff9a", "#00a832"],
+  superShield: ["#7ec3ff", "#0055a0"],
+  oneShot: ["#f0f0f0", "#5a5a5a"],
+  invisible: ["#c78bff", "#5500b3"],
+  neverDied: ["#ff7ab0", "#c8004a"],
+  lock: ["#e6e6e6", "#4a4a4a"],
+  check: ["#7bff9a", "#00a832"],
+  close: ["#ff8a8a", "#c81e0e"],
+  warning: ["#ffe27a", "#e08a00"],
+  star: ["#ffe27a", "#e08a00"],
   chevronDown: ["#e0d0a3", "#8a7a3a"],
   google: ["#e8e8e8", "#8a8a8a"],
 };
@@ -100,20 +103,26 @@ function IconGlyph({ name, fill }: { name: IconName; fill: string }) {
         </>
       );
     case "play":
+      // A soldier bust dual-wielding pistols — matches the in-game "Double
+      // Pistol" identity rather than a generic play/sword icon.
       return (
         <>
-          <path d="M5 3.5 12 8l-1.6 3.2M19 3.5 12 8l1.6 3.2" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
-          <path d="M12 8v4.5l-5.5 8h11l-5.5-8Z" fill={fill} stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+          <circle cx="12" cy="7" r="3.2" fill={fill} stroke="currentColor" strokeWidth="1" />
+          <path d="M6 20c0-4.4 2.4-6.8 6-6.8s6 2.4 6 6.8Z" fill={fill} stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+          <path d="M1.6 15.6h3.6l0.9 -1.6h1v1.6h0.9v1.5H1.6Z" fill="currentColor" />
+          <path d="M22.4 15.6h-3.6l-0.9 -1.6h-1v1.6h-0.9v1.5h6.4Z" fill="currentColor" />
         </>
       );
     case "pvp":
+      // Two combatants facing off with "VS" between them, not an abstract
+      // crosshair — reads immediately as player-vs-player.
       return (
         <>
-          <path d="M4 5 11 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          <path d="M20 5 13 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          <path d="M4 19 11 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          <path d="M20 19 13 12" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-          <circle cx="12" cy="12" r="3.4" fill={fill} stroke="currentColor" strokeWidth="1" />
+          <circle cx="5.6" cy="7.2" r="2.6" fill={fill} stroke="currentColor" strokeWidth="1" />
+          <path d="M2 19.5c0-4 1.5-6.4 3.6-6.4s3.6 2.4 3.6 6.4Z" fill={fill} stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+          <circle cx="18.4" cy="7.2" r="2.6" fill={fill} stroke="currentColor" strokeWidth="1" />
+          <path d="M14.8 19.5c0-4 1.5-6.4 3.6-6.4s3.6 2.4 3.6 6.4Z" fill={fill} stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
+          <text x="12" y="15.5" fontSize="7" fontWeight="700" fill="currentColor" textAnchor="middle" fontFamily="Arial, sans-serif">VS</text>
         </>
       );
     case "character":
@@ -179,10 +188,22 @@ function IconGlyph({ name, fill }: { name: IconName; fill: string }) {
         </>
       );
     case "settings":
+      // A real gear — solid ring + 8 trapezoidal teeth — instead of a ring
+      // with thin radiating lines that didn't actually read as a cog.
       return (
         <>
-          <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.3" />
-          <path d="M12 3.5v2.4M12 18.1v2.4M20.5 12h-2.4M5.9 12H3.5M17.7 6.3l-1.7 1.7M8 16l-1.7 1.7M17.7 17.7 16 16M8 8 6.3 6.3" fill="none" stroke={fill} strokeWidth="2" strokeLinecap="round" />
+          <g fill={fill} stroke="currentColor" strokeWidth="0.8">
+            <rect x="10.3" y="0.7" width="3.4" height="3.3" rx="0.6" />
+            <rect x="10.3" y="0.7" width="3.4" height="3.3" rx="0.6" transform="rotate(45 12 12)" />
+            <rect x="10.3" y="0.7" width="3.4" height="3.3" rx="0.6" transform="rotate(90 12 12)" />
+            <rect x="10.3" y="0.7" width="3.4" height="3.3" rx="0.6" transform="rotate(135 12 12)" />
+            <rect x="10.3" y="0.7" width="3.4" height="3.3" rx="0.6" transform="rotate(180 12 12)" />
+            <rect x="10.3" y="0.7" width="3.4" height="3.3" rx="0.6" transform="rotate(225 12 12)" />
+            <rect x="10.3" y="0.7" width="3.4" height="3.3" rx="0.6" transform="rotate(270 12 12)" />
+            <rect x="10.3" y="0.7" width="3.4" height="3.3" rx="0.6" transform="rotate(315 12 12)" />
+          </g>
+          <circle cx="12" cy="12" r="7" fill={fill} stroke="currentColor" strokeWidth="1.2" />
+          <circle cx="12" cy="12" r="3" fill="currentColor" fillOpacity="0.35" stroke="currentColor" strokeWidth="1" />
         </>
       );
     case "admin":
@@ -201,17 +222,29 @@ function IconGlyph({ name, fill }: { name: IconName; fill: string }) {
         </>
       );
     case "spareWeapon":
+      // Assault rifle silhouette (M16A4-style: carry-handle hump up top,
+      // angled magazine, pistol grip, stock) instead of the old vague blob.
       return (
         <>
-          <path d="M4 13.5 5 11h9.5l1.2 1.5V15H4Z" fill={fill} stroke="currentColor" strokeWidth="1" strokeLinejoin="round" />
-          <path d="M15.5 12h3.2v2.2h-3.2zM8 15v2.5M11 15v3.2" stroke="currentColor" strokeWidth="1" fill="none" strokeLinecap="round" />
+          <rect x="1.6" y="10.3" width="17.4" height="2.1" rx="0.4" fill={fill} stroke="currentColor" strokeWidth="0.9" />
+          <path d="M9 10.3V7.4h4.2v2.9Z" fill={fill} stroke="currentColor" strokeWidth="0.8" strokeLinejoin="round" />
+          <path d="M10.3 12.4h2.6l-0.9 5.3h-2.3Z" fill={fill} stroke="currentColor" strokeWidth="0.8" strokeLinejoin="round" />
+          <path d="M13.8 12.4h2v3.5h-2.7Z" fill={fill} stroke="currentColor" strokeWidth="0.8" strokeLinejoin="round" />
+          <path d="M16.8 10.5h3.8v3.6h-2.6Z" fill={fill} stroke="currentColor" strokeWidth="0.8" strokeLinejoin="round" />
+          <rect x="1.4" y="8.8" width="1.1" height="1.7" fill="currentColor" />
         </>
       );
     case "regen":
+      // Heart with several small "+" medic crosses scattered around it, per
+      // request — not just a bare heart with an EKG squiggle.
       return (
         <>
-          <path d="M12 20s-7-4.4-7-9.8A4.2 4.2 0 0 1 12 8a4.2 4.2 0 0 1 7 2.2C19 15.6 12 20 12 20Z" fill={fill} stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
-          <path d="M8.5 12h2l1-2 1.5 4 1-2h1.5" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M12 19s-6.4-4-6.4-8.8A3.8 3.8 0 0 1 12 7.4a3.8 3.8 0 0 1 6.4 2.8C18.4 15 12 19 12 19Z" fill={fill} stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+          <path d="M9 11.6h1.4l0.6 -1.4 1 2.8 0.6 -1.4h1.4" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M3.4 5.2h2.6M4.7 3.9v2.6" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+          <path d="M17.6 4.4h2.3M18.75 3.25v2.3" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" />
+          <path d="M2 15.4h2.1M3.05 14.35v2.1" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+          <path d="M19.8 16.6h2.1M20.85 15.55v2.1" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
         </>
       );
     case "superShield":
@@ -222,12 +255,14 @@ function IconGlyph({ name, fill }: { name: IconName; fill: string }) {
         </>
       );
     case "oneShot":
+      // A real skull — round cranium, deep eye sockets, jagged teeth along
+      // the jaw — the old rounded-taper shape read as a lightbulb instead.
       return (
         <>
-          <path d="M12 3a6 6 0 0 1 6 6c0 2.6-1.4 3.9-2 5.2-.4.9-.4 1.8-.4 2.8H8.4c0-1-.0-1.9-.4-2.8C7.4 12.9 6 11.6 6 9a6 6 0 0 1 6-6Z" fill={fill} stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
-          <circle cx="9.6" cy="9" r="1.1" fill="currentColor" />
-          <circle cx="14.4" cy="9" r="1.1" fill="currentColor" />
-          <path d="M9 18.5h6M9.6 20.5h4.8" stroke="currentColor" strokeWidth="1" strokeLinecap="round" />
+          <path d="M12 3.2c-4.6 0-7.4 3.1-7.4 6.6 0 2.2 0.9 3.6 1.8 4.7.5.6.7 1 .7 1.6v1h2v-1.4h1.1v1.4h1.6v-1.4h1.1v1.4h1.6v-1.4h1.1v1.4h2v-1c0-.6.2-1 .7-1.6.9-1.1 1.8-2.5 1.8-4.7 0-3.5-2.8-6.6-7.4-6.6Z" fill={fill} stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+          <ellipse cx="8.8" cy="9.7" rx="1.7" ry="2.1" fill="currentColor" />
+          <ellipse cx="15.2" cy="9.7" rx="1.7" ry="2.1" fill="currentColor" />
+          <path d="M12 10.6v2l-1.1 1h2.2l-1.1-1Z" fill="currentColor" opacity="0.8" />
         </>
       );
     case "invisible":

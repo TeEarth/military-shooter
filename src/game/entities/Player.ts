@@ -687,8 +687,11 @@ export class Player {
       this.hp = 1;
       this.neverDiedUsed = true;
       this.neverDiedInvincibleUntil = this.scene.time.now + NEVER_DIED_INVINCIBLE_MS;
-      sfx.play("pickup_item");
+      sfx.play("gacha_legendary");
       this.scene.tweens.add({ targets: this.sprite, tint: 0xfbbf24, duration: 250, yoyo: true, repeat: 5, onComplete: () => this.sprite.clearTint() });
+      // v52: dedicated on-screen banner (see HUDScene's onNeverDiedActivated)
+      // so the save is unmistakable, not just a quiet tint flash.
+      this.scene.events.emit("player-never-died");
     }
   }
 

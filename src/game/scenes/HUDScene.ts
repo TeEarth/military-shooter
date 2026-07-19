@@ -69,6 +69,7 @@ export class HUDScene extends Phaser.Scene {
   /** v13: farm stage's 5s "get ready" countdown + per-wave banner. */
   private farmCountdownText!: Phaser.GameObjects.Text;
   private farmWaveBannerText!: Phaser.GameObjects.Text;
+  private neverDiedBannerText!: Phaser.GameObjects.Text;
   /** v14: tree stealth hide-progress bar + "HIDDEN" label. */
   private hideBar!: Phaser.GameObjects.Graphics;
   private hideText!: Phaser.GameObjects.Text;
@@ -223,6 +224,12 @@ export class HUDScene extends Phaser.Scene {
       fontFamily: "Orbitron, monospace", fontSize: "26px", color: "#4ade80", fontStyle: "bold",
     }).setOrigin(0.5).setDepth(60).setVisible(false);
 
+    // v52: Never Died save banner — big and unmissable, distinct from the
+    // quiet tint-flash-only feedback it had before.
+    this.neverDiedBannerText = this.add.text(width / 2, height / 2 - 100, "NEVER DIED ACTIVATED!", {
+      fontFamily: "Orbitron, monospace", fontSize: "28px", color: "#f472b6", fontStyle: "bold",
+    }).setOrigin(0.5).setDepth(65).setVisible(false);
+
     // v24: big boss hp bar, top-center — set once and left alone unless a
     // hud-update actually carries bossHp (see onHudUpdate), so it never shows
     // on non-boss stages.
@@ -243,6 +250,17 @@ export class HUDScene extends Phaser.Scene {
     gameScene.events.on("hud-update", this.onHudUpdate, this);
     gameScene.events.on("farm-countdown", this.onFarmCountdown, this);
     gameScene.events.on("farm-wave-start", this.onFarmWaveStart, this);
+    gameScene.events.on("player-never-died", this.onNeverDiedActivated, this);
+  }
+
+  /** v52: shows the "NEVER DIED ACTIVATED!" banner for 2.5s the moment the
+   *  perk actually triggers (see Player.ts's applyToShieldThenHp). */
+  private onNeverDiedActivated() {
+    this.neverDiedBannerText.setVisible(true).setAlpha(1);
+    this.tweens.add({
+      targets: this.neverDiedBannerText, alpha: 0, delay: 1800, duration: 700,
+      onComplete: () => this.neverDiedBannerText.setVisible(false),
+    });
   }
 
   /** v41: marks this pointer as "consumed by UI" for the rest of this touch/
@@ -673,6 +691,7 @@ export class HUDScene extends Phaser.Scene {
       gameScene.events.off("hud-update", this.onHudUpdate, this);
       gameScene.events.off("farm-countdown", this.onFarmCountdown, this);
       gameScene.events.off("farm-wave-start", this.onFarmWaveStart, this);
+      gameScene.events.off("player-never-died", this.onNeverDiedActivated, this);
     }
   }
 }

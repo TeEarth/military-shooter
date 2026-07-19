@@ -186,7 +186,17 @@ export default function HomeClient({ player, characterSprite, characterName, equ
                       {claimableMissionCount > 99 ? "99+" : claimableMissionCount}
                     </span>
                   )}
-                  <Icon name={item.icon} size={item.primary ? 30 : 26} className="mb-1" />
+                  {item.href === "/gacha" ? (
+                    <div className="relative w-8 h-7 mb-1">
+                      {/* Real gold + normal capsule sprites — same art the Gacha page itself uses */}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/assets/sprites/ui/shop_gacha_capsule.svg" alt="" className="absolute left-0 bottom-0 w-5 h-5" />
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/assets/sprites/ui/gacha_capsule_ticket.svg" alt="" className="absolute right-0 top-0 w-5 h-5" />
+                    </div>
+                  ) : (
+                    <Icon name={item.icon} size={item.primary ? 30 : 26} className="mb-1" />
+                  )}
                   <span className="text-xs tracking-wider">{item.label}</span>
                   {"subtitle" in item && item.subtitle && (
                     <span className="text-military-tan/80 text-[11px] mt-1">{item.subtitle}</span>

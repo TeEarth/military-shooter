@@ -11,11 +11,15 @@ export type IntroHighlight =
   | { kind: "rect"; getRect: (scene: TutorialScene) => { x: number; y: number; w: number; h: number } }
   | { kind: "none" };
 
-/** Which real gameplay inputs stay live during a step — everything NOT
- *  listed here is locked (movement, shooting, reload, weapon swap, perk
- *  buttons) so the player can't wander off or waste ammo mid-explanation.
- *  Steps that ask the player to actually try something list exactly that one
- *  control; pure-explanation steps list none. */
+/** v53: the guide is PURE explanation now — every gameplay control (move,
+ *  shoot, reload, swap, perk) stays locked for the entire guide, every step,
+ *  no exceptions. Earlier this let a couple of steps unlock one control to
+ *  "try it now," but that's exactly what kept breaking (a real shot fired
+ *  while transitioning steps, requireAction leaving Next stuck disabled) —
+ *  per explicit request, all of that is gone. Real hands-on practice
+ *  (actually moving/shooting/reloading/hiding) only starts AFTER the guide
+ *  ends, via the pre-existing MOVE/SHOOT/RELOAD/KILL_ENEMY/STEALTH/
+ *  FREE_COMBAT state machine below — unchanged, and not part of the guide. */
 export type ControlKind = "move" | "shoot" | "reload" | "swap" | "perk";
 
 export interface IntroStep {
@@ -23,16 +27,6 @@ export interface IntroStep {
   title: string;
   getDescription: (scene: TutorialScene) => string;
   getHighlight: (scene: TutorialScene) => IntroHighlight;
-  /** Defaults to [] — fully locked except Next/Previous/Skip. */
-  allowedControls?: ControlKind[];
-  /** If set, autoAdvanceIf must become true before Next is enabled — the
-   *  player has to actually do the thing, not just click through. Previous
-   *  and Skip still always work. */
-  requireAction?: boolean;
-  /** Same trigger as before: becomes true the moment the player performs the
-   *  action, advancing automatically (Next also works immediately once true,
-   *  or is disabled until then if requireAction is set). */
-  autoAdvanceIf?: (scene: TutorialScene) => boolean;
   /** Only set on the 6 generated perk sub-steps — lets TutorialScene know to
    *  keep the simulated perk button overlay up across the whole run of them
    *  and which one to visually emphasize. */
@@ -194,28 +188,22 @@ export const INTRO_STEPS: IntroStep[] = [
       ? "Touch and drag on the LEFT half of the screen to walk, run, and dodge enemy attacks."
       : "Use WASD or the arrow keys to walk, run, and dodge enemy attacks.",
     getHighlight: (scene) => ({ kind: "rect", getRect: () => joystickRect(scene) }),
-    allowedControls: ["move"],
   },
   {
     id: "shooting",
     title: "Shooting",
     getDescription: (scene) => Boolean(scene.registry.get("isMobile"))
-      ? "Tap and hold on the RIGHT half of the screen to aim and fire at that spot. Try firing a shot now!"
-      : "Click (or hold) the left mouse button to aim and fire. Try firing a shot now!",
+      ? "Tap and hold on the RIGHT half of the screen to aim and fire at that spot."
+      : "Click (or hold) the left mouse button to aim and fire.",
     getHighlight: (scene) => ({ kind: "rect", getRect: () => shootZoneRect(scene) }),
-    allowedControls: ["move", "shoot"],
-    autoAdvanceIf: (scene) => scene.shotFiredThisStep,
   },
   {
     id: "reload",
     title: "Reload",
     getDescription: (scene) => Boolean(scene.registry.get("isMobile"))
-      ? "This is your RELOAD button. Firing blocks while you reload, and it always refills to a full magazine. Press it now!"
-      : "This is your RELOAD button — press R (or click it) to refill your magazine. Firing blocks while reloading. Try it now!",
+      ? "This is your RELOAD button. Firing blocks while you reload, and it always refills to a full magazine."
+      : "This is your RELOAD button — press R (or click it) to refill your magazine. Firing blocks while reloading.",
     getHighlight: (scene) => ({ kind: "rect", getRect: () => reloadButtonRect(scene) }),
-    allowedControls: ["reload"],
-    requireAction: true,
-    autoAdvanceIf: (scene) => scene.wasReloading && !scene.player.isReloading,
   },
   ...PERK_STEPS,
   {
@@ -227,10 +215,8 @@ export const INTRO_STEPS: IntroStep[] = [
   {
     id: "stealth",
     title: "Stealth",
-    getDescription: () => "Standing still near a tree hides you from enemies completely. Try walking up to the tree and staying still for a second!",
+    getDescription: () => "Standing still near a tree hides you from enemies completely — a great way to break line of sight and plan your next move.",
     getHighlight: (scene) => ({ kind: "rect", getRect: () => worldToScreenRect(scene, scene.treePosition.x, scene.treePosition.y, 50) }),
-    allowedControls: ["move"],
-    autoAdvanceIf: (scene) => scene.isHidden,
   },
   {
     id: "exit",

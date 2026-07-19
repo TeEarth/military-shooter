@@ -20,7 +20,13 @@ export default async function PlayPage() {
 
   // BossStage sheet may not exist yet on an un-migrated environment — degrade
   // gracefully to "no boss available" rather than breaking the whole page.
-  let boss = { available: false, encounterNumber: 1, hp: 0 };
+  // v52 fix: added `multiverse` + `requiredStageId` — the boss card used to
+  // be hardcoded to show only under "selectedMultiverse === 1" regardless of
+  // which multiverse this specific boss actually belongs to, so Multiverse
+  // 3's boss visibly showed up while browsing Multiverse 1's stage list. The
+  // client now always renders a card for the boss's OWN multiverse — locked
+  // (with the requirement shown) until boss.available, never hidden.
+  let boss = { available: false, encounterNumber: 1, hp: 0, multiverse: 1, requiredStageId: "stage10" };
   // v17: each boss cleared (bossEncounterCount) unlocks the next multiverse —
   // multiverse 1 is always unlocked, so this starts at 1 with zero clears.
   let unlockedMultiverse = 1;
@@ -38,6 +44,12 @@ export default async function PlayPage() {
       available: completedStageIds.includes(requiredStageId),
       encounterNumber: bossEncounterNumber,
       hp: bossConfig.hp,
+      // Boss encounter N is the final boss of Multiverse N (clearing it
+      // unlocks Multiverse N+1) — same number, kept as its own field so the
+      // client's intent ("which multiverse tab does this boss belong to")
+      // reads clearly instead of overloading encounterNumber for two things.
+      multiverse: bossEncounterNumber,
+      requiredStageId,
     };
     unlockedMultiverse = 1 + bossEncounterCount;
   } catch {

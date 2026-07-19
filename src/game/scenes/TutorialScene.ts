@@ -285,8 +285,6 @@ export class TutorialScene extends GameScene {
 
     if (this.introStepIndex >= 0) {
       this.updateIntroHighlight();
-      const step = INTRO_STEPS[this.introStepIndex];
-      if (step.autoAdvanceIf?.(this)) this.introNext();
       return;
     }
 
@@ -376,9 +374,10 @@ export class TutorialScene extends GameScene {
     this.introScreenRing = this.add.graphics().setPosition(this.uiX(0), this.uiY(0)).setScale(this.uiScale).setScrollFactor(0).setDepth(150).setVisible(false);
     this.introRingTween = this.tweens.add({ targets: this.introScreenRing, alpha: 0.35, duration: 500, yoyo: true, repeat: -1 });
 
-    const boxWidth = Math.min(520, width - 32);
+    const boxWidth = Math.min(560, width - 32);
+    const boxHeight = 190;
     const centerX = width / 2;
-    const centerY = height - 130;
+    const centerY = height - 150;
 
     // v48 fix: absolute-positioned GameObjects (same convention every other
     // interactive HUD button in this codebase already uses — see HUDScene's
@@ -386,27 +385,29 @@ export class TutorialScene extends GameScene {
     // children inside a Container. Confirmed necessary, not just "safer" —
     // nesting Next/Previous/Skip inside a Container (tried during v50) broke
     // their clicks entirely.
-    const bg = this.add.rectangle(this.uiX(centerX), this.uiY(centerY), boxWidth, 150, 0x1a1a2e, 0.97).setStrokeStyle(2, 0xc5a97d).setScale(this.uiScale).setScrollFactor(0).setDepth(160);
-    this.introTitleText = this.add.text(this.uiX(centerX), this.uiY(centerY - 56), "", {
-      fontFamily: "Orbitron, monospace", fontSize: "15px", color: "#f3c98a", fontStyle: "bold",
+    const bg = this.add.rectangle(this.uiX(centerX), this.uiY(centerY), boxWidth, boxHeight, 0x1a1a2e, 0.97).setStrokeStyle(2, 0xc5a97d).setScale(this.uiScale).setScrollFactor(0).setDepth(160);
+    // v53: bigger text throughout, per request — title 15->19px, description
+    // 11->16px, progress counter 9->12px.
+    this.introTitleText = this.add.text(this.uiX(centerX), this.uiY(centerY - 74), "", {
+      fontFamily: "Orbitron, monospace", fontSize: "19px", color: "#f3c98a", fontStyle: "bold",
     }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(161);
-    this.introDescText = this.add.text(this.uiX(centerX), this.uiY(centerY - 34), "", {
-      fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#ffffff", align: "center", wordWrap: { width: boxWidth - 40 },
+    this.introDescText = this.add.text(this.uiX(centerX), this.uiY(centerY - 46), "", {
+      fontFamily: "Orbitron, monospace", fontSize: "16px", color: "#ffffff", align: "center", wordWrap: { width: boxWidth - 50 }, lineSpacing: 6,
     }).setOrigin(0.5, 0).setScale(this.uiScale).setScrollFactor(0).setDepth(161);
-    this.introProgressText = this.add.text(this.uiX(centerX), this.uiY(centerY + 50), "", {
-      fontFamily: "Orbitron, monospace", fontSize: "9px", color: "#8a8a9a",
+    this.introProgressText = this.add.text(this.uiX(centerX), this.uiY(centerY + 66), "", {
+      fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#8a8a9a",
     }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(161);
-    this.introNextBtn = this.add.text(this.uiX(centerX + boxWidth / 2 - 70), this.uiY(centerY + 66), "[ NEXT ]", {
-      fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#4ade80", fontStyle: "bold",
+    this.introNextBtn = this.add.text(this.uiX(centerX + boxWidth / 2 - 76), this.uiY(centerY + 84), "[ NEXT ]", {
+      fontFamily: "Orbitron, monospace", fontSize: "14px", color: "#4ade80", fontStyle: "bold",
     }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
     // v50: Previous — mirrors Next's position on the opposite side of the
     // Skip link, disabled (not shown) on the very first step since there's
     // nowhere to go back to.
-    this.introPrevBtn = this.add.text(this.uiX(centerX - boxWidth / 2 + 14), this.uiY(centerY + 66), "[ PREVIOUS ]", {
-      fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#c5a97d", fontStyle: "bold",
+    this.introPrevBtn = this.add.text(this.uiX(centerX - boxWidth / 2 + 16), this.uiY(centerY + 84), "[ PREVIOUS ]", {
+      fontFamily: "Orbitron, monospace", fontSize: "14px", color: "#c5a97d", fontStyle: "bold",
     }).setOrigin(0, 0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
-    this.introSkipBtn = this.add.text(this.uiX(centerX), this.uiY(centerY + 66), "Skip Tutorial", {
-      fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#c0392b",
+    this.introSkipBtn = this.add.text(this.uiX(centerX), this.uiY(centerY + 84), "Skip Tutorial", {
+      fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#c0392b",
     }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
 
     this.introBoxParts = [bg, this.introTitleText, this.introDescText, this.introProgressText, this.introNextBtn, this.introPrevBtn, this.introSkipBtn];
@@ -426,34 +427,15 @@ export class TutorialScene extends GameScene {
     this.introNextBtn.setText(index === INTRO_STEPS.length - 1 ? "[ START TRAINING ]" : "[ NEXT ]");
     this.introPrevBtn.setVisible(index > 0);
 
-    if (step.id === "shooting") this.shotFiredThisStep = false;
-    if (step.id === "reload") this.wasReloading = false;
-
-    // v50: entering/leaving the run of perk sub-steps toggles the simulated
+    // v53: entering/leaving the run of perk sub-steps toggles the simulated
     // button overlay; while INSIDE that run, just move the emphasis.
     if (step.perkId && !previousStep?.perkId) this.showPerkSimulation();
     else if (!step.perkId && previousStep?.perkId) this.hidePerkSimulation();
     if (step.perkId) this.emphasizePerk(step.perkId);
-
-    this.updateIntroNextEnabled();
-  }
-
-  /** v50: Next is disabled (dimmed, non-interactive) for steps that require
-   *  the player to actually perform the action first — re-checked every
-   *  frame in update() as autoAdvanceIf flips true. */
-  private updateIntroNextEnabled() {
-    if (this.introStepIndex < 0) return;
-    const step = INTRO_STEPS[this.introStepIndex];
-    const locked = Boolean(step.requireAction) && !step.autoAdvanceIf?.(this);
-    this.introNextBtn.setAlpha(locked ? 0.35 : 1);
-    if (locked) this.introNextBtn.disableInteractive();
-    else this.introNextBtn.setInteractive({ useHandCursor: true });
   }
 
   private introNext() {
     if (this.introStepIndex < 0) return;
-    const step = INTRO_STEPS[this.introStepIndex];
-    if (step.requireAction && !step.autoAdvanceIf?.(this)) return;
     const nextIndex = this.introStepIndex + 1;
     if (nextIndex >= INTRO_STEPS.length) {
       this.endIntro();
@@ -506,8 +488,6 @@ export class TutorialScene extends GameScene {
       this.introScreenRing?.setVisible(false);
       this.drawSpotlight(null);
     }
-
-    this.updateIntroNextEnabled();
   }
 
   private endIntro() {
@@ -552,14 +532,12 @@ export class TutorialScene extends GameScene {
     noBtn.on("pointerdown", (pointer: Phaser.Input.Pointer) => { this.claimPointer(pointer); closeConfirm(); });
   }
 
-  /** v50: gameplay input lock for the guided intro — see ControlKind and each
-   *  step's allowedControls in tutorialIntroSteps.ts. Not in the intro at
-   *  all (introStepIndex < 0) means nothing is locked, same as any other
-   *  mode (GameScene's own default). */
-  protected controlsLockedFor(action: ControlKind): boolean {
-    if (this.introStepIndex < 0) return false;
-    const allowed = INTRO_STEPS[this.introStepIndex].allowedControls ?? [];
-    return !allowed.includes(action);
+  /** v53: the guide is pure explanation now — every control stays locked for
+   *  its entire duration, no per-step exceptions (see tutorialIntroSteps.ts's
+   *  top-of-file note on why). Once the guide ends (introStepIndex < 0),
+   *  nothing is locked — same as any other mode. */
+  protected controlsLockedFor(_action: ControlKind): boolean {
+    return this.introStepIndex >= 0;
   }
 
   /** v50: creates all 6 perk buttons/icons at the exact positions HUDScene
