@@ -134,11 +134,20 @@ function IconGlyph({ name, fill }: { name: IconName; fill: string }) {
         </>
       );
     case "inventory":
+      // A decorated treasure chest — banded lid, corner rivets, a locked
+      // clasp — instead of a plain backpack silhouette.
       return (
         <>
-          <rect x="4" y="8" width="16" height="12" rx="2" fill={fill} stroke="currentColor" strokeWidth="1.1" />
-          <path d="M8 8V6a4 4 0 0 1 8 0v2" fill="none" stroke="currentColor" strokeWidth="1.2" />
-          <rect x="10" y="11.5" width="4" height="3" rx="0.6" fill="none" stroke="currentColor" strokeWidth="0.9" />
+          <path d="M3 10.5 5 6h14l2 4.5Z" fill={fill} stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+          <rect x="3" y="10.5" width="18" height="9" rx="1.2" fill={fill} stroke="currentColor" strokeWidth="1.1" />
+          <path d="M3 10.5h18" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M9 6 8 10.5M15 6l1 4.5" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.6" />
+          <rect x="10" y="9.4" width="4" height="3.2" rx="0.7" fill="#00000055" stroke="currentColor" strokeWidth="1" />
+          <circle cx="12" cy="11" r="0.7" fill="currentColor" />
+          <circle cx="5.4" cy="13" r="0.7" fill="currentColor" opacity="0.7" />
+          <circle cx="18.6" cy="13" r="0.7" fill="currentColor" opacity="0.7" />
+          <circle cx="5.4" cy="17" r="0.7" fill="currentColor" opacity="0.7" />
+          <circle cx="18.6" cy="17" r="0.7" fill="currentColor" opacity="0.7" />
         </>
       );
     case "gacha":
@@ -157,11 +166,19 @@ function IconGlyph({ name, fill }: { name: IconName; fill: string }) {
         </>
       );
     case "mission":
+      // A red/white dartboard with a dart stuck in it, off-center — not a
+      // plain flat target ring.
       return (
         <>
-          <circle cx="12" cy="12" r="9" fill={fill} stroke="currentColor" strokeWidth="1.1" />
-          <circle cx="12" cy="12" r="5.4" fill="none" stroke="currentColor" strokeWidth="1" />
-          <circle cx="12" cy="12" r="1.8" fill="currentColor" />
+          <circle cx="11" cy="12" r="9" fill="#e5e5e5" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M11 3a9 9 0 0 1 9 9h-9Z" fill="#dc2626" />
+          <path d="M2 12a9 9 0 0 1 9-9v9Z" fill="#dc2626" />
+          <circle cx="11" cy="12" r="5.6" fill="#e5e5e5" stroke="currentColor" strokeWidth="0.8" />
+          <path d="M11 6.4a5.6 5.6 0 0 1 5.6 5.6h-5.6Z" fill="#dc2626" />
+          <path d="M5.4 12a5.6 5.6 0 0 1 5.6-5.6v5.6Z" fill="#dc2626" />
+          <circle cx="11" cy="12" r="2.1" fill="#dc2626" stroke="currentColor" strokeWidth="0.6" />
+          <circle cx="11" cy="12" r="0.7" fill="#ffe27a" />
+          <path d="M15.5 7.5 20 3M20 3l-3.4.6M20 3l-.6 3.4" stroke={fill} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </>
       );
     case "leaderboard":

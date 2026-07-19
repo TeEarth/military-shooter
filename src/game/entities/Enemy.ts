@@ -129,9 +129,11 @@ export class Enemy {
    *  the wander area fixed and bounded, so it can never drift somewhere it
    *  gets stuck. */
   private pickNewPatrolTarget() {
+    // v57: widened from ±150 — patrolling read as barely moving at all since
+    // each new target landed so close to the last one.
     const margin = UNIT_DISPLAY_SIZE;
-    const x = Phaser.Math.Clamp(this.data.spawnX + Phaser.Math.Between(-150, 150), margin, this.worldWidth - margin);
-    const y = Phaser.Math.Clamp(this.data.spawnY + Phaser.Math.Between(-150, 150), margin, this.worldHeight - margin);
+    const x = Phaser.Math.Clamp(this.data.spawnX + Phaser.Math.Between(-260, 260), margin, this.worldWidth - margin);
+    const y = Phaser.Math.Clamp(this.data.spawnY + Phaser.Math.Between(-260, 260), margin, this.worldHeight - margin);
     this.patrolTarget.set(x, y);
   }
 

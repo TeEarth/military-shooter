@@ -10,8 +10,9 @@ import { showRewardedAd } from "@/lib/ads-service";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
 import CurrencyBar from "@/components/ui/CurrencyBar";
 import Icon, { type IconName } from "@/components/ui/Icon";
+import { showInsufficientFundsToast } from "@/components/ui/Toast";
 import { PERKS, PERK_ORDER, type PerkId } from "@/lib/perks";
-import { SKIN_COLORS, SKIN_COLOR_PRICE, SKIN_COLOR_HEX, getEquippedSkinColor, getOwnedSkinColors, type SkinColor } from "@/lib/skinColors";
+import { SKIN_COLORS, SKIN_COLOR_PRICE, SKIN_COLOR_HEX, getEquippedSkinColor, getOwnedSkinColors, skinPatternBackgroundImage, type SkinColor } from "@/lib/skinColors";
 import { sfx } from "@/lib/sfx";
 import { getUpgradedBaseHp, getUpgradeCost } from "@/lib/characterUpgrade";
 import { getUpgradedBaseDamage, getWeaponUpgradeCost } from "@/lib/weaponUpgrade";
@@ -176,6 +177,7 @@ export default function CharacterHubClient(props: Props) {
 
   async function refillAmmo(method: "ad" | "diamond") {
     if (ammoLoading) return;
+    if (method === "diamond" && diamond < 40) { showInsufficientFundsToast("diamond", 40, diamond); return; }
     setAmmoLoading(true);
     try {
       if (method === "ad") {
@@ -218,6 +220,8 @@ export default function CharacterHubClient(props: Props) {
     if (loading) return;
     const currency = char.unlockType === "PURCHASE" ? "coin" : char.unlockType === "DIAMOND" ? "diamond" : "ticket";
     const price = char.unlockValue;
+    const balance = currency === "coin" ? coin : currency === "diamond" ? diamond : ticket;
+    if (balance < price) { showInsufficientFundsToast(currency, price, balance); return; }
     const prevOwned = ownedCharacterIds;
     const prevBalance = { coin, diamond, ticket };
 
@@ -279,6 +283,8 @@ export default function CharacterHubClient(props: Props) {
     // v15: STAGE-type weapons are purchased with coin too, once the stage requirement is met.
     const currency = weapon.unlockType === "PURCHASE" || weapon.unlockType === "STAGE" ? "coin" : weapon.unlockType === "DIAMOND" ? "diamond" : "ticket";
     const price = currency === "coin" ? weapon.priceCoin : currency === "diamond" ? weapon.priceDiamond : weapon.priceTicket;
+    const wBalance = currency === "coin" ? coin : currency === "diamond" ? diamond : ticket;
+    if (wBalance < price) { showInsufficientFundsToast(currency, price, wBalance); return; }
     const prevOwned = ownedWeaponIds;
     const prevBalance = { coin, diamond, ticket };
 
@@ -341,8 +347,10 @@ export default function CharacterHubClient(props: Props) {
     }
   }
 
-  async function upgradePassive(passiveId: PassiveId) {
+  async function upgradePassive(passiveId: PassiveId, cost: number, currency: "coin" | "diamond" | "ticket") {
     if (loading) return;
+    const balance = currency === "coin" ? coin : currency === "diamond" ? diamond : ticket;
+    if (balance < cost) { showInsufficientFundsToast(currency, cost, balance); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/passive/upgrade", {
@@ -368,6 +376,8 @@ export default function CharacterHubClient(props: Props) {
 
   async function purchasePerk(perkId: PerkId) {
     if (loading) return;
+    const cost = PERKS[perkId].cost;
+    if (ticket < cost) { showInsufficientFundsToast("ticket", cost, ticket); return; }
     setLoading(true);
     try {
       const res = await fetch("/api/perk/purchase", {
@@ -405,6 +415,7 @@ export default function CharacterHubClient(props: Props) {
     if (skinLoading || color === equippedForChar) return;
     const ownedForChar = getOwnedSkinColors(ownedSkinsByCharacter, charId);
     const owned = ownedForChar.includes(color);
+    if (!owned && coin < SKIN_COLOR_PRICE) { showInsufficientFundsToast("coin", SKIN_COLOR_PRICE, coin); return; }
     const prevOwnedMap = ownedSkinsByCharacter;
     const prevCoin = coin;
     const prevSkinColorsMap = skinColors;
@@ -460,6 +471,7 @@ export default function CharacterHubClient(props: Props) {
     if (upgradeLoading) return;
     const prevLevel = characterUpgradeLevels[charId] ?? 0;
     const cost = getUpgradeCost(prevLevel);
+    if (coin < cost) { showInsufficientFundsToast("coin", cost, coin); return; }
     const prevCoin = coin;
 
     setCharacterUpgradeLevels((prev) => ({ ...prev, [charId]: prevLevel + 1 }));
@@ -496,6 +508,7 @@ export default function CharacterHubClient(props: Props) {
     if (weaponUpgradeLoading) return;
     const prevLevel = weaponUpgradeLevels[weaponId] ?? 0;
     const cost = getWeaponUpgradeCost(prevLevel);
+    if (coin < cost) { showInsufficientFundsToast("coin", cost, coin); return; }
     const prevCoin = coin;
 
     setWeaponUpgradeLevels((prev) => ({ ...prev, [weaponId]: prevLevel + 1 }));
@@ -615,7 +628,7 @@ export default function CharacterHubClient(props: Props) {
                   <div
                     className="absolute inset-0 w-32 h-32 pointer-events-none"
                     style={{
-                      backgroundColor: `#${SKIN_COLOR_HEX[previewSkinColor]!.toString(16).padStart(6, "0")}`,
+                      backgroundImage: skinPatternBackgroundImage(SKIN_COLOR_HEX[previewSkinColor]!),
                       WebkitMaskImage: `url(${selectedCharacter.sprite})`,
                       WebkitMaskSize: "contain",
                       WebkitMaskRepeat: "no-repeat",
@@ -951,7 +964,7 @@ export default function CharacterHubClient(props: Props) {
                 {maxed ? (
                   <span className="text-green-400 text-xs font-bold">MAX TIER</span>
                 ) : nextConfig ? (
-                  <button onClick={() => upgradePassive(passiveId)} disabled={loading} className="btn-military text-xs w-full py-1">
+                  <button onClick={() => upgradePassive(passiveId, nextConfig.cost, nextConfig.currency)} disabled={loading} className="btn-military text-xs w-full py-1">
                     {loading ? "..." : <>+{nextConfig.bonusPercent}% — <CurrencyCost currency={nextConfig.currency} amount={nextConfig.cost} /></>}
                   </button>
                 ) : (

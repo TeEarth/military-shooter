@@ -6,7 +6,7 @@ import CurrencyBar from "@/components/ui/CurrencyBar";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import { sfx } from "@/lib/sfx";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
-import { SKIN_COLOR_HEX, getEquippedSkinColor } from "@/lib/skinColors";
+import { SKIN_COLOR_HEX, getEquippedSkinColor, skinPatternBackgroundImage } from "@/lib/skinColors";
 
 interface Player {
   id: string;
@@ -116,7 +116,7 @@ export default function HomeClient({ player, characterSprite, characterName, equ
                     <div
                       className="absolute inset-0 w-48 h-48 pointer-events-none"
                       style={{
-                        backgroundColor: `#${hex.toString(16).padStart(6, "0")}`,
+                        backgroundImage: skinPatternBackgroundImage(hex),
                         WebkitMaskImage: `url(${characterSprite})`,
                         WebkitMaskSize: "contain",
                         WebkitMaskRepeat: "no-repeat",

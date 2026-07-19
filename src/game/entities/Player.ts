@@ -1,6 +1,6 @@
 import Phaser from "phaser";
 import type { CombatLoadout } from "@/types/loadout";
-import { SKIN_COLOR_HEX, isSkinColor } from "@/lib/skinColors";
+import { SKIN_COLOR_HEX, isSkinColor, applySkinTint } from "@/lib/skinColors";
 import { PLAYER_CONFIG, UNIT_DISPLAY_SIZE } from "../../../config/player";
 import { bulletSpeedForWeapon } from "../../../config/game";
 import { fireShots } from "./WeaponFire";
@@ -178,7 +178,7 @@ export class Player {
     (this.sprite.body as Phaser.Physics.Arcade.Body).setCircle(UNIT_DISPLAY_SIZE / 2);
     if (loadout.skinColor && isSkinColor(loadout.skinColor)) {
       const hex = SKIN_COLOR_HEX[loadout.skinColor];
-      if (hex !== null) this.sprite.setTint(hex);
+      if (hex !== null) applySkinTint(this.sprite, hex);
     }
 
     this.laserSight = scene.add.graphics().setDepth(11);

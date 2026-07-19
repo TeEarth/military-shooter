@@ -18,7 +18,8 @@ export const ENEMY_CONFIG = {
   // retreating player could never be caught and enemies looked static.
   // patrolSpeed stays slow/leisurely; chaseSpeed is a determined pursuit once
   // the player is actually detected.
-  patrolSpeed: 70,
+  // v57: bumped from 70 — enemies patrolling felt barely-moving/static.
+  patrolSpeed: 95,
   chaseSpeed: 150,
   // v18: deliberate, cautious advance used while sniping from the 300-450
   // band — slower than a full chase (this isn't "spotted and charging"), but

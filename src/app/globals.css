@@ -30,6 +30,12 @@ body {
   font-family: "Orbitron", monospace;
 }
 
+/* v58: global toast pop-in (see src/components/ui/Toast.tsx). */
+@keyframes toast-in {
+  0% { transform: translateY(-12px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
 /* v29: PvP entry-fee payment flourish (see PvpClient.tsx's "paying" phase) —
  *  ticket icon pops in, holds, then settles back down. */
 @keyframes pvp-pay-flourish {

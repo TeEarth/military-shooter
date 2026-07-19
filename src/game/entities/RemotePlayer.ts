@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { SKIN_COLOR_HEX, isSkinColor } from "@/lib/skinColors";
+import { SKIN_COLOR_HEX, isSkinColor, applySkinTint } from "@/lib/skinColors";
 import { UNIT_DISPLAY_SIZE } from "../../../config/player";
 
 export interface RemoteSnapshot {
@@ -64,7 +64,7 @@ export class RemotePlayer {
     this.sprite.setDepth(10);
     if (skinColor && isSkinColor(skinColor)) {
       const hex = SKIN_COLOR_HEX[skinColor];
-      if (hex !== null) this.sprite.setTint(hex);
+      if (hex !== null) applySkinTint(this.sprite, hex);
     }
     this.sprite.setImmovable(true);
     (this.sprite.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
