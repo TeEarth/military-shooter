@@ -12,7 +12,7 @@ import CurrencyBar from "@/components/ui/CurrencyBar";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import { showInsufficientFundsToast } from "@/components/ui/Toast";
 import { PERKS, PERK_ORDER, type PerkId } from "@/lib/perks";
-import { SKIN_COLORS, SKIN_COLOR_PRICE, SKIN_COLOR_HEX, getEquippedSkinColor, getOwnedSkinColors, skinPatternBackgroundImage, type SkinColor } from "@/lib/skinColors";
+import { SKIN_IDS, SKIN_PRICE, SKIN_LABEL, getEquippedSkin, getOwnedSkins, characterSkinSpritePath, type SkinId } from "@/lib/characterSkins";
 import { sfx } from "@/lib/sfx";
 import { getUpgradedBaseHp, getUpgradeCost } from "@/lib/characterUpgrade";
 import { getUpgradedBaseDamage, getWeaponUpgradeCost } from "@/lib/weaponUpgrade";
@@ -35,9 +35,9 @@ interface Props {
   exp: number;
   greenBanknote: number;
   perks: { spareWeapon: boolean; regen: boolean; superShield: boolean; oneShot: boolean; invisible: boolean; neverDied: boolean };
-  /** v42: equipped color skin PER character id — e.g. {"bob": "red"}. */
+  /** v42/v60: equipped skin id PER character id — e.g. {"bob": "desert"}. */
   skinColors: Record<string, string>;
-  /** v42: owned color skins PER character id — e.g. {"bob": ["red", "gold"]}. */
+  /** v42/v60: owned skin ids PER character id — e.g. {"bob": ["desert", "elite"]}. */
   ownedSkinsByCharacter: Record<string, string[]>;
   /** v46: permanent HP upgrade level PER character id — e.g. {"bob": 12}. */
   characterUpgradeLevels: Record<string, number>;
@@ -132,9 +132,11 @@ export default function CharacterHubClient(props: Props) {
   const [playerPassives, setPlayerPassives] = useState(props.playerPassives);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-  // v42: BOTH maps are keyed by character id — buying/equipping a skin for
-  // one character only ever touches that character's own entry (see
-  // confirmSkin below), never any other character's.
+  // v42/v60: BOTH maps are keyed by character id — buying/equipping a skin
+  // for one character only ever touches that character's own entry (see
+  // confirmSkin below), never any other character's. v60: values are now
+  // real skin ids (see src/lib/characterSkins.ts) resolving to sprite
+  // assets, not color-tint ids — same DB columns/field names reused as-is.
   const [skinColors, setSkinColors] = useState(props.skinColors);
   const [ownedSkinsByCharacter, setOwnedSkinsByCharacter] = useState(props.ownedSkinsByCharacter);
   const [skinLoading, setSkinLoading] = useState(false);
@@ -149,13 +151,13 @@ export default function CharacterHubClient(props: Props) {
     props.allCharacters.find((c) => c.id === activeCharacterId) ?? props.allCharacters[0]
   );
 
-  // v41/v42: the swatch currently PREVIEWED on the portrait — separate from
-  // the actually-equipped color until Confirm is pressed. Resets to whatever
+  // v41/v42: the skin currently PREVIEWED on the portrait — separate from
+  // the actually-equipped skin until Confirm is pressed. Resets to whatever
   // is equipped on THIS character every time the browsed character changes,
   // so switching characters never leaks a stale preview from another one.
-  const [previewSkinColor, setPreviewSkinColor] = useState<SkinColor>(getEquippedSkinColor(skinColors, selectedCharacter.id));
+  const [previewSkinColor, setPreviewSkinColor] = useState<SkinId>(getEquippedSkin(skinColors, selectedCharacter.id));
   useEffect(() => {
-    setPreviewSkinColor(getEquippedSkinColor(skinColors, selectedCharacter.id));
+    setPreviewSkinColor(getEquippedSkin(skinColors, selectedCharacter.id));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCharacter.id]);
   const [selectedWeapon, setSelectedWeapon] = useState<WeaponRow>(
@@ -405,35 +407,42 @@ export default function CharacterHubClient(props: Props) {
     }
   }
 
-  // v41/v42: previewing a color is purely local state — no network call, no
-  // cost — so clicking through swatches is instant and free. Confirming is
-  // the only action that actually buys/equips, and only ever touches THIS
-  // character's (charId) own entry in the skinColors/ownedSkinsByCharacter
+  // v41/v42: previewing a skin is purely local state — no network call, no
+  // cost — so clicking through the skin list is instant and free. Confirming
+  // is the only action that actually buys/equips, and only ever touches
+  // THIS character's (charId) own entry in the skinColors/ownedSkinsByCharacter
   // maps — every other character's skin state is untouched.
-  async function confirmSkin(charId: string, color: SkinColor) {
-    const equippedForChar = getEquippedSkinColor(skinColors, charId);
-    if (skinLoading || color === equippedForChar) return;
-    const ownedForChar = getOwnedSkinColors(ownedSkinsByCharacter, charId);
-    const owned = ownedForChar.includes(color);
-    if (!owned && coin < SKIN_COLOR_PRICE) { showInsufficientFundsToast("coin", SKIN_COLOR_PRICE, coin); return; }
+  async function confirmSkin(charId: string, skin: SkinId) {
+    const equippedForChar = getEquippedSkin(skinColors, charId);
+    if (skinLoading || skin === equippedForChar) return;
+    const ownedForChar = getOwnedSkins(ownedSkinsByCharacter, charId);
+    const owned = ownedForChar.includes(skin);
+    const price = SKIN_PRICE[skin];
+    if (!owned && price) {
+      const balance = price.currency === "coin" ? coin : diamond;
+      if (balance < price.amount) { showInsufficientFundsToast(price.currency, price.amount, balance); return; }
+    }
     const prevOwnedMap = ownedSkinsByCharacter;
     const prevCoin = coin;
+    const prevDiamond = diamond;
     const prevSkinColorsMap = skinColors;
 
-    if (!owned) setOwnedSkinsByCharacter((prev) => ({ ...prev, [charId]: [...ownedForChar, color] }));
-    if (!owned) setCoin((c) => c - SKIN_COLOR_PRICE);
-    setSkinColors((prev) => ({ ...prev, [charId]: color }));
+    if (!owned) setOwnedSkinsByCharacter((prev) => ({ ...prev, [charId]: [...ownedForChar, skin] }));
+    if (!owned && price?.currency === "coin") setCoin((c) => c - price.amount);
+    if (!owned && price?.currency === "diamond") setDiamond((d) => d - price.amount);
+    setSkinColors((prev) => ({ ...prev, [charId]: skin }));
     setSkinLoading(true);
     try {
       if (!owned) {
         const buyRes = await fetch("/api/character/skin", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "buy", skinColor: color, characterId: charId }),
+          body: JSON.stringify({ action: "buy", skinId: skin, characterId: charId }),
         });
         const buyData = await buyRes.json();
         if (!buyData.success) {
           setOwnedSkinsByCharacter(prevOwnedMap);
           setCoin(prevCoin);
+          setDiamond(prevDiamond);
           setSkinColors(prevSkinColorsMap);
           setPreviewSkinColor(equippedForChar);
           setMessage(buyData.error);
@@ -444,7 +453,7 @@ export default function CharacterHubClient(props: Props) {
 
       const selectRes = await fetch("/api/character/skin", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "select", skinColor: color, characterId: charId }),
+        body: JSON.stringify({ action: "select", skinId: skin, characterId: charId }),
       });
       const selectData = await selectRes.json();
       if (!selectData.success) {
@@ -453,10 +462,11 @@ export default function CharacterHubClient(props: Props) {
         setMessage(selectData.error);
         return;
       }
-      setMessage(owned ? `Equipped ${color} skin!` : `Bought and equipped the ${color} skin!`);
+      setMessage(owned ? `Equipped ${SKIN_LABEL[skin]} skin!` : `Bought and equipped the ${SKIN_LABEL[skin]} skin!`);
     } catch {
       setOwnedSkinsByCharacter(prevOwnedMap);
       setCoin(prevCoin);
+      setDiamond(prevDiamond);
       setSkinColors(prevSkinColorsMap);
       setPreviewSkinColor(equippedForChar);
       setMessage("Network error — skin not applied.");
@@ -612,35 +622,16 @@ export default function CharacterHubClient(props: Props) {
           >
             {selectedCharacter.sprite && (
               <div className="relative w-32 h-32 flex-shrink-0">
+                {/* v60: skins are real sprite assets now — previewing a skin
+                 *  swaps which SVG file is shown, same resolver used
+                 *  everywhere else in the game. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={selectedCharacter.sprite}
+                  src={characterSkinSpritePath(selectedCharacter.sprite, previewSkinColor)}
                   alt={selectedCharacter.name}
                   className="w-32 h-32 object-contain"
                   style={{ filter: `drop-shadow(0 0 14px ${(CHARACTER_THEME[selectedCharacter.id] ?? DEFAULT_THEME).glow})` }}
                 />
-                {/* v42: color-skin preview — each character has its own independent
-                 *  skin state now, so this previews whichever character is currently
-                 *  browsed (not just the equipped one). Approximates Phaser's in-game
-                 *  multiply tint via a mask-clipped, multiply-blended color layer
-                 *  shaped exactly like the sprite. */}
-                {SKIN_COLOR_HEX[previewSkinColor] !== null && (
-                  <div
-                    className="absolute inset-0 w-32 h-32 pointer-events-none"
-                    style={{
-                      backgroundImage: skinPatternBackgroundImage(SKIN_COLOR_HEX[previewSkinColor]!),
-                      WebkitMaskImage: `url(${selectedCharacter.sprite})`,
-                      WebkitMaskSize: "contain",
-                      WebkitMaskRepeat: "no-repeat",
-                      WebkitMaskPosition: "center",
-                      maskImage: `url(${selectedCharacter.sprite})`,
-                      maskSize: "contain",
-                      maskRepeat: "no-repeat",
-                      maskPosition: "center",
-                      mixBlendMode: "multiply",
-                    }}
-                  />
-                )}
                 {/* v10 #3 / v24 fix: same grip-anchored positioning fix as HomeClient —
                  *  see its comment for why (was reading as a stick out of the head). */}
                 {equippedWeaponId && (
@@ -693,33 +684,35 @@ export default function CharacterHubClient(props: Props) {
             {isCharActive && <span className="text-green-400 text-sm font-bold inline-flex items-center gap-1"><Icon name="check" size={14} /> ACTIVE</span>}
 
             <div className="mt-4 pt-4 border-t border-military-steel/30">
-              <h3 className="text-xs uppercase tracking-wider text-military-tan mb-2">Color Skin — {selectedCharacter.name} only</h3>
+              <h3 className="text-xs uppercase tracking-wider text-military-tan mb-2">Skin — {selectedCharacter.name} only</h3>
               {!isCharOwned ? (
-                <p className="text-xs text-red-400 flex items-center gap-1"><Icon name="lock" size={14} /> Own {selectedCharacter.name} first to customize their color skin.</p>
+                <p className="text-xs text-red-400 flex items-center gap-1"><Icon name="lock" size={14} /> Own {selectedCharacter.name} first to unlock their skins.</p>
               ) : (
               <>
-              <p className="text-xs text-military-steel mb-2">Every character keeps its own colors — this never touches any other character. Click a color to preview it, then Confirm to buy/equip.</p>
+              <p className="text-xs text-military-steel mb-2">Every character keeps its own skins — this never touches any other character. Click a skin to preview it, then Confirm to buy/equip.</p>
               <div className="flex gap-2 flex-wrap items-center">
                 {(() => {
-                  const equippedForChar = getEquippedSkinColor(skinColors, selectedCharacter.id);
-                  const ownedForChar = getOwnedSkinColors(ownedSkinsByCharacter, selectedCharacter.id);
+                  const equippedForChar = getEquippedSkin(skinColors, selectedCharacter.id);
+                  const ownedForChar = getOwnedSkins(ownedSkinsByCharacter, selectedCharacter.id);
                   return (
                     <>
-                      {SKIN_COLORS.map((color) => {
-                        const hex = SKIN_COLOR_HEX[color];
-                        const owned = ownedForChar.includes(color);
-                        const active = equippedForChar === color;
-                        const previewed = previewSkinColor === color;
+                      {SKIN_IDS.map((skin) => {
+                        const owned = ownedForChar.includes(skin);
+                        const active = equippedForChar === skin;
+                        const previewed = previewSkinColor === skin;
+                        const price = SKIN_PRICE[skin];
                         return (
                           <button
-                            key={color}
-                            onClick={() => setPreviewSkinColor(color)}
-                            title={color}
-                            className={`w-10 h-10 rounded-full border-2 flex items-center justify-center relative ${previewed ? "border-military-gold scale-110" : active ? "border-emerald-400" : "border-military-steel"}`}
-                            style={{ background: hex !== null ? `#${hex.toString(16).padStart(6, "0")}` : "repeating-conic-gradient(#888 0% 25%, #ccc 0% 50%)" }}
+                            key={skin}
+                            onClick={() => setPreviewSkinColor(skin)}
+                            title={SKIN_LABEL[skin]}
+                            className={`w-14 h-14 rounded border-2 flex items-center justify-center relative bg-military-darker overflow-hidden ${previewed ? "border-military-gold scale-110" : active ? "border-emerald-400" : "border-military-steel"}`}
                           >
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={characterSkinSpritePath(selectedCharacter.sprite, skin)} alt={SKIN_LABEL[skin]} className="w-11 h-11 object-contain" />
                             {active && <span className="absolute -top-1 -right-1 bg-emerald-400 text-military-darker rounded-full w-4 h-4 flex items-center justify-center"><Icon name="check" size={10} /></span>}
-                            {!owned && <span className="absolute -bottom-1 text-[8px] text-white bg-black/60 px-1 rounded">{SKIN_COLOR_PRICE}</span>}
+                            {!owned && price && <span className="absolute bottom-0 inset-x-0 text-[8px] text-white bg-black/70 flex items-center justify-center gap-0.5 py-0.5"><Icon name={price.currency} size={8} />{price.amount}</span>}
+                            <span className="absolute top-0 inset-x-0 text-[7px] text-center text-military-tan bg-black/50 truncate px-0.5">{SKIN_LABEL[skin]}</span>
                           </button>
                         );
                       })}
@@ -727,14 +720,19 @@ export default function CharacterHubClient(props: Props) {
                       {previewSkinColor !== equippedForChar && (
                         <button
                           onClick={() => confirmSkin(selectedCharacter.id, previewSkinColor)}
-                          disabled={skinLoading || (!ownedForChar.includes(previewSkinColor) && coin < SKIN_COLOR_PRICE)}
+                          disabled={
+                            skinLoading ||
+                            (!ownedForChar.includes(previewSkinColor) &&
+                              !!SKIN_PRICE[previewSkinColor] &&
+                              (SKIN_PRICE[previewSkinColor]!.currency === "coin" ? coin : diamond) < SKIN_PRICE[previewSkinColor]!.amount)
+                          }
                           className="btn-military text-xs ml-2"
                         >
                           {skinLoading
                             ? "..."
-                            : ownedForChar.includes(previewSkinColor)
+                            : ownedForChar.includes(previewSkinColor) || !SKIN_PRICE[previewSkinColor]
                               ? "CONFIRM — EQUIP"
-                              : <>CONFIRM — <CurrencyCost currency="coin" amount={SKIN_COLOR_PRICE} /></>}
+                              : <>CONFIRM — <CurrencyCost currency={SKIN_PRICE[previewSkinColor]!.currency} amount={SKIN_PRICE[previewSkinColor]!.amount} /></>}
                         </button>
                       )}
                     </>

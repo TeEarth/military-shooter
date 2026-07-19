@@ -2,7 +2,7 @@ import { getCharacterById } from "./google/character";
 import { getWeaponById } from "./google/weapon";
 import { getRemainingAmmo } from "./db/weaponAmmo";
 import { computeFullStats, statsToLoadout } from "./stats";
-import { getEquippedSkinColor } from "./skinColors";
+import { getEquippedSkin } from "./characterSkins";
 import type { Player } from "./db/player";
 import type { CombatLoadout } from "@/types/loadout";
 
@@ -32,7 +32,7 @@ export async function buildPerkPayload(player: Player, weaponId: string) {
       const spareAmmo = await getRemainingAmmo(player.id, player.spareWeaponId, Math.round(spareStats.dailyAmmo.final));
       // Spare Weapon keeps the same CHARACTER, just a different gun — same
       // character id, so the same per-character skin applies to it too.
-      spareLoadout = statsToLoadout(spareCharacter, spareWeapon, spareStats, spareAmmo, getEquippedSkinColor(player.skinColors, player.currentCharacter));
+      spareLoadout = statsToLoadout(spareCharacter, spareWeapon, spareStats, spareAmmo, getEquippedSkin(player.skinColors, player.currentCharacter));
     }
   }
 

@@ -7,6 +7,7 @@ import { getPlayerById } from "./db/player";
 import { getUpgradedBaseHp } from "./characterUpgrade";
 import { getUpgradedBaseDamage } from "./weaponUpgrade";
 import type { CombatLoadout } from "@/types/loadout";
+import { characterSkinSpritePath } from "./characterSkins";
 
 /**
  * Central stat-merge formula, shared by /api/game/start (builds the loadout
@@ -109,15 +110,14 @@ export function buildStatBreakdown(
   };
 }
 
-export function statsToLoadout(character: CharacterRow, weapon: WeaponRow, stats: FullStatBreakdown, remainingAmmo: number, skinColor?: string): CombatLoadout {
+export function statsToLoadout(character: CharacterRow, weapon: WeaponRow, stats: FullStatBreakdown, remainingAmmo: number, skinId?: string): CombatLoadout {
   return {
     id: character.id,
     name: `${character.name} + ${weapon.name}`,
     weaponId: weapon.id,
-    sprite: character.sprite,
+    sprite: characterSkinSpritePath(character.sprite, skinId),
     bulletSprite: weapon.sprite,
     spreadDegrees: weapon.spreadDegrees,
-    skinColor,
 
     hpMax: Math.round(stats.hp.final),
     shieldMax: Math.round(stats.shieldMax),

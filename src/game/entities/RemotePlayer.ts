@@ -1,5 +1,4 @@
 import Phaser from "phaser";
-import { SKIN_COLOR_HEX, isSkinColor, applySkinTint } from "@/lib/skinColors";
 import { UNIT_DISPLAY_SIZE } from "../../../config/player";
 
 export interface RemoteSnapshot {
@@ -40,7 +39,7 @@ export class RemotePlayer {
   private currentWeaponId = "";
   private wasFiring = false;
 
-  constructor(scene: Phaser.Scene, x: number, y: number, username: string, sprite: string, failedAssetKeys?: Set<string>, skinColor?: string) {
+  constructor(scene: Phaser.Scene, x: number, y: number, username: string, sprite: string, failedAssetKeys?: Set<string>) {
     this.scene = scene;
 
     const hasRealSprite = sprite && scene.textures.exists("opponent_char_sprite") && !failedAssetKeys?.has("opponent_char_sprite");
@@ -62,10 +61,6 @@ export class RemotePlayer {
     this.sprite = scene.physics.add.image(x, y, key);
     (this.sprite.body as Phaser.Physics.Arcade.Body).setCircle(UNIT_DISPLAY_SIZE / 2);
     this.sprite.setDepth(10);
-    if (skinColor && isSkinColor(skinColor)) {
-      const hex = SKIN_COLOR_HEX[skinColor];
-      if (hex !== null) applySkinTint(this.sprite, hex);
-    }
     this.sprite.setImmovable(true);
     (this.sprite.body as Phaser.Physics.Arcade.Body).setAllowGravity(false);
     (this.sprite.body as Phaser.Physics.Arcade.Body).moves = false; // position is set explicitly from network snapshots, not physics velocity

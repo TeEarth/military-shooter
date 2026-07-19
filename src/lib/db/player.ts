@@ -60,14 +60,17 @@ export interface Player {
    *  if never set. */
   spareWeaponId: string;
   /** v42: requires scripts/sql/010_v42_per_character_skins.sql — held back
-   *  until confirmed run. Currently-equipped color-tint skin, PER CHARACTER
-   *  id (see src/lib/skinColors.ts) — e.g. {"bob": "red"}. A character with
-   *  no entry (or an entry Object.keys never touched) is "default". Replaces
+   *  until confirmed run. Currently-equipped skin id, PER CHARACTER id (see
+   *  src/lib/characterSkins.ts) — e.g. {"bob": "desert"}. A character with
+   *  no entry (or an entry Object.keys never touched) is "default". v60:
+   *  values used to be color-tint ids (red/blue/...); now they're real
+   *  sprite-asset skin ids — same jsonb column reused, stale old color ids
+   *  simply fail isSkinId and fall back to "default" harmlessly. Replaces
    *  the old global skin_color column (008_v38_skins.sql, kept but unused —
    *  sharing one skin across every character was the actual bug). */
   skinColors: Record<string, string>;
   /** v42: every skin id ever purchased, PER CHARACTER id — e.g.
-   *  {"bob": ["red", "gold"]}. Replaces the old global owned_skins column. */
+   *  {"bob": ["desert", "elite"]}. Replaces the old global owned_skins column. */
   ownedSkinsByCharacter: Record<string, string[]>;
   /** v39: requires scripts/sql/009_v39_tutorial.sql — held back until confirmed
    *  run. Gates the first-time Training Mode flow (see src/game/scenes/TutorialScene.ts). */

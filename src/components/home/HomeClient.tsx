@@ -6,7 +6,7 @@ import CurrencyBar from "@/components/ui/CurrencyBar";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import { sfx } from "@/lib/sfx";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
-import { SKIN_COLOR_HEX, getEquippedSkinColor, skinPatternBackgroundImage } from "@/lib/skinColors";
+import { getEquippedSkin, characterSkinSpritePath } from "@/lib/characterSkins";
 
 interface Player {
   id: string;
@@ -100,36 +100,17 @@ export default function HomeClient({ player, characterSprite, characterName, equ
             </h1>
             {characterSprite ? (
               <div className="relative w-48 h-48">
+                {/* v60: skins are now real sprite assets — the equipped skin id
+                 *  (this character's own entry in skinColors) picks which SVG
+                 *  file to load, same resolver used server-side for every
+                 *  gameplay mode, so this always matches what's shown in-game. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={characterSprite}
+                  src={characterSkinSpritePath(characterSprite, getEquippedSkin(player.skinColors, player.currentCharacter))}
                   alt={characterName}
                   className="w-48 h-48 object-contain"
                   style={{ filter: "drop-shadow(0 0 24px rgba(197,169,125,0.4))" }}
                 />
-                {/* v42: same equipped color skin shown everywhere else (Character page,
-                 *  in-game, PvP) — this character's own entry in skinColors, never
-                 *  shared with any other character. */}
-                {(() => {
-                  const hex = SKIN_COLOR_HEX[getEquippedSkinColor(player.skinColors, player.currentCharacter)];
-                  return hex !== null ? (
-                    <div
-                      className="absolute inset-0 w-48 h-48 pointer-events-none"
-                      style={{
-                        backgroundImage: skinPatternBackgroundImage(hex),
-                        WebkitMaskImage: `url(${characterSprite})`,
-                        WebkitMaskSize: "contain",
-                        WebkitMaskRepeat: "no-repeat",
-                        WebkitMaskPosition: "center",
-                        maskImage: `url(${characterSprite})`,
-                        maskSize: "contain",
-                        maskRepeat: "no-repeat",
-                        maskPosition: "center",
-                        mixBlendMode: "multiply",
-                      }}
-                    />
-                  ) : null;
-                })()}
                 {/* v10 #3 / v24 fix: weapon shown in-hand, matching in-game — anchored
                  *  at roughly the character's grip/hand height (66% down) with the
                  *  image's OWN grip point (72% down its own height, same 0.5/0.7

@@ -15,7 +15,6 @@ interface PvpOpponentInfo {
   username: string;
   sprite: string;
   weaponId: string;
-  skinColor?: string;
 }
 
 /** How often (ms) this client broadcasts its own position/rotation/hp/firing
@@ -104,7 +103,7 @@ export class PvpScene extends Phaser.Scene {
     this.cameras.main.setZoom(Number(this.registry.get("zoomLevel")) || 1);
     showSpawnIndicator(this, this.player.sprite);
 
-    this.remotePlayer = new RemotePlayer(this, opponentSpawn.x, opponentSpawn.y, this.opponent.username, this.opponent.sprite, this.failedAssetKeys, this.opponent.skinColor);
+    this.remotePlayer = new RemotePlayer(this, opponentSpawn.x, opponentSpawn.y, this.opponent.username, this.opponent.sprite, this.failedAssetKeys);
 
     this.cursors = this.input.keyboard!.createCursorKeys();
     this.wasd = {
