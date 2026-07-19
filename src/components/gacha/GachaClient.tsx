@@ -7,6 +7,8 @@ import type { Rarity } from "@/lib/google/inventory";
 import { sfx } from "@/lib/sfx";
 import { getEquipmentSprite } from "@/lib/spriteHelpers";
 import CurrencyBar from "@/components/ui/CurrencyBar";
+import Icon from "@/components/ui/Icon";
+import { showInsufficientFundsToast } from "@/components/ui/Toast";
 
 interface PoolGroup {
   poolId: string;
@@ -52,6 +54,18 @@ const MULTI_PULL_DISCOUNT = 0.05;
 /** v8 #4: ticket pool gets its own gold capsule sprite, diamond pool keeps the original. */
 function capsuleSpriteForCurrency(currency: string): string {
   return currency === "ticket" ? "/assets/sprites/ui/gacha_capsule_ticket.svg" : "/assets/sprites/ui/shop_gacha_capsule.svg";
+}
+
+/** Same icon-manager glyphs used everywhere else (CurrencyBar, Character hub)
+ *  instead of the old raw emoji — this page's currency spend/reward displays
+ *  were the one place still out of step with the rest of the app. */
+function CurrencyCost({ currency, amount }: { currency: string; amount: number }) {
+  return (
+    <span className="inline-flex items-center gap-1">
+      <Icon name={currency === "coin" ? "coin" : currency === "ticket" ? "ticket" : "diamond"} size={16} />
+      {amount.toLocaleString()}
+    </span>
+  );
 }
 
 const CHARGE_MS = 900;
@@ -216,10 +230,12 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
     }
   }
 
-  function pull(poolId: string, currency: string) {
+  function pull(poolId: string, currency: string, cost: number, balance: number) {
+    if (balance < cost) { showInsufficientFundsToast(currency === "ticket" ? "ticket" : "diamond", cost, balance); return; }
     void runPull("/api/gacha/pull", poolId, currency, 1);
   }
-  function pullMulti(poolId: string, currency: string) {
+  function pullMulti(poolId: string, currency: string, cost: number, balance: number) {
+    if (balance < cost) { showInsufficientFundsToast(currency === "ticket" ? "ticket" : "diamond", cost, balance); return; }
     void runPull("/api/gacha/pull-multi", poolId, currency, MULTI_PULL_COUNT);
   }
 
@@ -268,7 +284,7 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
     if (result.rewardType === "currency") {
       return (
         <div className={`gacha-flip-face gacha-flip-face-front ${big ? "w-64 h-64" : "w-full h-full"} rounded-lg border-2 border-military-steel bg-military-darker flex flex-col items-center justify-center gap-1`}>
-          <span className={big ? "text-8xl" : "text-4xl"}>{result.rewardCurrency === "coin" ? "🪙" : "💎"}</span>
+          <Icon name={result.rewardCurrency === "coin" ? "coin" : "diamond"} size={big ? 72 : 32} />
           <p className={`text-military-gold font-bold ${big ? "text-2xl" : "text-sm"}`}>+{result.rewardAmount}</p>
         </div>
       );
@@ -501,19 +517,19 @@ export default function GachaClient({ pools, coin, diamond: initialDiamond, tick
 
                 <div className="flex gap-2">
                   <button
-                    onClick={() => pull(pool.poolId, currency)}
-                    disabled={loading || balance < cost}
+                    onClick={() => pull(pool.poolId, currency, cost, balance)}
+                    disabled={loading}
                     className="btn-gold flex-1 py-2"
                   >
-                    {loading ? "..." : `Pull — ${currency === "diamond" ? "💎" : "🎟️"} ${cost}`}
+                    {loading ? "..." : <span className="inline-flex items-center gap-1">Pull — <CurrencyCost currency={currency} amount={cost} /></span>}
                   </button>
                   <button
-                    onClick={() => pullMulti(pool.poolId, currency)}
-                    disabled={loading || balance < multiCost}
+                    onClick={() => pullMulti(pool.poolId, currency, multiCost, balance)}
+                    disabled={loading}
                     className="btn-gold flex-1 py-2"
                     title="10 independent pulls, 5% cheaper than 10x the single price"
                   >
-                    {loading ? "..." : `x10 — ${currency === "diamond" ? "💎" : "🎟️"} ${multiCost}`}
+                    {loading ? "..." : <span className="inline-flex items-center gap-1">x10 — <CurrencyCost currency={currency} amount={multiCost} /></span>}
                   </button>
                 </div>
               </div>

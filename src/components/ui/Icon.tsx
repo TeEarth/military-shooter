@@ -166,18 +166,15 @@ function IconGlyph({ name, fill }: { name: IconName; fill: string }) {
         </>
       );
     case "mission":
-      // A red/white dartboard with a dart stuck in it, off-center — not a
-      // plain flat target ring.
+      // v59: red/white alternating by RING (concentric circles stacked by
+      // radius), not by angular half/quarter — a dartboard, not a pinwheel.
       return (
         <>
-          <circle cx="11" cy="12" r="9" fill="#e5e5e5" stroke="currentColor" strokeWidth="1.1" />
-          <path d="M11 3a9 9 0 0 1 9 9h-9Z" fill="#dc2626" />
-          <path d="M2 12a9 9 0 0 1 9-9v9Z" fill="#dc2626" />
-          <circle cx="11" cy="12" r="5.6" fill="#e5e5e5" stroke="currentColor" strokeWidth="0.8" />
-          <path d="M11 6.4a5.6 5.6 0 0 1 5.6 5.6h-5.6Z" fill="#dc2626" />
-          <path d="M5.4 12a5.6 5.6 0 0 1 5.6-5.6v5.6Z" fill="#dc2626" />
-          <circle cx="11" cy="12" r="2.1" fill="#dc2626" stroke="currentColor" strokeWidth="0.6" />
-          <circle cx="11" cy="12" r="0.7" fill="#ffe27a" />
+          <circle cx="11" cy="12" r="9" fill="#dc2626" stroke="currentColor" strokeWidth="1.1" />
+          <circle cx="11" cy="12" r="7" fill="#f5f5f5" />
+          <circle cx="11" cy="12" r="5" fill="#dc2626" />
+          <circle cx="11" cy="12" r="3" fill="#f5f5f5" />
+          <circle cx="11" cy="12" r="1.2" fill="#dc2626" />
           <path d="M15.5 7.5 20 3M20 3l-3.4.6M20 3l-.6 3.4" stroke={fill} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
         </>
       );

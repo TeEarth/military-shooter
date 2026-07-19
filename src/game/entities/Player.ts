@@ -594,10 +594,22 @@ export class Player {
       },
     });
 
-    const consumed = Math.min(rounds, this.magazine, this.ammo);
-    this.magazine = Math.max(0, this.magazine - consumed);
-    this.ammo = Math.max(0, this.ammo - consumed);
-    this.ammoUsed += consumed;
+    // v59 fix: magazine consumption used to be capped by BOTH `this.magazine`
+    // AND `this.ammo` in one `Math.min(rounds, magazine, ammo)` — the instant
+    // ammo (today's reserve) hit exactly 0 while the magazine still had
+    // rounds chambered (routine after any reload that topped the magazine up
+    // right as the last of the reserve was drawn — e.g. right after a Spare
+    // Weapon swap, but reachable without swapping too), `consumed` became 0
+    // forever: the magazine could never drain again, so every further shot
+    // fired completely free. Magazine depletion is now bounded ONLY by the
+    // magazine itself — those rounds are already chambered, independent of
+    // what the reserve does — while ammo/ammoUsed still track down in
+    // lockstep but clamp at 0 without blocking the magazine.
+    const magazineConsumed = Math.min(rounds, this.magazine);
+    this.magazine = Math.max(0, this.magazine - magazineConsumed);
+    const ammoConsumed = Math.min(magazineConsumed, this.ammo);
+    this.ammo = Math.max(0, this.ammo - ammoConsumed);
+    this.ammoUsed += ammoConsumed;
   }
 
   private startReload() {
