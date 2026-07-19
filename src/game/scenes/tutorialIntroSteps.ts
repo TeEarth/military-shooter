@@ -87,7 +87,10 @@ function objectiveRect(scene: TutorialScene) {
 
 function missionStatsRect(scene: TutorialScene) {
   const { width } = scene.cameras.main;
-  return { x: width - 130, y: 4, w: 120, h: 32 };
+  // KILLS (y=10) and SCORE (y=28) are both right-aligned text ending at
+  // x=width-10 — widened/heightened versus the first pass, which was
+  // clipping the bottom of the SCORE line.
+  return { x: width - 140, y: 2, w: 130, h: 46 };
 }
 
 function pauseButtonRect(scene: TutorialScene) {
@@ -114,6 +117,19 @@ function shootZoneRect(scene: TutorialScene) {
   return isJoystick ? { x: width - 210, y: height - 210, w: 160, h: 160 } : { x: width / 2, y: 0, w: width / 2, h: height };
 }
 
+/** v54: short teaching-blurb PER perk, separate from perks.ts's full catalog
+ *  description — that full text (2-3 sentences plus a cost line) wrapped to
+ *  5-6 lines at the guide's enlarged font and spilled straight through the
+ *  Next/Previous/Skip row. These stay to 1 short sentence + cost. */
+const PERK_INTRO_BLURB: Record<PerkId, string> = {
+  spare_weapon: "Adds a second weapon slot — swap between them mid-fight with a SWAP button.",
+  regen: "Automatic: instantly heals to full the moment your HP drops below 20%.",
+  super_shield: "Automatic: refills your shield to half if it stays empty for 15 seconds straight.",
+  one_shot: "A skull button that arms one massive-damage shot on demand.",
+  invisible: "Automatic: turns you invisible to enemies for 2s every 15s, all match long.",
+  never_died: "Automatic: the first fatal hit instead locks your HP at 1 and grants 3s of invincibility.",
+};
+
 /** One entry per catalog perk (see src/lib/perks.ts) — TutorialScene shows
  *  ALL 6 simulated buttons/icons together the moment the first of these
  *  steps begins (regardless of what's actually owned, since this is a pure
@@ -129,7 +145,7 @@ const PERK_STEPS: IntroStep[] = PERK_ORDER.map((perkId, i) => {
   return {
     id: `perk_${perkId}`,
     title: `Perk: ${def.name}`,
-    getDescription: () => `${def.icon} ${def.description} — costs ${def.cost.toLocaleString()} tickets from the Character page's Perks tab.`,
+    getDescription: () => `${PERK_INTRO_BLURB[perkId]} Costs ${def.cost.toLocaleString()} tickets (Character page's Perks tab).`,
     getHighlight: (scene) => {
       if (isCircleStyle) {
         const r = stackedCircleRect(scene, circleStackIndex);

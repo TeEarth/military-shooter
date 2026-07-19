@@ -61,7 +61,7 @@ export default function GameClient() {
         const character: CombatLoadout = startRes.character;
         const weaponId: string = startRes.weaponId;
         const spareLoadout: CombatLoadout | null = startRes.spareLoadout ?? null;
-        const perks = startRes.perks ?? { spareWeapon: false, regen: false, superShield: false, oneShot: false };
+        const perks = startRes.perks ?? { spareWeapon: false, regen: false, superShield: false, oneShot: false, invisible: false, neverDied: false };
 
         const Phaser = PhaserModule.default;
         const { BootScene } = BootSceneModule;

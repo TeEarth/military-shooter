@@ -375,9 +375,9 @@ export class TutorialScene extends GameScene {
     this.introRingTween = this.tweens.add({ targets: this.introScreenRing, alpha: 0.35, duration: 500, yoyo: true, repeat: -1 });
 
     const boxWidth = Math.min(560, width - 32);
-    const boxHeight = 190;
+    const boxHeight = 210;
     const centerX = width / 2;
-    const centerY = height - 150;
+    const centerY = height - 155;
 
     // v48 fix: absolute-positioned GameObjects (same convention every other
     // interactive HUD button in this codebase already uses — see HUDScene's
@@ -394,19 +394,19 @@ export class TutorialScene extends GameScene {
     this.introDescText = this.add.text(this.uiX(centerX), this.uiY(centerY - 46), "", {
       fontFamily: "Orbitron, monospace", fontSize: "16px", color: "#ffffff", align: "center", wordWrap: { width: boxWidth - 50 }, lineSpacing: 6,
     }).setOrigin(0.5, 0).setScale(this.uiScale).setScrollFactor(0).setDepth(161);
-    this.introProgressText = this.add.text(this.uiX(centerX), this.uiY(centerY + 66), "", {
+    this.introProgressText = this.add.text(this.uiX(centerX), this.uiY(centerY + 76), "", {
       fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#8a8a9a",
     }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(161);
-    this.introNextBtn = this.add.text(this.uiX(centerX + boxWidth / 2 - 76), this.uiY(centerY + 84), "[ NEXT ]", {
+    this.introNextBtn = this.add.text(this.uiX(centerX + boxWidth / 2 - 76), this.uiY(centerY + 94), "[ NEXT ]", {
       fontFamily: "Orbitron, monospace", fontSize: "14px", color: "#4ade80", fontStyle: "bold",
     }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
     // v50: Previous — mirrors Next's position on the opposite side of the
     // Skip link, disabled (not shown) on the very first step since there's
     // nowhere to go back to.
-    this.introPrevBtn = this.add.text(this.uiX(centerX - boxWidth / 2 + 16), this.uiY(centerY + 84), "[ PREVIOUS ]", {
+    this.introPrevBtn = this.add.text(this.uiX(centerX - boxWidth / 2 + 16), this.uiY(centerY + 94), "[ PREVIOUS ]", {
       fontFamily: "Orbitron, monospace", fontSize: "14px", color: "#c5a97d", fontStyle: "bold",
     }).setOrigin(0, 0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
-    this.introSkipBtn = this.add.text(this.uiX(centerX), this.uiY(centerY + 84), "Skip Tutorial", {
+    this.introSkipBtn = this.add.text(this.uiX(centerX), this.uiY(centerY + 94), "Skip Tutorial", {
       fontFamily: "Orbitron, monospace", fontSize: "12px", color: "#c0392b",
     }).setOrigin(0.5).setScale(this.uiScale).setScrollFactor(0).setDepth(162).setInteractive({ useHandCursor: true });
 
@@ -422,7 +422,12 @@ export class TutorialScene extends GameScene {
     this.introStepIndex = index;
     const step = INTRO_STEPS[index];
     this.introTitleText.setText(step.title);
-    this.introDescText.setText(step.getDescription(this));
+    // v54 safety net: if a description ever runs long enough to risk
+    // spilling into the Next/Previous/Skip row below, shrink it one notch
+    // rather than overlapping — the box is sized for the normal case, not
+    // an unbounded worst case.
+    this.introDescText.setFontSize(16).setText(step.getDescription(this));
+    if (this.introDescText.height > 95) this.introDescText.setFontSize(13).setText(step.getDescription(this));
     this.introProgressText.setText(`Tutorial Guide  ${index + 1}/${INTRO_STEPS.length}`);
     this.introNextBtn.setText(index === INTRO_STEPS.length - 1 ? "[ START TRAINING ]" : "[ NEXT ]");
     this.introPrevBtn.setVisible(index > 0);
@@ -605,7 +610,11 @@ export class TutorialScene extends GameScene {
     this.progressText = this.add.text(0, 14, "", {
       fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#8a8a9a",
     }).setOrigin(0.5);
-    this.instructionBox = this.add.container(this.uiX(width / 2), this.uiY(40), [bg, this.instructionText, this.progressText])
+    // v54 fix: was at y=40, which put its 56px-tall box (12-68) directly on
+    // top of HUDScene's own top row (HP/Ammo, top-center "ELIMINATE ALL
+    // ENEMIES") — moved below that whole band; the minimap sits further
+    // left so there's no horizontal overlap to worry about at this y either.
+    this.instructionBox = this.add.container(this.uiX(width / 2), this.uiY(84), [bg, this.instructionText, this.progressText])
       .setScale(this.uiScale).setScrollFactor(0).setDepth(200);
   }
 

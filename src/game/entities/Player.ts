@@ -692,6 +692,12 @@ export class Player {
       // v52: dedicated on-screen banner (see HUDScene's onNeverDiedActivated)
       // so the save is unmistakable, not just a quiet tint flash.
       this.scene.events.emit("player-never-died");
+    } else if (this.hp <= 0) {
+      // v52 diagnostic: if a player with the perk still dies outright, this
+      // line (visible in the browser console) says exactly why — either the
+      // perk flag never reached this Player instance (perks.neverDied false)
+      // or it already fired earlier this match (neverDiedUsed true).
+      console.debug("[Player] fatal hit — neverDied perk:", this.perks.neverDied, "already used:", this.neverDiedUsed);
     }
   }
 
