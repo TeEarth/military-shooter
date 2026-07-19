@@ -130,6 +130,16 @@ export class PreloadScene extends Phaser.Scene {
     // Coin popup icon shown floating up from an enemy's death spot (see GameScene's showCoinPopup).
     this.load.svg("coin_pop", "/assets/sprites/ui/coin_pop.svg", { width: 20, height: 20 });
 
+    // v61: HUD perk-status icons — same custom designs as the Character page's
+    // Icon component (regen/shield/invisible/neverDied), rendered as real
+    // Phaser Image objects instead of default-emoji Text, plus a bullet icon
+    // for the ammo Refill button (was a gas-pump emoji before).
+    this.load.svg("icon_regen", "/assets/sprites/ui/icon_regen.svg", { width: 20, height: 20 });
+    this.load.svg("icon_shield", "/assets/sprites/ui/icon_shield.svg", { width: 20, height: 20 });
+    this.load.svg("icon_invisible", "/assets/sprites/ui/icon_invisible.svg", { width: 20, height: 20 });
+    this.load.svg("icon_neverdied", "/assets/sprites/ui/icon_neverdied.svg", { width: 20, height: 20 });
+    this.load.svg("icon_ammo", "/assets/sprites/ui/icon_ammo.svg", { width: 20, height: 20 });
+
     // PvP only: the opponent's character/weapon art, keyed with an "opponent_"
     // prefix so it never collides with the local player's own textures even
     // when both combatants happen to use the same character/weapon.

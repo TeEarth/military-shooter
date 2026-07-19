@@ -401,7 +401,10 @@ export class Player {
   /** v50: Invisible perk — fully automatic, no button. Fires the instant its
    *  cooldown clears (regardless of what the player is doing), stays active
    *  for INVISIBLE_DURATION_MS, then starts a fresh INVISIBLE_COOLDOWN_MS
-   *  before it can fire again — repeats for the whole match on its own. */
+   *  before it can fire again — repeats for the whole match on its own.
+   *  v61: the sprite's alpha fade (GameScene.ts) was too subtle to notice at
+   *  a glance, so this also adds a pulsing purple glow ring for the full
+   *  active window — same visual pattern as the Never Died save's gold glow. */
   private maybeTriggerInvisiblePerk() {
     if (!this.perks.invisible || this.isDead) return;
     const now = this.scene.time.now;
@@ -409,6 +412,16 @@ export class Player {
     if (now < this.invisibleCooldownUntil) return;
     this.invisibleUntil = now + INVISIBLE_DURATION_MS;
     this.invisibleCooldownUntil = this.invisibleUntil + INVISIBLE_COOLDOWN_MS;
+
+    const glow = this.scene.add.circle(this.sprite.x, this.sprite.y, UNIT_DISPLAY_SIZE * 0.65, 0xa855f7, 0.3).setDepth(this.sprite.depth - 1);
+    const glowTween = this.scene.tweens.add({ targets: glow, alpha: 0.55, scale: 1.3, duration: 300, yoyo: true, repeat: -1 });
+    const followGlow = () => glow.setPosition(this.sprite.x, this.sprite.y);
+    this.scene.events.on(Phaser.Scenes.Events.UPDATE, followGlow);
+    this.scene.time.delayedCall(INVISIBLE_DURATION_MS, () => {
+      this.scene.events.off(Phaser.Scenes.Events.UPDATE, followGlow);
+      glowTween.stop();
+      glow.destroy();
+    });
   }
 
   /** v50: true while the Invisible perk's window is active — GameScene ORs

@@ -83,13 +83,17 @@ export class HUDScene extends Phaser.Scene {
   private oneShotCircle?: Phaser.GameObjects.Arc;
   private oneShotText?: Phaser.GameObjects.Text;
   private regenIcon?: Phaser.GameObjects.Text;
+  private regenImg?: Phaser.GameObjects.Image;
   private regenCooldownText?: Phaser.GameObjects.Text;
   private shieldIcon?: Phaser.GameObjects.Text;
+  private shieldImg?: Phaser.GameObjects.Image;
   private shieldCooldownText?: Phaser.GameObjects.Text;
   /** v50: Invisible/Never Died status icons — same "created only if owned" rule. */
   private invisibleIcon?: Phaser.GameObjects.Text;
+  private invisibleImg?: Phaser.GameObjects.Image;
   private invisibleCooldownText?: Phaser.GameObjects.Text;
   private neverDiedIcon?: Phaser.GameObjects.Text;
+  private neverDiedImg?: Phaser.GameObjects.Image;
   private neverDiedStatusText?: Phaser.GameObjects.Text;
   private bossHpText!: Phaser.GameObjects.Text;
 
@@ -328,15 +332,17 @@ export class HUDScene extends Phaser.Scene {
     btn.on("pointerout", () => btn.setColor("#c5a97d"));
   }
 
-  /** v7 #3: refill ammo mid-stage without leaving to the Character/Weapon page. */
+  /** v7 #3: refill ammo mid-stage without leaving to the Character/Weapon page.
+   *  v61: bullet-cartridge icon instead of a gas-pump emoji, per request. */
   private createRefillButton(width: number) {
-    const btn = this.add.text(width - 10, 88, "⛽ REFILL", {
+    const btn = this.add.text(width - 10, 88, "REFILL", {
       fontFamily: "Orbitron, monospace",
       fontSize: "12px",
       color: "#c5a97d",
       backgroundColor: "#1a1a2e",
       padding: { x: 8, y: 4 },
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
+    this.add.image(width - 10 - btn.width - 4, 88 + 13, "icon_ammo").setOrigin(1, 0.5).setDisplaySize(16, 16);
 
     btn.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.claimPointer(pointer);
@@ -440,38 +446,46 @@ export class HUDScene extends Phaser.Scene {
    *  Refill button (top-right) — ready (bright) vs on-cooldown (dim, with a
    *  countdown). Purely informational, no click handler. */
   private createPerkStatusIcons(width: number, hasRegen: boolean, hasShield: boolean, hasInvisible: boolean, hasNeverDied: boolean) {
+    // v61: real icon Images (matching the Character page's Icon component
+    // designs) instead of default-emoji glyphs baked into the label text —
+    // each icon sits just left of its label, right-edge-anchored the same
+    // way the label itself always was, so nothing overflows on narrow screens.
     let y = 118;
     if (hasRegen) {
-      this.regenIcon = this.add.text(width - 10, y, "💚 REGEN", {
+      this.regenIcon = this.add.text(width - 10, y, "REGEN", {
         fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#4ade80",
       }).setOrigin(1, 0);
+      this.regenImg = this.add.image(width - 10 - this.regenIcon.width - 4, y + 6, "icon_regen").setOrigin(1, 0.5).setDisplaySize(14, 14);
       this.regenCooldownText = this.add.text(width - 10, y + 13, "", {
         fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#94a3b8",
       }).setOrigin(1, 0);
       y += 34;
     }
     if (hasShield) {
-      this.shieldIcon = this.add.text(width - 10, y, "🛡️ SHIELD", {
+      this.shieldIcon = this.add.text(width - 10, y, "SHIELD", {
         fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#60a5fa",
       }).setOrigin(1, 0);
+      this.shieldImg = this.add.image(width - 10 - this.shieldIcon.width - 4, y + 6, "icon_shield").setOrigin(1, 0.5).setDisplaySize(14, 14);
       this.shieldCooldownText = this.add.text(width - 10, y + 13, "", {
         fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#94a3b8",
       }).setOrigin(1, 0);
       y += 34;
     }
     if (hasInvisible) {
-      this.invisibleIcon = this.add.text(width - 10, y, "👻 INVISIBLE", {
+      this.invisibleIcon = this.add.text(width - 10, y, "INVISIBLE", {
         fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#a78bfa",
       }).setOrigin(1, 0);
+      this.invisibleImg = this.add.image(width - 10 - this.invisibleIcon.width - 4, y + 6, "icon_invisible").setOrigin(1, 0.5).setDisplaySize(14, 14);
       this.invisibleCooldownText = this.add.text(width - 10, y + 13, "", {
         fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#94a3b8",
       }).setOrigin(1, 0);
       y += 34;
     }
     if (hasNeverDied) {
-      this.neverDiedIcon = this.add.text(width - 10, y, "❤️‍🩹 NEVER DIED", {
+      this.neverDiedIcon = this.add.text(width - 10, y, "NEVER DIED", {
         fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#f472b6",
       }).setOrigin(1, 0);
+      this.neverDiedImg = this.add.image(width - 10 - this.neverDiedIcon.width - 4, y + 6, "icon_neverdied").setOrigin(1, 0.5).setDisplaySize(14, 14);
       this.neverDiedStatusText = this.add.text(width - 10, y + 13, "READY", {
         fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#94a3b8",
       }).setOrigin(1, 0);
@@ -481,11 +495,12 @@ export class HUDScene extends Phaser.Scene {
   /** v35: shared "ready (bright) vs on-cooldown (dim + countdown)" look for
    *  the perk status icons/buttons — cooldownRemaining is in seconds, -1
    *  meaning the perk isn't owned (handled by the caller not calling this). */
-  private applyPerkCooldownVisual(icon: Phaser.GameObjects.Text | undefined, cooldownText: Phaser.GameObjects.Text | undefined, cooldownRemaining: number, readyColor: string) {
+  private applyPerkCooldownVisual(icon: Phaser.GameObjects.Text | undefined, cooldownText: Phaser.GameObjects.Text | undefined, cooldownRemaining: number, readyColor: string, img?: Phaser.GameObjects.Image) {
     if (!icon) return;
     const ready = cooldownRemaining <= 0;
     icon.setAlpha(ready ? 1 : 0.4);
     icon.setColor(ready ? readyColor : "#94a3b8");
+    img?.setAlpha(ready ? 1 : 0.4);
     cooldownText?.setText(ready ? "READY" : `${cooldownRemaining.toFixed(0)}s`);
   }
 
@@ -569,7 +584,7 @@ export class HUDScene extends Phaser.Scene {
       this.oneShotText.setText(ready || armed ? "💀" : `${remaining.toFixed(0)}s`);
     }
 
-    this.applyPerkCooldownVisual(this.regenIcon, this.regenCooldownText, data.regenCooldownRemaining ?? -1, "#4ade80");
+    this.applyPerkCooldownVisual(this.regenIcon, this.regenCooldownText, data.regenCooldownRemaining ?? -1, "#4ade80", this.regenImg);
 
     // v36: Super Shield has a third state Regen doesn't — the 15s "arming"
     // countdown while shield sits empty, distinct from the 60s cooldown
@@ -580,9 +595,10 @@ export class HUDScene extends Phaser.Scene {
       const charging = data.shieldChargeRemaining ?? -1;
       if (charging > 0) {
         this.shieldIcon.setAlpha(1).setColor("#f59e0b");
+        this.shieldImg?.setAlpha(1);
         this.shieldCooldownText?.setText(`ARMING ${charging.toFixed(0)}s`);
       } else {
-        this.applyPerkCooldownVisual(this.shieldIcon, this.shieldCooldownText, cooldown, "#60a5fa");
+        this.applyPerkCooldownVisual(this.shieldIcon, this.shieldCooldownText, cooldown, "#60a5fa", this.shieldImg);
       }
     }
 
@@ -591,15 +607,17 @@ export class HUDScene extends Phaser.Scene {
     if (this.invisibleIcon) {
       if (data.invisibleActive) {
         this.invisibleIcon.setAlpha(1).setColor("#c4b5fd");
+        this.invisibleImg?.setAlpha(1);
         this.invisibleCooldownText?.setText("ACTIVE");
       } else {
-        this.applyPerkCooldownVisual(this.invisibleIcon, this.invisibleCooldownText, data.invisibleCooldownRemaining ?? -1, "#a78bfa");
+        this.applyPerkCooldownVisual(this.invisibleIcon, this.invisibleCooldownText, data.invisibleCooldownRemaining ?? -1, "#a78bfa", this.invisibleImg);
       }
     }
 
     if (this.neverDiedIcon) {
       const used = Boolean(data.neverDiedUsed);
       this.neverDiedIcon.setAlpha(used ? 0.4 : 1).setColor(used ? "#94a3b8" : "#f472b6");
+      this.neverDiedImg?.setAlpha(used ? 0.4 : 1);
       this.neverDiedStatusText?.setText(used ? "USED" : "READY").setColor(used ? "#94a3b8" : "#4ade80");
     }
   }
