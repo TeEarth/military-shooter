@@ -71,16 +71,6 @@
   <ellipse cx="64" cy="48" rx="9" ry="4" fill="#100a08" opacity="0.65"></ellipse>
   <ellipse cx="61" cy="47" rx="2" ry="1" fill="#fff" opacity="0.45"></ellipse>
 
-  <g transform="translate(64,94) rotate(180) scale(0.55) translate(-18,-52)">
-    <rect x="14" y="0" width="7" height="44" rx="2" fill="url(#g_bl)"></rect>
-    <rect x="10" y="44" width="15" height="28" rx="3" fill="url(#g_body)"></rect>
-    <circle cx="17" cy="56" r="6" fill="url(#g_core)"></circle>
-    <rect x="21" y="70" width="9" height="20" rx="2" fill="url(#g_grip2)"></rect>
-    <rect x="6" y="76" width="8" height="20" rx="2" fill="url(#g_grip)"></rect>
-    <circle cx="17.5" cy="4" r="3" fill="#5adcdc"></circle>
-    <circle cx="17.5" cy="4" r="5" fill="none" stroke="#5adcdc" stroke-width="4.8" opacity="0.20" filter="url(#fxBlur)"></circle>
-  </g>
-
   <circle cx="38" cy="66" r="9" fill="url(#arm)"></circle>
   <circle cx="90" cy="66" r="9" fill="url(#arm)"></circle>
   <ellipse cx="35" cy="63" rx="2" ry="1.2" fill="#fff" opacity="0.4"></ellipse>

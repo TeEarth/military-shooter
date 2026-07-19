@@ -980,7 +980,7 @@ export default function CharacterHubClient(props: Props) {
                 }}
               >
                 <div className="flex items-start gap-3 mb-3">
-                  <span style={{ filter: owned ? `drop-shadow(0 0 6px ${theme.glow})` : undefined }}><Icon name={PERK_ICON[perkId]} size={40} /></span>
+                  <span style={{ filter: owned ? `drop-shadow(0 0 6px ${theme.glow})` : undefined }}><Icon name={PERK_ICON[perkId]} size={52} /></span>
                   <div className="flex-1">
                     <h3 className="font-black uppercase tracking-wide">{def.name}</h3>
                     {owned && <span className="text-emerald-400 text-xs font-bold inline-flex items-center gap-1"><Icon name="check" size={12} /> OWNED</span>}

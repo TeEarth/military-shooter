@@ -49,7 +49,7 @@ export const PERKS: Record<PerkId, PerkDef> = {
     name: "Invisible",
     icon: "👻",
     cost: 2499,
-    description: "Automatic: loops from the start of the match to the end — every 15s you turn invisible to enemies for 2 seconds, and unlike tree stealth you can keep moving and shooting the whole time.",
+    description: "Automatic: loops from the start of the match to the end — every 7s you turn invisible to enemies for 3 seconds, and unlike tree stealth you can keep moving and shooting the whole time.",
   },
   never_died: {
     id: "never_died",

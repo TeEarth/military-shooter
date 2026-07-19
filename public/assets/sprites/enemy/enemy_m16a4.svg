@@ -56,22 +56,6 @@
   <ellipse cx="64" cy="48" rx="9" ry="4" fill="#100a08" opacity="0.65"></ellipse>
   <ellipse cx="61" cy="47" rx="2" ry="1" fill="#fff" opacity="0.45"></ellipse>
 
-  <g transform="translate(64,94) rotate(180) scale(0.5) translate(-15,-84)">
-    <rect x="12" y="0" width="6" height="44" rx="1.5" fill="url(#gun)"></rect>
-    <rect x="9" y="4" width="12" height="10" rx="1.5" fill="#242822"></rect>
-    <rect x="14" y="0" width="2" height="6" fill="#0a0a0a"></rect>
-    <rect x="8" y="44" width="14" height="20" rx="1" fill="url(#g_stock)"></rect>
-    <rect x="11" y="24" width="8" height="4" fill="#1c1c1c"></rect>
-    <rect x="11" y="30" width="8" height="4" fill="#1c1c1c"></rect>
-    <rect x="11" y="36" width="8" height="4" fill="#1c1c1c"></rect>
-    <rect x="10" y="64" width="10" height="8" fill="#252921"></rect>
-    <path d="M12 72 L20 72 L18 100 Q16 104 14 100 Z" fill="url(#gun)"></path>
-    <rect x="3" y="66" width="4" height="10" fill="#7ec25e"></rect>
-    <rect x="17" y="72" width="9" height="24" rx="2" fill="url(#g_grip)"></rect>
-    <path d="M11 76 Q15 82 11 88" stroke="#0a0a0a" stroke-width="1.6" fill="none"></path>
-    <rect x="6" y="82" width="8" height="26" rx="2" fill="url(#g_stock)"></rect>
-  </g>
-
   <circle cx="38" cy="66" r="9" fill="url(#arm)"></circle>
   <circle cx="90" cy="66" r="9" fill="url(#arm)"></circle>
   <ellipse cx="35" cy="63" rx="2" ry="1.2" fill="#fff" opacity="0.4"></ellipse>

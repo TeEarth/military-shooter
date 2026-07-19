@@ -171,11 +171,11 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     icon: "/assets/sprites/tilemap/obstacle_tree.svg",
     title: "Perk: Invisible",
     body: [
-      "Fully automatic, no button — loops from the moment a match/stage starts until it ends: every 15 seconds you turn invisible to every enemy for 2 seconds.",
+      "Fully automatic, no button — loops from the moment a match/stage starts until it ends: every 7 seconds you turn invisible to every enemy for 3 seconds.",
       "Unlike tree stealth, you can keep moving and shooting the entire time you're invisible — it doesn't require standing still or breaking line of sight.",
-      "The HUD's INVISIBLE status icon shows ACTIVE while the 2s window is live, and counts down the 15s cooldown the rest of the time.",
+      "The HUD's INVISIBLE status icon shows ACTIVE while the 3s window is live, and counts down the 7s cooldown the rest of the time.",
     ],
-    tips: ["Use the 2s window to reposition aggressively or slip past a dangerous angle — enemies keep patrolling as if you were never there."],
+    tips: ["Use the 3s window to reposition aggressively or slip past a dangerous angle — enemies keep patrolling as if you were never there."],
   },
   {
     id: "perk-never-died",

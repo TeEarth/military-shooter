@@ -23,20 +23,20 @@ export default function CurrencyBar({
   return (
     <div className="flex items-center gap-3 text-xs flex-wrap">
       <div className="flex items-center gap-1">
-        <Icon name="coin" size={18} />
+        <Icon name="coin" size={22} />
         <span className="text-military-gold font-bold">{coin.toLocaleString()}</span>
       </div>
       <div className="flex items-center gap-1">
-        <Icon name="diamond" size={18} />
+        <Icon name="diamond" size={22} />
         <span className="text-blue-400 font-bold">{diamond.toLocaleString()}</span>
       </div>
       <div className="flex items-center gap-1">
-        <Icon name="ticket" size={18} />
+        <Icon name="ticket" size={22} />
         <span className="text-green-400 font-bold">{ticket.toLocaleString()}</span>
       </div>
       {greenBanknote !== undefined && (
         <div className="flex items-center gap-1">
-          <Icon name="banknote" size={18} />
+          <Icon name="banknote" size={22} />
           <span className="text-emerald-400 font-bold">{greenBanknote.toLocaleString()}</span>
         </div>
       )}

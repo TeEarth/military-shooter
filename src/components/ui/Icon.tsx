@@ -329,6 +329,7 @@ function IconGlyph({ name, fill }: { name: IconName; fill: string }) {
 export default function Icon({ name, size = 22, className = "", from, to }: IconProps) {
   const gradId = useId();
   const [defFrom, defTo] = DEFAULT_COLORS[name];
+  const outline = to ?? defTo;
   return (
     <svg
       width={size}
@@ -344,7 +345,15 @@ export default function Icon({ name, size = 22, className = "", from, to }: Icon
           <stop offset="1" stopColor={to ?? defTo} />
         </linearGradient>
       </defs>
-      <IconGlyph name={name} fill={`url(#${gradId})`} />
+      {/* v56: forces every stroke="currentColor" in the glyphs below to
+          resolve to this icon's OWN dark gradient stop, instead of
+          inheriting whatever (often muted/gray) text color the surrounding
+          page happens to be using — that inherited-gray outline was a big
+          part of why the set read as flat/washed out despite the vivid
+          gradient fills. */}
+      <g style={{ color: outline }}>
+        <IconGlyph name={name} fill={`url(#${gradId})`} />
+      </g>
     </svg>
   );
 }

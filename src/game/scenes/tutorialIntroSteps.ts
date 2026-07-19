@@ -126,7 +126,7 @@ const PERK_INTRO_BLURB: Record<PerkId, string> = {
   regen: "Automatic: instantly heals to full the moment your HP drops below 20%.",
   super_shield: "Automatic: refills your shield to half if it stays empty for 15 seconds straight.",
   one_shot: "A skull button that arms one massive-damage shot on demand.",
-  invisible: "Automatic: turns you invisible to enemies for 2s every 15s, all match long.",
+  invisible: "Automatic: turns you invisible to enemies for 3s every 7s, all match long.",
   never_died: "Automatic: the first fatal hit instead locks your HP at 1 and grants 3s of invincibility.",
 };
 

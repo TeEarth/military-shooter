@@ -49,8 +49,8 @@ const ONE_SHOT_DAMAGE = 3000;
 const ONE_SHOT_AOE_DAMAGE = 1000;
 const ONE_SHOT_AOE_RADIUS_MULTIPLIER = 3;
 const SWAP_COOLDOWN_MS = 5_000;
-const INVISIBLE_DURATION_MS = 2_000;
-const INVISIBLE_COOLDOWN_MS = 15_000;
+const INVISIBLE_DURATION_MS = 3_000;
+const INVISIBLE_COOLDOWN_MS = 7_000;
 const NEVER_DIED_INVINCIBLE_MS = 3_000;
 
 export class Player {
@@ -416,7 +416,7 @@ export class Player {
     this.invisibleCooldownUntil = this.invisibleUntil + INVISIBLE_COOLDOWN_MS;
   }
 
-  /** v50: true while the Invisible perk's 2s window is active — GameScene ORs
+  /** v50: true while the Invisible perk's window is active — GameScene ORs
    *  this into its own tree-stealth isHidden check for enemy detection, and
    *  into the player alpha fade, without touching either mechanic itself. */
   isInvisibleActive(): boolean {
