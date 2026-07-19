@@ -459,14 +459,27 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
                           {line.passiveBonusPercent !== 0 && (
                             <span className="text-purple-400"> (passive {line.passiveBonusPercent >= 0 ? "+" : ""}{line.passiveBonusPercent.toFixed(1)}%)</span>
                           )}
+                          {/* v61: the equipped skin's own +10% stat bonus (e.g. Desert +HP,
+                           *  Urban +Damage) shown as its own tag, same treatment as equipment/passive. */}
+                          {line.skinBonusPercent !== 0 && (
+                            <span className="text-military-gold"> ({t({ en: "skin", th: "สกิน" })} {line.skinBonusPercent >= 0 ? "+" : ""}{line.skinBonusPercent.toFixed(1)}%)</span>
+                          )}
                           {" = "}<span className="font-bold">{round(line.final)}{suffix}</span>
                         </span>
                       </div>
                     );
                   })}
-                  <div className="flex justify-between text-sm pt-1 border-t border-military-steel mt-2">
+                  <div className="flex justify-between items-baseline text-sm pt-1 border-t border-military-steel mt-2">
                     <span className="text-military-steel">{t({ en: "Total Shield", th: "โล่รวม (Shield)" })}</span>
-                    <span className="font-bold text-gray-300">{Math.round(stats.shieldMax)}</span>
+                    <span className="text-white text-right">
+                      {Math.round(stats.shieldMax.base)}
+                      {/* v61: Armor% (character + equipped skin, e.g. Elite) now boosts
+                       *  Total Shield directly instead of reducing incoming damage. */}
+                      {stats.shieldMax.armorBonusPercent !== 0 && (
+                        <span className="text-military-gold"> ({t({ en: "armor", th: "เกราะ" })} {stats.shieldMax.armorBonusPercent >= 0 ? "+" : ""}{stats.shieldMax.armorBonusPercent.toFixed(1)}%)</span>
+                      )}
+                      {" = "}<span className="font-bold text-gray-300">{Math.round(stats.shieldMax.final)}</span>
+                    </span>
                   </div>
                 </div>
               </div>

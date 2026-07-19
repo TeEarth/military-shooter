@@ -12,15 +12,15 @@ export function isSkinId(value: string): value is SkinId {
   return (SKIN_IDS as readonly string[]).includes(value);
 }
 
-/** default is free/owned by everyone; the rest are purchasable with coin,
- *  except "elite" which is a premium diamond skin. */
+/** default is free/owned by everyone; the rest are purchasable, with prices
+ *  scaled to each skin's stat bonus (see SKIN_STAT_BONUS below). */
 export const SKIN_PRICE: Record<SkinId, { currency: "coin" | "diamond"; amount: number } | null> = {
   default: null,
   desert: { currency: "coin", amount: 250 },
-  urban: { currency: "coin", amount: 250 },
-  jungle: { currency: "coin", amount: 250 },
-  arctic: { currency: "coin", amount: 300 },
-  elite: { currency: "diamond", amount: 150 },
+  urban: { currency: "coin", amount: 500 },
+  jungle: { currency: "diamond", amount: 100 },
+  arctic: { currency: "diamond", amount: 200 },
+  elite: { currency: "diamond", amount: 1000 },
 };
 
 export const SKIN_LABEL: Record<SkinId, string> = {
@@ -30,6 +30,23 @@ export const SKIN_LABEL: Record<SkinId, string> = {
   jungle: "Jungle",
   arctic: "Arctic",
   elite: "Elite",
+};
+
+/** v61: every non-default skin also carries a permanent +10% combat bonus —
+ *  each one scoped to a single stat, and each computed as "10% of that
+ *  stat's own existing total" (same shape multiplicative()/additive() in
+ *  stats.ts already use for equipment/passive bonuses), not a flat +10
+ *  points. "characterOnly" bonuses (hp/damage/accuracy/critChance/armor) are
+ *  scaled off the CHARACTER's own contribution to that stat, never the
+ *  weapon's or equipment's — e.g. Jungle's accuracy bonus is 10% of
+ *  character.accuracy, not 10% of the combined weapon+character total. */
+export type SkinBonusStat = "hp" | "damage" | "accuracy" | "critChance" | "armorPercent";
+export const SKIN_STAT_BONUS: Partial<Record<SkinId, { stat: SkinBonusStat; percentOfBase: number; label: string }>> = {
+  desert: { stat: "hp", percentOfBase: 10, label: "+10% HP" },
+  urban: { stat: "damage", percentOfBase: 10, label: "+10% Damage" },
+  jungle: { stat: "accuracy", percentOfBase: 10, label: "+10% Accuracy" },
+  arctic: { stat: "critChance", percentOfBase: 10, label: "+10% Crit Chance" },
+  elite: { stat: "armorPercent", percentOfBase: 10, label: "+10% Armor (boosts Total Shield)" },
 };
 
 /** The single place a (base sprite URL, skin id) pair becomes an actual

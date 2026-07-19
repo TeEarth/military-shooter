@@ -12,7 +12,7 @@ import CurrencyBar from "@/components/ui/CurrencyBar";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import { showInsufficientFundsToast } from "@/components/ui/Toast";
 import { PERKS, PERK_ORDER, type PerkId } from "@/lib/perks";
-import { SKIN_IDS, SKIN_PRICE, SKIN_LABEL, getEquippedSkin, getOwnedSkins, characterSkinSpritePath, type SkinId } from "@/lib/characterSkins";
+import { SKIN_IDS, SKIN_PRICE, SKIN_LABEL, SKIN_STAT_BONUS, getEquippedSkin, getOwnedSkins, characterSkinSpritePath, type SkinId } from "@/lib/characterSkins";
 import { sfx } from "@/lib/sfx";
 import { getUpgradedBaseHp, getUpgradeCost } from "@/lib/characterUpgrade";
 import { getUpgradedBaseDamage, getWeaponUpgradeCost } from "@/lib/weaponUpgrade";
@@ -734,6 +734,9 @@ export default function CharacterHubClient(props: Props) {
                               ? "CONFIRM — EQUIP"
                               : <>CONFIRM — <CurrencyCost currency={SKIN_PRICE[previewSkinColor]!.currency} amount={SKIN_PRICE[previewSkinColor]!.amount} /></>}
                         </button>
+                      )}
+                      {SKIN_STAT_BONUS[previewSkinColor] && (
+                        <p className="w-full text-[11px] text-military-gold mt-1">★ {SKIN_STAT_BONUS[previewSkinColor]!.label}</p>
                       )}
                     </>
                   );

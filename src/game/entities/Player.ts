@@ -659,17 +659,19 @@ export class Player {
     return out;
   }
 
-  /** Armor is a flat percentage damage reduction, not a separate buffer. Shield
-   *  (from equipped gear) absorbs damage before HP and never regenerates mid-stage. */
+  /** v60: Armor% no longer reduces incoming damage directly — it now boosts
+   *  Total Shield capacity instead (see statsToLoadout/buildStatBreakdown in
+   *  stats.ts, shieldMax already has the armor% bonus baked in before this
+   *  loadout is ever built). Shield (from equipped gear + armor%) absorbs
+   *  damage before HP and never regenerates mid-stage. */
   takeDamage(amount: number) {
     if (this.isInvincible || this.isDead || this.scene.time.now < this.neverDiedInvincibleUntil) return;
-    const effective = amount * (1 - this.loadout.armorPercent / 100);
-    this.applyToShieldThenHp(effective);
+    this.applyToShieldThenHp(amount);
     this.setInvincible();
     if (this.hp <= 0) this.die();
   }
 
-  /** AoE splash from a rocket/grenade explosion — no armor mitigation, always full damage (still shield-first). */
+  /** AoE splash from a rocket/grenade explosion — always full damage (still shield-first). */
   takeAoeDamage(amount: number) {
     if (this.isDead || this.scene.time.now < this.neverDiedInvincibleUntil) return;
     this.applyToShieldThenHp(amount);
