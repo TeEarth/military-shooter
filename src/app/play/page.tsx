@@ -30,6 +30,13 @@ export default async function PlayPage() {
   // v17: each boss cleared (bossEncounterCount) unlocks the next multiverse —
   // multiverse 1 is always unlocked, so this starts at 1 with zero clears.
   let unlockedMultiverse = 1;
+  // v55: one entry per ALREADY-defeated boss (multiverse 1..bossEncounterCount)
+  // — there's no per-clear history table (player_boss_progress is just a
+  // single incrementing counter), but since encounter N is always Multiverse
+  // N's boss, "cleared" is fully reconstructable from the counter alone.
+  // Previously a cleared boss's card just vanished entirely instead of
+  // showing CLEARED like every other stage does.
+  let clearedBosses: { multiverse: number; hp: number }[] = [];
   try {
     const bossEncounterCount = await getBossEncounterCount(player.id);
     // v31 fix: locks encounter N to "has stage(N*10) actually been cleared"
@@ -52,8 +59,15 @@ export default async function PlayPage() {
       requiredStageId,
     };
     unlockedMultiverse = 1 + bossEncounterCount;
+
+    clearedBosses = await Promise.all(
+      Array.from({ length: bossEncounterCount }, (_, i) => i + 1).map(async (m) => ({
+        multiverse: m,
+        hp: (await getBossConfigForEncounter(m)).hp,
+      }))
+    );
   } catch {
-    // BossStage sheet not seeded yet — leave default (unavailable).
+    // BossStage sheet not seeded yet — leave defaults (unavailable, none cleared).
   }
 
   return (
@@ -62,6 +76,7 @@ export default async function PlayPage() {
       currentStage={player.currentStage}
       completedStageIds={completedStageIds}
       boss={boss}
+      clearedBosses={clearedBosses}
       unlockedMultiverse={unlockedMultiverse}
       tutorialCompleted={player.tutorialCompleted}
     />

@@ -90,6 +90,7 @@ export class HUDScene extends Phaser.Scene {
   private invisibleIcon?: Phaser.GameObjects.Text;
   private invisibleCooldownText?: Phaser.GameObjects.Text;
   private neverDiedIcon?: Phaser.GameObjects.Text;
+  private neverDiedStatusText?: Phaser.GameObjects.Text;
   private bossHpText!: Phaser.GameObjects.Text;
 
   constructor() {
@@ -471,6 +472,9 @@ export class HUDScene extends Phaser.Scene {
       this.neverDiedIcon = this.add.text(width - 10, y, "❤️‍🩹 NEVER DIED", {
         fontFamily: "Orbitron, monospace", fontSize: "11px", color: "#f472b6",
       }).setOrigin(1, 0);
+      this.neverDiedStatusText = this.add.text(width - 10, y + 13, "READY", {
+        fontFamily: "Orbitron, monospace", fontSize: "10px", color: "#94a3b8",
+      }).setOrigin(1, 0);
     }
   }
 
@@ -596,6 +600,7 @@ export class HUDScene extends Phaser.Scene {
     if (this.neverDiedIcon) {
       const used = Boolean(data.neverDiedUsed);
       this.neverDiedIcon.setAlpha(used ? 0.4 : 1).setColor(used ? "#94a3b8" : "#f472b6");
+      this.neverDiedStatusText?.setText(used ? "USED" : "READY").setColor(used ? "#94a3b8" : "#4ade80");
     }
   }
 

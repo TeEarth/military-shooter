@@ -31,6 +31,9 @@ interface Props {
   currentStage: number;
   completedStageIds: string[];
   boss: BossStatus;
+  /** v55: one entry per already-defeated boss — shown as a CLEARED card
+   *  under its own multiverse tab instead of just vanishing once beaten. */
+  clearedBosses: { multiverse: number; hp: number }[];
   /** v17: highest multiverse unlocked so far — 1 + bosses defeated. */
   unlockedMultiverse: number;
   tutorialCompleted: boolean;
@@ -40,7 +43,7 @@ function stageNumber(stageId: string): number {
   return Number(stageId.replace(/\D/g, "")) || 0;
 }
 
-export default function StageSelectClient({ stages, currentStage, completedStageIds, boss, unlockedMultiverse, tutorialCompleted }: Props) {
+export default function StageSelectClient({ stages, currentStage, completedStageIds, boss, clearedBosses, unlockedMultiverse, tutorialCompleted }: Props) {
   const router = useRouter();
   const multiverseNumbers = Array.from(new Set(stages.map((s) => s.multiverse))).sort((a, b) => a - b);
   const [selectedMultiverse, setSelectedMultiverse] = useState(1);
@@ -143,6 +146,23 @@ export default function StageSelectClient({ stages, currentStage, completedStage
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* v55: a defeated boss now shows a CLEARED card under its own
+          multiverse tab (matching every other stage's "✓ CLEARED" pattern)
+          instead of just disappearing once beaten. */}
+      {clearedBosses.some((b) => b.multiverse === selectedMultiverse) && (
+        <div className="max-w-4xl mx-auto mb-6">
+          <div className="card-military border-military-gold/50 opacity-80">
+            <div className="flex items-start justify-between mb-2">
+              <span className="text-military-gold text-xs font-bold">✓ CLEARED</span>
+            </div>
+            <h3 className="font-bold text-white mb-1">Boss Encounter #{selectedMultiverse}</h3>
+            <p className="text-xs text-military-steel">
+              HP: {clearedBosses.find((b) => b.multiverse === selectedMultiverse)?.hp} — defeated. This boss fight has been cleared and cannot be replayed.
+            </p>
+          </div>
         </div>
       )}
 

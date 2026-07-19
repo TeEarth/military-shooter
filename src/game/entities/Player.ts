@@ -688,7 +688,23 @@ export class Player {
       this.neverDiedUsed = true;
       this.neverDiedInvincibleUntil = this.scene.time.now + NEVER_DIED_INVINCIBLE_MS;
       sfx.play("gacha_legendary");
-      this.scene.tweens.add({ targets: this.sprite, tint: 0xfbbf24, duration: 250, yoyo: true, repeat: 5, onComplete: () => this.sprite.clearTint() });
+      // v55: sustained gold tint + a pulsing glow ring around the character
+      // for the FULL 3s window (was just a 1.5s tint flash) — the whole
+      // point is to make "you're invincible right now" visible for as long
+      // as it's actually true, not just at the moment it triggers.
+      this.sprite.setTint(0xfbbf24);
+      this.scene.tweens.add({ targets: this.sprite, alpha: 0.55, duration: 200, yoyo: true, repeat: Math.round(NEVER_DIED_INVINCIBLE_MS / 400) });
+      const glow = this.scene.add.circle(this.sprite.x, this.sprite.y, UNIT_DISPLAY_SIZE * 0.7, 0xfbbf24, 0.28).setDepth(this.sprite.depth - 1);
+      const glowTween = this.scene.tweens.add({ targets: glow, alpha: 0.55, scale: 1.25, duration: 350, yoyo: true, repeat: -1 });
+      const followGlow = () => glow.setPosition(this.sprite.x, this.sprite.y);
+      this.scene.events.on(Phaser.Scenes.Events.UPDATE, followGlow);
+      this.scene.time.delayedCall(NEVER_DIED_INVINCIBLE_MS, () => {
+        this.sprite.clearTint();
+        this.sprite.setAlpha(1);
+        this.scene.events.off(Phaser.Scenes.Events.UPDATE, followGlow);
+        glowTween.stop();
+        glow.destroy();
+      });
       // v52: dedicated on-screen banner (see HUDScene's onNeverDiedActivated)
       // so the save is unmistakable, not just a quiet tint flash.
       this.scene.events.emit("player-never-died");

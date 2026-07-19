@@ -108,9 +108,9 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     body: [
       "Perks are one-time ticket purchases from the Character page's Perks tab — once bought, they're permanent and work the same way in every mode (PvE story/farm/boss and PvP).",
       "Each perk gets its own on-screen button or status icon once owned — nothing to configure, just tap/click to use.",
-      "There are 4 perks: Spare Weapon, Regeneration, Super Shield, and One Shot — each detailed below.",
+      "There are 6 perks: Spare Weapon, Regeneration, Super Shield, One Shot, Invisible, and Never Died — each detailed below.",
     ],
-    tips: ["Perk buttons live in a stack on the bottom-right of the screen (Reload at the bottom, then Swap, then One Shot above it) — they never overlap the fire controls."],
+    tips: ["Clickable perks (Spare Weapon, One Shot) stack as buttons above Reload, bottom-right. Fully automatic perks (Regeneration, Super Shield, Invisible, Never Died) just show a status icon, top-right — nothing to press."],
   },
   {
     id: "perk-spare-weapon",
@@ -163,6 +163,33 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
       "Save it for tough single targets (boss stages, a PvP opponent at low HP) rather than trash enemies — the cooldown is long enough that using it carelessly wastes its value.",
       "Make sure you're not accidentally clicking through a UI button when you mean to fire the armed shot — check Settings if you notice any input weirdness.",
     ],
+  },
+  {
+    id: "perk-invisible",
+    category: "Perks",
+    label: "Invisible",
+    icon: "/assets/sprites/tilemap/obstacle_tree.svg",
+    title: "Perk: Invisible",
+    body: [
+      "Fully automatic, no button — loops from the moment a match/stage starts until it ends: every 15 seconds you turn invisible to every enemy for 2 seconds.",
+      "Unlike tree stealth, you can keep moving and shooting the entire time you're invisible — it doesn't require standing still or breaking line of sight.",
+      "The HUD's INVISIBLE status icon shows ACTIVE while the 2s window is live, and counts down the 15s cooldown the rest of the time.",
+    ],
+    tips: ["Use the 2s window to reposition aggressively or slip past a dangerous angle — enemies keep patrolling as if you were never there."],
+  },
+  {
+    id: "perk-never-died",
+    category: "Perks",
+    label: "Never Died",
+    icon: "/assets/sprites/equipment/vest_epic.svg",
+    title: "Perk: Never Died",
+    body: [
+      "A one-time \"last stand\" save, automatic and free — no button. The FIRST time a hit would take your HP to 0, your HP is locked at 1 instead and you're fully invincible for 3 seconds.",
+      "During those 3 seconds you take zero damage from any source and can't die, but everything else works normally — you can still move, shoot, reload, and use other perks.",
+      "Only triggers once per match/stage — once used, the HUD's NEVER DIED icon dims and shows USED for the rest of that run. It resets fresh on your next match/stage.",
+      "A big \"NEVER DIED ACTIVATED!\" banner, a distinct chime, and a gold glow around your character all confirm the moment it triggers.",
+    ],
+    tips: ["It's a safety net, not extra HP or damage reduction — you still take full damage on every hit before and after the one save."],
   },
 
   // ---------- Stealth & Enemies ----------
@@ -356,6 +383,34 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
       "Cosmetic color-tint skins, bought with coin from the Character page — 5 colors per character (Default is free), each character keeps its OWN separate colors and equipped choice.",
       "Preview a color instantly by clicking a swatch before buying — nothing is charged until you press Confirm. Once confirmed, it applies immediately everywhere that character is shown (Home, Character page, in-game, PvP) with no reload needed.",
       "Purely cosmetic — never changes a character's actual stats or silhouette.",
+      "You must already OWN a character before you can customize its color — the Color Skin section stays locked (with a 🔒 message) on any character you haven't unlocked yet.",
+    ],
+  },
+  {
+    id: "character-upgrade",
+    category: "Characters & Gear",
+    label: "Character Upgrade",
+    icon: "/assets/sprites/ui/star_upgrade.svg",
+    title: "Character Upgrade — Permanent HP",
+    body: [
+      "A permanent, uncapped HP boost bought with coin from the Character page — each level adds +10% of that character's ORIGINAL base HP (not compounding off the already-upgraded value), so 10 levels is always exactly +100%, never more.",
+      "Cost doubles every level (50, 100, 200, 400 coin...) — independent PER character, upgrading one never touches any other character's level.",
+      "Requires owning the character first — locked (with a 🔒 message) on anything you haven't unlocked yet.",
+      "The cost shown always reflects the real price, even when you can't currently afford it — the button just shows NOT ENOUGH COIN alongside the exact amount instead of hiding it.",
+    ],
+    tips: ["This stacks with every other HP source (character base, passive HP%, equipment) — check the CURRENT HP / NEXT HP numbers on the upgrade panel to see the exact gain before buying."],
+  },
+  {
+    id: "weapon-upgrade",
+    category: "Characters & Gear",
+    label: "Weapon Upgrade",
+    icon: "/assets/sprites/weapons/ak47.svg",
+    title: "Weapon Upgrade — Permanent Damage",
+    body: [
+      "Same shape as Character Upgrade, but for damage: a permanent, uncapped +10% of the weapon's ORIGINAL base damage per level, bought with coin from the Weapon tab.",
+      "Cost TRIPLES every level (50, 150, 450, 1350 coin...) — independent PER weapon.",
+      "Requires owning the weapon first — the Weapon Upgrade section only appears once a weapon is actually owned.",
+      "Like Character Upgrade, the cost always stays visible even when you're short on coin.",
     ],
   },
   {
@@ -454,6 +509,6 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
       "Your equipped character, weapon, passive upgrades, AND perks all carry into the match exactly like PvE — daily ammo limits don't apply, only magazine size.",
       "There's no pause in PvP (it would desync the live match) — make sure you're ready before queuing. Use the EXIT button to forfeit if you need to leave.",
     ],
-    tips: ["Perks (Spare Weapon, Regen, Super Shield, One Shot) work identically in PvP as in PvE — don't forget you have them mid-match."],
+    tips: ["All 6 perks (Spare Weapon, Regen, Super Shield, One Shot, Invisible, Never Died) work identically in PvP as in PvE — don't forget you have them mid-match."],
   },
 ];
