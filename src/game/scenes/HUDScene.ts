@@ -333,7 +333,8 @@ export class HUDScene extends Phaser.Scene {
   }
 
   /** v7 #3: refill ammo mid-stage without leaving to the Character/Weapon page.
-   *  v61: bullet-cartridge icon instead of a gas-pump emoji, per request. */
+   *  v62: 5 of the game's own real bullet_round sprite in a row (a small
+   *  stack of spare rounds), instead of a single hand-drawn icon. */
   private createRefillButton(width: number) {
     const btn = this.add.text(width - 10, 88, "REFILL", {
       fontFamily: "Orbitron, monospace",
@@ -342,7 +343,12 @@ export class HUDScene extends Phaser.Scene {
       backgroundColor: "#1a1a2e",
       padding: { x: 8, y: 4 },
     }).setOrigin(1, 0).setInteractive({ useHandCursor: true });
-    this.add.image(width - 10 - btn.width - 4, 88 + 13, "icon_ammo").setOrigin(1, 0.5).setDisplaySize(16, 16);
+    const bulletW = 6;
+    const bulletGap = 1;
+    const rowRightEdge = width - 10 - btn.width - 4;
+    for (let i = 0; i < 5; i++) {
+      this.add.image(rowRightEdge - i * (bulletW + bulletGap), 88 + 13, "icon_ammo").setOrigin(1, 0.5).setDisplaySize(bulletW, 11);
+    }
 
     btn.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       this.claimPointer(pointer);

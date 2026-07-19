@@ -22,7 +22,7 @@ export type IconName =
   | "play" | "pvp" | "character" | "inventory" | "gacha" | "trade" | "mission"
   | "leaderboard" | "mailbox" | "income" | "settings" | "admin" | "howToPlay"
   | "spareWeapon" | "regen" | "superShield" | "oneShot" | "invisible" | "neverDied"
-  | "lock" | "check" | "close" | "warning" | "star" | "chevronDown" | "google";
+  | "lock" | "check" | "close" | "warning" | "star" | "chevronDown" | "google" | "reload";
 
 interface IconProps {
   name: IconName;
@@ -67,6 +67,7 @@ const DEFAULT_COLORS: Record<IconName, [string, string]> = {
   star: ["#ffe27a", "#e08a00"],
   chevronDown: ["#e0d0a3", "#8a7a3a"],
   google: ["#e8e8e8", "#8a8a8a"],
+  reload: ["#e0d0a3", "#8a7a3a"],
 };
 
 /** Raw path/shape content per icon, in a 0-24 viewBox. `fill` here is this
@@ -333,6 +334,15 @@ function IconGlyph({ name, fill }: { name: IconName; fill: string }) {
         <>
           <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1" />
           <path d="M6 12a6 6 0 0 1 9.9-4.5l-2 1.9A3.4 3.4 0 0 0 12 8.6 3.4 3.4 0 0 0 8.7 12 3.4 3.4 0 0 0 12 15.4a3.4 3.4 0 0 0 3.2-2.2h-3.2v-2.5h5.8c.07.4.1.8.1 1.3 0 3.5-2.4 6-5.9 6A6 6 0 0 1 6 12Z" fill={fill} />
+        </>
+      );
+    case "reload":
+      // Two circulating arrows forming a full cycle — a reload/refresh glyph.
+      return (
+        <>
+          <path d="M19 5.5v5h-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M5 18.5v-5h5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          <path d="M18.4 10.5A6.5 6.5 0 0 0 6.2 8.3M5.6 13.5a6.5 6.5 0 0 0 12.2 2.2" fill="none" stroke={fill} strokeWidth="2.2" strokeLinecap="round" />
         </>
       );
     default:

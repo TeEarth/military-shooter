@@ -4,6 +4,16 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { sfx } from "@/lib/sfx";
 import { HOW_TO_PLAY_CATEGORIES, HOW_TO_PLAY_SECTIONS, type HowToPlaySection } from "@/lib/howToPlayContent";
+import Icon from "@/components/ui/Icon";
+
+/** v62: renders the section's Icon Manager glyph when set (preferred — same
+ *  vivid icons used everywhere else in the game), falling back to the plain
+ *  sprite-file badge otherwise. */
+function SectionIcon({ section, size }: { section: HowToPlaySection; size: number }) {
+  if (section.iconName) return <Icon name={section.iconName} size={size} />;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={section.icon} alt="" className="object-contain flex-shrink-0" style={{ width: size, height: size }} />;
+}
 
 const LAST_SECTION_KEY = "how_to_play_last_section";
 
@@ -98,8 +108,7 @@ export default function HowToPlayClient() {
                           activeId === s.id ? "bg-military-dark text-military-tan font-bold" : "text-military-steel hover:text-white hover:bg-military-dark/50"
                         }`}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={s.icon} alt="" className="w-4 h-4 object-contain flex-shrink-0" />
+                        <SectionIcon section={s} size={16} />
                         <span className="truncate">{s.label}</span>
                       </button>
                     ))}
@@ -163,8 +172,7 @@ function SectionCard({ section, refCallback }: { section: HowToPlaySection; refC
   return (
     <section id={section.id} ref={refCallback} className="card-military scroll-mt-20">
       <div className="flex items-center gap-3 mb-3">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={section.icon} alt="" className="w-9 h-9 object-contain flex-shrink-0" />
+        <SectionIcon section={section} size={36} />
         <div>
           <span className="text-military-steel text-[10px] uppercase tracking-wider">{section.category}</span>
           <h2 className="text-lg font-black text-military-gold uppercase tracking-wide">{section.title}</h2>

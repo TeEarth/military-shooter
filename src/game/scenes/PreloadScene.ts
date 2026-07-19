@@ -132,13 +132,16 @@ export class PreloadScene extends Phaser.Scene {
 
     // v61: HUD perk-status icons — same custom designs as the Character page's
     // Icon component (regen/shield/invisible/neverDied), rendered as real
-    // Phaser Image objects instead of default-emoji Text, plus a bullet icon
-    // for the ammo Refill button (was a gas-pump emoji before).
+    // Phaser Image objects instead of default-emoji Text.
     this.load.svg("icon_regen", "/assets/sprites/ui/icon_regen.svg", { width: 20, height: 20 });
     this.load.svg("icon_shield", "/assets/sprites/ui/icon_shield.svg", { width: 20, height: 20 });
     this.load.svg("icon_invisible", "/assets/sprites/ui/icon_invisible.svg", { width: 20, height: 20 });
     this.load.svg("icon_neverdied", "/assets/sprites/ui/icon_neverdied.svg", { width: 20, height: 20 });
-    this.load.svg("icon_ammo", "/assets/sprites/ui/icon_ammo.svg", { width: 20, height: 20 });
+    // v62: the ammo Refill button now shows the game's OWN real bullet asset
+    // (the same round used in-flight for gunplay) instead of a hand-drawn
+    // icon, per request — loaded at its native aspect (16x28) and shown 5
+    // in a row like a small stack of spare rounds.
+    this.load.svg("icon_ammo", "/assets/sprites/bullets/bullet_round.svg", { width: 16, height: 28 });
 
     // PvP only: the opponent's character/weapon art, keyed with an "opponent_"
     // prefix so it never collides with the local player's own textures even

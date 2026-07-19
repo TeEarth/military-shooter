@@ -1,3 +1,5 @@
+import type { IconName } from "@/components/ui/Icon";
+
 /** Data-driven content for the How to Play guide (src/app/how-to-play).
  *  Adding a new topic is just adding an entry here — no UI changes needed.
  *  Images reference real in-game asset files (public/assets/sprites/...). */
@@ -11,7 +13,13 @@ export interface HowToPlaySection {
   id: string;
   category: string;
   label: string;
+  /** Fallback plain sprite-file badge — used only when iconName is unset. */
   icon: string;
+  /** v62: preferred badge — one of the game's own Icon Manager glyphs (see
+   *  src/components/ui/Icon.tsx), the SAME icons already used on Home/perks/
+   *  currency everywhere else, instead of borrowing an unrelated sprite file
+   *  (e.g. Reload used to show a coin icon). Takes priority over `icon`. */
+  iconName?: IconName;
   title: string;
   images?: HowToPlayImage[];
   body: string[];
@@ -72,6 +80,7 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Combat Basics",
     label: "Reload",
     icon: "/assets/sprites/ui/coin_pop.svg",
+    iconName: "reload",
     title: "Reloading",
     body: [
       "Press R, right-click, or tap the on-screen RELOAD button to reload. Reloading is automatic once your magazine hits 0 and you try to fire again.",
@@ -117,6 +126,7 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Perks",
     label: "Spare Weapon",
     icon: "/assets/sprites/weapons/rasor_gun.svg",
+    iconName: "spareWeapon",
     title: "Perk: Spare Weapon",
     body: [
       "Lets you set a second owned weapon as a \"spare\" and carry both into a run. Tap the SWAP button to switch between them — each keeps its own magazine and ammo independently.",
@@ -130,6 +140,7 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Perks",
     label: "Regeneration",
     icon: "/assets/sprites/ui/coin_pop.svg",
+    iconName: "regen",
     title: "Perk: Regeneration",
     body: [
       "Automatically triggers a full heal the instant your HP drops below 20% — no button to press, it just happens.",
@@ -142,6 +153,7 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Perks",
     label: "Super Shield",
     icon: "/assets/sprites/equipment/vest_epic.svg",
+    iconName: "superShield",
     title: "Perk: Super Shield",
     body: [
       "If your shield (from equipped gear) stays completely empty for 15 continuous seconds, this perk automatically refills it to 50% of max — also automatic, no button.",
@@ -154,6 +166,7 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Perks",
     label: "One Shot",
     icon: "/assets/sprites/ui/star_upgrade.svg",
+    iconName: "oneShot",
     title: "Perk: One Shot",
     body: [
       "Tap the skull button to ARM your next shot — that single shot deals massive fixed damage (or a wide-but-weaker AoE blast for rocket/grenade weapons), guaranteed to hit (no accuracy/crit RNG).",
@@ -169,11 +182,12 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Perks",
     label: "Invisible",
     icon: "/assets/sprites/tilemap/obstacle_tree.svg",
+    iconName: "invisible",
     title: "Perk: Invisible",
     body: [
       "Fully automatic, no button — loops from the moment a match/stage starts until it ends: every 7 seconds you turn invisible to every enemy for 3 seconds.",
       "Unlike tree stealth, you can keep moving and shooting the entire time you're invisible — it doesn't require standing still or breaking line of sight.",
-      "The HUD's INVISIBLE status icon shows ACTIVE while the 3s window is live, and counts down the 7s cooldown the rest of the time.",
+      "The HUD's INVISIBLE status icon shows ACTIVE while the 3s window is live, and counts down the 7s cooldown the rest of the time — your character also glows purple for the whole window so it's obvious on-screen, not just on the HUD.",
     ],
     tips: ["Use the 3s window to reposition aggressively or slip past a dangerous angle — enemies keep patrolling as if you were never there."],
   },
@@ -182,6 +196,7 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Perks",
     label: "Never Died",
     icon: "/assets/sprites/equipment/vest_epic.svg",
+    iconName: "neverDied",
     title: "Perk: Never Died",
     body: [
       "A one-time \"last stand\" save, automatic and free — no button. The FIRST time a hit would take your HP to 0, your HP is locked at 1 instead and you're fully invincible for 3 seconds.",
@@ -306,6 +321,7 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Game Modes",
     label: "Missions",
     icon: "/assets/sprites/ui/coin_pop.svg",
+    iconName: "mission",
     title: "Missions",
     body: [
       "The Mission page lists ongoing objectives — clearing stages, getting kills, reaching a farm wave — that pay out coin, EXP, or tickets once completed.",
@@ -346,6 +362,7 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Progression",
     label: "Leaderboard",
     icon: "/assets/sprites/ui/star_upgrade.svg",
+    iconName: "leaderboard",
     title: "Leaderboard",
     body: [
       "Ranks players by their highest Farm-stage wave reached, resetting weekly — separate from your permanent all-time best wave.",
@@ -376,15 +393,24 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
   {
     id: "character-skins",
     category: "Characters & Gear",
-    label: "Color Skins",
-    icon: "/assets/sprites/ui/gacha_burst.svg",
-    title: "Character Color Skins",
-    body: [
-      "Cosmetic color-tint skins, bought with coin from the Character page — 5 colors per character (Default is free), each character keeps its OWN separate colors and equipped choice.",
-      "Preview a color instantly by clicking a swatch before buying — nothing is charged until you press Confirm. Once confirmed, it applies immediately everywhere that character is shown (Home, Character page, in-game, PvP) with no reload needed.",
-      "Purely cosmetic — never changes a character's actual stats or silhouette.",
-      "You must already OWN a character before you can customize its color — the Color Skin section stays locked (with a 🔒 message) on any character you haven't unlocked yet.",
+    label: "Skins",
+    icon: "/assets/sprites/characters/bob_private_elite.svg",
+    title: "Character Skins",
+    images: [
+      { src: "/assets/sprites/characters/bob_private_desert.svg", caption: "Desert — +10% HP (250 coin)" },
+      { src: "/assets/sprites/characters/bob_private_urban.svg", caption: "Urban — +10% Damage (500 coin)" },
+      { src: "/assets/sprites/characters/bob_private_jungle.svg", caption: "Jungle — +10% Accuracy (100 diamond)" },
+      { src: "/assets/sprites/characters/bob_private_arctic.svg", caption: "Arctic — +10% Crit Chance (200 diamond)" },
+      { src: "/assets/sprites/characters/bob_private_elite.svg", caption: "Elite — +10% Armor, boosts Total Shield (1000 diamond)" },
     ],
+    body: [
+      "Skins are real sprite swaps, not a color tint — each skin is its own hand-drawn art file, bought with coin or diamond from the Character page's Skin section (Default is free and owned by everyone).",
+      "Every skin also grants a permanent +10% combat bonus to ONE stat, scaled off that character's own value for that stat (never the weapon's or equipment's) — see the bonuses above. Elite's Armor bonus specifically boosts your Total Shield capacity (see the Total Stats panel on the Inventory page for the exact numbers).",
+      "Each character keeps its OWN separate owned/equipped skin — buying a skin for one character never touches any other character.",
+      "Preview a skin instantly by clicking its thumbnail before buying — nothing is charged until you press Confirm. Once confirmed, it applies immediately everywhere that character is shown (Home, Character page, in-game, PvP) with no reload needed.",
+      "You must already OWN a character before you can unlock its skins — the Skin section stays locked on any character you haven't unlocked yet.",
+    ],
+    tips: ["Pick a skin that matches your build: Urban if you're stacking damage, Arctic if you're already crit-focused, Elite if you want a bigger shield buffer."],
   },
   {
     id: "character-upgrade",
@@ -477,6 +503,7 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Economy",
     label: "Top Up & Cash Out",
     icon: "/assets/sprites/ui/gacha_capsule_ticket.svg",
+    iconName: "banknote",
     title: "Topping Up & Cashing Out",
     body: [
       "Income page's Top Up section sells ticket packages for real money via card or PromptPay QR — PromptPay confirms automatically once scanned and paid, no refresh needed.",
@@ -489,6 +516,7 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Economy",
     label: "Mailbox",
     icon: "/assets/sprites/ui/coin_pop.svg",
+    iconName: "mailbox",
     title: "Mailbox & Rewards",
     body: [
       "The Mailbox holds admin-sent rewards and system notices (like withdrawal approvals) — claim any pending reward directly from there.",
@@ -502,6 +530,7 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     category: "Multiplayer",
     label: "PvP Arena",
     icon: "/assets/sprites/weapons/double_pistol.svg",
+    iconName: "pvp",
     title: "PvP",
     body: [
       "Real-time 1v1 — tap FIND MATCH and you'll be paired with the next player also searching, usually within seconds.",
