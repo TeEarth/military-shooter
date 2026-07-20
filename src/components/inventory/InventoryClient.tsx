@@ -184,12 +184,30 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } })
   );
 
+  /** v66 fix: this used to be a useEffect keyed on [equippedWeaponId,
+   *  equipment] — but that local state updates OPTIMISTICALLY, synchronously,
+   *  before the equip/unequip POST's DB write actually commits. React fires
+   *  this effect off that local change immediately, so the GET here raced
+   *  the POST and could read the DB either just before or just after the
+   *  write landed — Total Shield (and every other stat) would flicker
+   *  between the old and new value unpredictably, sometimes settling on the
+   *  wrong one (read: "unequip everything, shield stays up" / "equip
+   *  something, shield drops"). Now called explicitly, awaited AFTER each
+   *  mutation's own POST resolves, so it always reads the DB post-write. */
+  async function refetchStats() {
+    try {
+      const res = await fetch("/api/player/stats");
+      const data = await res.json();
+      if (data.success) setStats(data.data);
+    } catch {
+      // best-effort — the stat panel just won't refresh this time.
+    }
+  }
+
   useEffect(() => {
-    fetch("/api/player/stats")
-      .then((res) => res.json())
-      .then((data) => { if (data.success) setStats(data.data); })
-      .catch(() => {});
-  }, [equippedWeaponId, equipment]);
+    refetchStats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const equippedByslot: Record<EquipmentSlot, OwnedEquipment | undefined> = {
     helmet: equipment.find((e) => e.slot === "helmet" && e.equipped),
@@ -217,6 +235,7 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
       const data = await res.json();
       setMessage(data.message ?? data.error);
       if (!data.success) { setEquippedWeaponId(previous); sfx.play("miss"); }
+      else refetchStats();
     } catch {
       setEquippedWeaponId(previous);
       sfx.play("miss");
@@ -243,6 +262,7 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
       setMessage(data.message ?? data.error);
       if (data.success) {
         sfx.play("pickup_item");
+        refetchStats();
       } else {
         setEquipment(previous);
         sfx.play("miss");
