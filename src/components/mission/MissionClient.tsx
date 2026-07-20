@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { sfx } from "@/lib/sfx";
 import CurrencyBar from "@/components/ui/CurrencyBar";
+import Icon from "@/components/ui/Icon";
 
 interface MissionWithProgress {
   id: string;
@@ -92,8 +93,9 @@ export default function MissionClient({ missions: initialMissions, milestone, co
             <p className="font-bold text-sm">{m.description}</p>
             <p className="text-xs text-military-steel mt-1">Progress: {Math.min(m.progress, m.targetValue)}/{m.targetValue}</p>
           </div>
-          <span className="text-military-gold text-xs">
-            +{m.rewardCoin} 🪙 +{m.rewardExp} exp{m.rewardDiamond > 0 ? ` +${m.rewardDiamond} 💎` : ""}
+          <span className="text-military-gold text-xs inline-flex items-center gap-1 flex-wrap justify-end">
+            +{m.rewardCoin} <Icon name="coin" size={12} /> +{m.rewardExp} exp
+            {m.rewardDiamond > 0 && <> +{m.rewardDiamond} <Icon name="diamond" size={12} /></>}
           </span>
         </div>
         <div className="h-2 bg-military-darker border border-military-steel mt-2 mb-2">

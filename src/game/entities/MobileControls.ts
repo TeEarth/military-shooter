@@ -38,8 +38,12 @@ export class MobileControls {
   /** scheme "split" only — the move stick floats to wherever the left-half
    *  touch actually landed (see handleDown) instead of a small fixed circle,
    *  so the whole left half of the screen is walkable, not just one exact
-   *  spot. "joystick" scheme keeps the original fixed corner. */
+   *  spot. "joystick" scheme keeps the original fixed corner. v63: it used
+   *  to be hidden until the first touch — now it's always visible at
+   *  moveDefaultCenter (still floats to the touch point while dragging,
+   *  then snaps back to moveDefaultCenter and stays visible on release). */
   private readonly isFloatingMove: boolean;
+  private readonly moveDefaultCenter: { x: number; y: number };
   private moveCenter: { x: number; y: number };
   private moveBase: Phaser.GameObjects.Arc;
   private moveKnob: Phaser.GameObjects.Arc;
@@ -71,39 +75,38 @@ export class MobileControls {
 
     const moveScale = getMoveScale();
     const fireScale = getFireScale();
-    this.moveBaseRadius = 80 * moveScale;
-    this.moveKnobRadius = 38 * moveScale;
-    this.moveMaxTravel = 60 * moveScale;
-    this.moveGrabRadius = 110 * moveScale;
+    // v63: Layout 1 ("split")'s move stick is now always visible (see below)
+    // and was reported too small at that point — 30% bigger than the same
+    // stick's old floating-reveal size. Layout 2 ("joystick") is unchanged.
+    const layout1SizeBoost = scheme === "split" ? 1.3 : 1;
+    this.moveBaseRadius = 80 * moveScale * layout1SizeBoost;
+    this.moveKnobRadius = 38 * moveScale * layout1SizeBoost;
+    this.moveMaxTravel = 60 * moveScale * layout1SizeBoost;
+    this.moveGrabRadius = 110 * moveScale * layout1SizeBoost;
     this.aimBaseRadius = 80 * fireScale;
     this.aimKnobRadius = 38 * fireScale;
     this.aimMaxTravel = 60 * fireScale;
 
-    this.moveCenter = { x: 130, y: height - 130 };
+    this.moveDefaultCenter = { x: 130, y: height - 130 };
+    this.moveCenter = { ...this.moveDefaultCenter };
     this.aimCenter = { x: width - 130, y: height - 130 };
 
     const DEPTH = 2000;
-    this.moveBase = scene.add.circle(this.moveCenter.x, this.moveCenter.y, this.moveBaseRadius, 0xffffff, 0.12)
-      .setScrollFactor(0).setDepth(DEPTH).setStrokeStyle(2, 0xffffff, 0.3);
-    this.moveKnob = scene.add.circle(this.moveCenter.x, this.moveCenter.y, this.moveKnobRadius, 0xc5a97d, 0.5)
-      .setScrollFactor(0).setDepth(DEPTH + 1);
+    this.moveBase = scene.add.circle(this.uiX(this.moveCenter.x), this.uiY(this.moveCenter.y), this.moveBaseRadius, 0xffffff, 0.12)
+      .setScrollFactor(0).setDepth(DEPTH).setStrokeStyle(2, 0xffffff, 0.3).setScale(this.uiScale);
+    this.moveKnob = scene.add.circle(this.uiX(this.moveCenter.x), this.uiY(this.moveCenter.y), this.moveKnobRadius, 0xc5a97d, 0.5)
+      .setScrollFactor(0).setDepth(DEPTH + 1).setScale(this.uiScale);
 
     if (scheme === "joystick") {
-      this.aimBase = scene.add.circle(this.aimCenter.x, this.aimCenter.y, this.aimBaseRadius, 0xffffff, 0.12)
-        .setScrollFactor(0).setDepth(DEPTH).setStrokeStyle(2, 0xff4444, 0.35);
-      this.aimKnob = scene.add.circle(this.aimCenter.x, this.aimCenter.y, this.aimKnobRadius, 0xc0392b, 0.5)
-        .setScrollFactor(0).setDepth(DEPTH + 1);
-    } else {
-      // v29 fix: scheme "split" now has a FLOATING move stick — hidden until
-      // a left-half touch actually lands (see handleDown), instead of a
-      // persistent stick glued to one small fixed corner that a thumb had to
-      // land on pixel-perfectly.
-      this.moveBase.setVisible(false);
-      this.moveKnob.setVisible(false);
+      this.aimBase = scene.add.circle(this.uiX(this.aimCenter.x), this.uiY(this.aimCenter.y), this.aimBaseRadius, 0xffffff, 0.12)
+        .setScrollFactor(0).setDepth(DEPTH).setStrokeStyle(2, 0xff4444, 0.35).setScale(this.uiScale);
+      this.aimKnob = scene.add.circle(this.uiX(this.aimCenter.x), this.uiY(this.aimCenter.y), this.aimKnobRadius, 0xc0392b, 0.5)
+        .setScrollFactor(0).setDepth(DEPTH + 1).setScale(this.uiScale);
     }
     // scheme "split" has no visible widget on the right side at all — the
     // whole screen (outside HUD buttons and the active move touch) is itself
-    // the aim/fire surface.
+    // the aim/fire surface. v63: the move stick itself is now always visible
+    // from the start in BOTH schemes — no more tap-to-reveal.
 
     this.onDown = (p) => this.handleDown(p);
     this.onMove = (p) => this.handleMove(p);
@@ -113,6 +116,35 @@ export class MobileControls {
     scene.input.on("pointermove", this.onMove);
     scene.input.on("pointerup", this.onUp);
     scene.input.on("pointerupoutside", this.onUp);
+  }
+
+  /** v63 fix: this class lives inside GameScene/PvpScene, which apply the
+   *  player's chosen camera zoom (100/120/140%, see controlScheme.ts) — a
+   *  scrollFactor(0) object is STILL subject to that zoom (Phaser
+   *  scales/repositions it around the camera's origin), so the joystick
+   *  circles rendered shifted and oversized at anything other than 100%
+   *  zoom, sometimes pushing them partly off-screen. Same root cause and
+   *  same fix already applied to TutorialScene.ts's fixed UI — uiX/uiY
+   *  convert an intended TRUE screen position to the position that renders
+   *  at that true position once the camera's zoom transform is applied, and
+   *  uiScale compensates the visual size. Hit-testing (moveCenter/aimCenter
+   *  vs. pointer.x/y) is untouched — Phaser's pointer coordinates are
+   *  already true screen pixels regardless of zoom, so only the RENDERED
+   *  circle positions/sizes ever needed compensating. */
+  private uiX(x: number): number {
+    const cam = this.scene.cameras.main;
+    const originX = cam.width * cam.originX;
+    return originX + (x - originX) / cam.zoom;
+  }
+
+  private uiY(y: number): number {
+    const cam = this.scene.cameras.main;
+    const originY = cam.height * cam.originY;
+    return originY + (y - originY) / cam.zoom;
+  }
+
+  private get uiScale(): number {
+    return 1 / this.scene.cameras.main.zoom;
   }
 
   /** v29: fixed screen-space zones the HUD's own buttons occupy (Pause/Exit,
@@ -171,8 +203,8 @@ export class MobileControls {
       if (this.movePointerId === null && pointer.x < this.scene.scale.width / 2) {
         this.movePointerId = pointer.id;
         this.moveCenter = { x: pointer.x, y: pointer.y };
-        this.moveBase.setPosition(pointer.x, pointer.y).setVisible(true);
-        this.moveKnob.setPosition(pointer.x, pointer.y).setVisible(true);
+        this.moveBase.setPosition(this.uiX(pointer.x), this.uiY(pointer.y));
+        this.moveKnob.setPosition(this.uiX(pointer.x), this.uiY(pointer.y));
         this.moveVector = { x: 0, y: 0 };
         return;
       }
@@ -220,17 +252,20 @@ export class MobileControls {
       this.movePointerId = null;
       this.moveVector = { x: 0, y: 0 };
       if (this.isFloatingMove) {
-        this.moveBase.setVisible(false);
-        this.moveKnob.setVisible(false);
+        // v63: snap back to the default anchor and stay visible, instead of
+        // hiding — the stick is always on-screen now, never tap-to-reveal.
+        this.moveCenter = { ...this.moveDefaultCenter };
+        this.moveBase.setPosition(this.uiX(this.moveCenter.x), this.uiY(this.moveCenter.y));
+        this.moveKnob.setPosition(this.uiX(this.moveCenter.x), this.uiY(this.moveCenter.y));
       } else {
-        this.moveKnob.setPosition(this.moveCenter.x, this.moveCenter.y);
+        this.moveKnob.setPosition(this.uiX(this.moveCenter.x), this.uiY(this.moveCenter.y));
       }
     }
     if (pointer.id === this.aimPointerId) {
       this.aimPointerId = null;
       if (this.scheme === "joystick") {
         this.aimVector = { x: 0, y: 0 };
-        this.aimKnob?.setPosition(this.aimCenter.x, this.aimCenter.y);
+        this.aimKnob?.setPosition(this.uiX(this.aimCenter.x), this.uiY(this.aimCenter.y));
       } else {
         this.aimScreenPoint = null; // releasing stops both aiming and firing
       }
@@ -244,7 +279,7 @@ export class MobileControls {
     const angle = Math.atan2(dy, dx);
     const kx = center.x + Math.cos(angle) * d;
     const ky = center.y + Math.sin(angle) * d;
-    knob.setPosition(kx, ky);
+    knob.setPosition(this.uiX(kx), this.uiY(ky));
     setVector({ x: (kx - center.x) / maxTravel, y: (ky - center.y) / maxTravel });
   }
 

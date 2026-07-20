@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { sfx } from "@/lib/sfx";
+import Icon from "@/components/ui/Icon";
 import {
   getControlScheme, setControlScheme, type ControlScheme,
   getMoveScale, setMoveScale, getFireScale, setFireScale,
@@ -109,10 +110,10 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
           <p className="text-sm">Username: <span className="text-white">{username}</span></p>
           <p className="text-sm mt-1">VIP tier: <span className="text-military-gold font-bold">VIP {vipLevel}</span></p>
           <div className="grid grid-cols-2 gap-1 mt-2 text-sm">
-            <p>🪙 Coin: <span className="text-military-gold font-bold">{coin.toLocaleString()}</span></p>
-            <p>💎 Diamond: <span className="text-blue-400 font-bold">{diamond.toLocaleString()}</span></p>
-            <p>🎟️ Tickets: <span className="text-green-400 font-bold">{ticket.toLocaleString()}</span></p>
-            <p>💵 Green Banknote: <span className="text-emerald-400 font-bold">{greenBanknote.toLocaleString()}</span></p>
+            <p className="inline-flex items-center gap-1"><Icon name="coin" size={14} /> Coin: <span className="text-military-gold font-bold">{coin.toLocaleString()}</span></p>
+            <p className="inline-flex items-center gap-1"><Icon name="diamond" size={14} /> Diamond: <span className="text-blue-400 font-bold">{diamond.toLocaleString()}</span></p>
+            <p className="inline-flex items-center gap-1"><Icon name="ticket" size={14} /> Tickets: <span className="text-green-400 font-bold">{ticket.toLocaleString()}</span></p>
+            <p className="inline-flex items-center gap-1"><Icon name="banknote" size={14} /> Green Banknote: <span className="text-emerald-400 font-bold">{greenBanknote.toLocaleString()}</span></p>
           </div>
           <p className="text-sm mt-2">Stage Reached: <span className="text-white font-bold">{currentStage}</span></p>
           <p className="text-sm mt-1">Farm Stage Best Wave: <span className="text-white font-bold">{farmStageMaxWave}</span></p>

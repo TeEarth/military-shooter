@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Icon, { type IconName } from "@/components/ui/Icon";
 
 interface MailItem {
   id: string;
@@ -20,7 +21,16 @@ function formatSentAt(sentAt: string): string {
   return d.toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
-const ICON_FOR_TYPE: Record<string, string> = { coin: "🪙", diamond: "💎", ticket: "🎟️", exp: "⭐", equipment: "🔧", character: "🪖", withdrawal: "💸" };
+/** Currency types use the shared Icon Manager glyph (same as everywhere
+ *  else); the rest don't have a matching icon yet, so they keep an emoji. */
+const ICON_NAME_FOR_TYPE: Record<string, IconName> = { coin: "coin", diamond: "diamond", ticket: "ticket" };
+const EMOJI_FOR_TYPE: Record<string, string> = { exp: "⭐", equipment: "🔧", character: "🪖", withdrawal: "💸" };
+
+function MailIcon({ type }: { type: string }) {
+  const iconName = ICON_NAME_FOR_TYPE[type];
+  if (iconName) return <Icon name={iconName} size={30} />;
+  return <span className="text-3xl">{EMOJI_FOR_TYPE[type] ?? "📦"}</span>;
+}
 
 export default function MailboxClient({ items }: { items: MailItem[] }) {
   const [mail, setMail] = useState(items);
@@ -52,7 +62,7 @@ export default function MailboxClient({ items }: { items: MailItem[] }) {
           const isWithdrawal = type === "withdrawal";
           return (
             <div key={item.id} className={`card-military flex items-start gap-4 ${!item.claimed ? "border-military-tan" : ""}`}>
-              <span className="text-3xl">{ICON_FOR_TYPE[type] ?? "📦"}</span>
+              <MailIcon type={type} />
               <div className="flex-1">
                 <div className="flex items-baseline justify-between gap-2">
                   <h3 className="font-bold">{item.title}</h3>

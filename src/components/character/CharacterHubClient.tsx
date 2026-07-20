@@ -919,8 +919,8 @@ export default function CharacterHubClient(props: Props) {
                         {weaponUpgradeLoading
                           ? "..."
                           : canAfford
-                            ? `UPGRADE — 🪙 ${cost.toLocaleString()}`
-                            : `NOT ENOUGH COIN — 🪙 ${cost.toLocaleString()}`}
+                            ? <>UPGRADE — <CurrencyCost currency="coin" amount={cost} /></>
+                            : <>NOT ENOUGH COIN — <CurrencyCost currency="coin" amount={cost} /></>}
                       </button>
                     </div>
                   );

@@ -6,8 +6,9 @@ import type { CurrencyExchangeRow } from "@/lib/google/exchange";
 import { sfx } from "@/lib/sfx";
 import { showRewardedAd } from "@/lib/ads-service";
 import CurrencyBar from "@/components/ui/CurrencyBar";
+import Icon, { type IconName } from "@/components/ui/Icon";
 
-const CURRENCY_ICON: Record<string, string> = { coin: "🪙", diamond: "💎", ticket: "🎟️" };
+const CURRENCY_ICON_NAME: Record<string, IconName> = { coin: "coin", diamond: "diamond", ticket: "ticket" };
 const AD_COIN_REWARD = 30;
 const DAILY_AD_WATCH_CAP = 10;
 
@@ -79,7 +80,7 @@ export default function ShopClient({ rates, coin: initialCoin, diamond: initialD
         setCoin(data.player.coin);
         setDiamond(data.player.diamond);
         setTicket(data.player.ticket);
-        setMessage(`+${data.result.toAmount} ${CURRENCY_ICON[data.result.toCurrency]}`);
+        setMessage(`+${data.result.toAmount} ${data.result.toCurrency}`);
       } else {
         setCoin(prevBalance.coin);
         setDiamond(prevBalance.diamond);
@@ -102,8 +103,8 @@ export default function ShopClient({ rates, coin: initialCoin, diamond: initialD
 
     return (
       <div className="card-military">
-        <h2 className="font-bold text-military-tan mb-3 uppercase tracking-wider">
-          {CURRENCY_ICON[fromCurrency]} {fromCurrency} → {CURRENCY_ICON[toCurrency]} {toCurrency}
+        <h2 className="font-bold text-military-tan mb-3 uppercase tracking-wider flex items-center gap-1.5">
+          <Icon name={CURRENCY_ICON_NAME[fromCurrency] ?? "coin"} size={16} /> {fromCurrency} → <Icon name={CURRENCY_ICON_NAME[toCurrency] ?? "coin"} size={16} /> {toCurrency}
         </h2>
         <div className="grid grid-cols-2 gap-2">
           {group.map((r) => (
@@ -113,8 +114,8 @@ export default function ShopClient({ rates, coin: initialCoin, diamond: initialD
               disabled={loading || balances[fromCurrency] < r.fromAmount}
               className="btn-military text-xs py-3 flex flex-col items-center gap-1 disabled:opacity-40"
             >
-              <span>{CURRENCY_ICON[fromCurrency]} {r.fromAmount}</span>
-              <span className="text-military-gold">→ {CURRENCY_ICON[toCurrency]} {r.toAmount}</span>
+              <span className="inline-flex items-center gap-1"><Icon name={CURRENCY_ICON_NAME[fromCurrency] ?? "coin"} size={14} /> {r.fromAmount}</span>
+              <span className="text-military-gold inline-flex items-center gap-1">→ <Icon name={CURRENCY_ICON_NAME[toCurrency] ?? "coin"} size={14} /> {r.toAmount}</span>
             </button>
           ))}
         </div>
