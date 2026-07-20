@@ -7,6 +7,7 @@ import { getPlayerIncome } from "@/lib/db/income";
 import { getMailForPlayer } from "@/lib/google/reward";
 import { getEquippedWeaponId } from "@/lib/db/inventory";
 import { getClaimableMissionCount } from "@/lib/db/mission";
+import { getDailyLoginStatus } from "@/lib/db/dailyLogin";
 import HomeClient from "@/components/home/HomeClient";
 
 export default async function HomePage() {
@@ -16,13 +17,14 @@ export default async function HomePage() {
   const player = await getPlayerById(session.user.id);
   if (!player) redirect("/api/auth/force-logout");
 
-  const [character, vipProgress, income, mail, equippedWeaponId, claimableMissionCount] = await Promise.all([
+  const [character, vipProgress, income, mail, equippedWeaponId, claimableMissionCount, dailyLogin] = await Promise.all([
     getCharacterById(player.currentCharacter),
     computeVipProgress(player.vipExp),
     getPlayerIncome(player.id),
     getMailForPlayer(player.id),
     getEquippedWeaponId(player.id),
     getClaimableMissionCount(player.id),
+    getDailyLoginStatus(player.id),
   ]);
 
   const unreadMailCount = mail.filter((m) => !m.claimed).length;
@@ -37,6 +39,7 @@ export default async function HomePage() {
       greenBanknoteBalance={income.greenBanknoteBalance}
       unreadMailCount={unreadMailCount}
       claimableMissionCount={claimableMissionCount}
+      dailyLogin={dailyLogin}
     />
   );
 }

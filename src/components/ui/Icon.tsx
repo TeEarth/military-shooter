@@ -22,7 +22,7 @@ export type IconName =
   | "play" | "pvp" | "character" | "inventory" | "gacha" | "trade" | "mission"
   | "leaderboard" | "mailbox" | "income" | "settings" | "admin" | "howToPlay"
   | "spareWeapon" | "regen" | "superShield" | "oneShot" | "invisible" | "neverDied"
-  | "lock" | "check" | "close" | "warning" | "star" | "chevronDown" | "google" | "reload";
+  | "lock" | "check" | "close" | "warning" | "star" | "chevronDown" | "google" | "reload" | "calendar";
 
 interface IconProps {
   name: IconName;
@@ -68,6 +68,7 @@ const DEFAULT_COLORS: Record<IconName, [string, string]> = {
   chevronDown: ["#e0d0a3", "#8a7a3a"],
   google: ["#e8e8e8", "#8a8a8a"],
   reload: ["#e0d0a3", "#8a7a3a"],
+  calendar: ["#ffcf6b", "#b35400"],
 };
 
 /** Raw path/shape content per icon, in a 0-24 viewBox. `fill` here is this
@@ -334,6 +335,19 @@ function IconGlyph({ name, fill }: { name: IconName; fill: string }) {
         <>
           <circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" strokeWidth="1" />
           <path d="M6 12a6 6 0 0 1 9.9-4.5l-2 1.9A3.4 3.4 0 0 0 12 8.6 3.4 3.4 0 0 0 8.7 12 3.4 3.4 0 0 0 12 15.4a3.4 3.4 0 0 0 3.2-2.2h-3.2v-2.5h5.8c.07.4.1.8.1 1.3 0 3.5-2.4 6-5.9 6A6 6 0 0 1 6 12Z" fill={fill} />
+        </>
+      );
+    case "calendar":
+      return (
+        <>
+          <rect x="3.5" y="4.5" width="17" height="16" rx="1.6" fill={fill} stroke="currentColor" strokeWidth="1.1" />
+          <path d="M3.5 9h17" stroke="currentColor" strokeWidth="1.1" />
+          <path d="M7.5 2.8v3.2M16.5 2.8v3.2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+          <circle cx="8" cy="13" r="1.1" fill="currentColor" />
+          <circle cx="12" cy="13" r="1.1" fill="currentColor" />
+          <circle cx="16" cy="13" r="1.1" fill="currentColor" />
+          <circle cx="8" cy="17" r="1.1" fill="currentColor" />
+          <circle cx="12" cy="17" r="1.1" fill="currentColor" />
         </>
       );
     case "reload":

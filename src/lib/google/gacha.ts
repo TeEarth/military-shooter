@@ -111,6 +111,15 @@ async function rollOnce(playerId: string, pool: GachaConfigRow[]): Promise<Gacha
   return { rewardType: "equipment", rarity, slot, equipmentId: item.id, equipmentName: item.name, isDupe: false };
 }
 
+/** v66: a free pull for the Daily Login Reward's day-7 grand reward — same
+ *  weighted roll/dupe-upgrade logic as a real pull, just skips the cost
+ *  currency check/deduction entirely (there isn't one). */
+export async function pullGachaFree(playerId: string, poolId: string): Promise<GachaPullResult> {
+  const pool = await getGachaPool(poolId);
+  if (pool.length === 0) throw new Error("Gacha pool not found");
+  return rollOnce(playerId, pool);
+}
+
 /**
  * Pulls once from a gacha pool: rolls the weighted rarity/currency table, then
  * for equipment rewards rolls a random slot and resolves to the matching

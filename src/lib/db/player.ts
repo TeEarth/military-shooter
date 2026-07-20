@@ -92,6 +92,16 @@ export interface Player {
    *  confirmed run. Permanent, uncapped, PER WEAPON damage upgrade level (see
    *  src/lib/weaponUpgrade.ts) — e.g. {"pistol": 8}. Missing/0 = never upgraded. */
   weaponUpgradeLevels: Record<string, number>;
+  /** v66: requires scripts/sql/015_v66_daily_login_reward.sql — held back
+   *  until confirmed run. The LAST claimed day of the 7-day repeating Daily
+   *  Login Reward cycle (see src/lib/dailyLoginRewards.ts) — 0 means never
+   *  claimed, so the next claim is day 1. Wraps 7 -> 1 automatically; missing
+   *  a day never resets this, the player just claims the next day whenever
+   *  they come back (see src/lib/db/dailyLogin.ts). */
+  dailyLoginDay: number;
+  /** v66: UTC "YYYY-MM-DD" of the last claim — gates "once per day", same
+   *  lazy server-time pattern as dailyWithdrawnDate/dailyAdCoinDate above. */
+  dailyLoginLastClaimDate: string;
 }
 
 /** DB row (snake_case) -> app-facing Player (camelCase) — same shape callers
@@ -143,6 +153,8 @@ function rowToPlayer(row: any): Player {
     dailyAdCoinDate: row.daily_ad_coin_date ?? "",
     characterUpgradeLevels: (row.character_upgrade_levels && typeof row.character_upgrade_levels === "object" && !Array.isArray(row.character_upgrade_levels)) ? row.character_upgrade_levels : {},
     weaponUpgradeLevels: (row.weapon_upgrade_levels && typeof row.weapon_upgrade_levels === "object" && !Array.isArray(row.weapon_upgrade_levels)) ? row.weapon_upgrade_levels : {},
+    dailyLoginDay: Number(row.daily_login_day ?? 0),
+    dailyLoginLastClaimDate: row.daily_login_last_claim_date ?? "",
   };
 }
 
@@ -238,6 +250,10 @@ export async function createPlayer(params: { email: string; username: string; pa
     // v47: also not included in .insert() below — DB-level default (see
     // 013_v47_weapon_upgrade.sql), same reasoning as the fields above.
     weaponUpgradeLevels: {},
+    // v66: also not included in .insert() below — DB-level default (see
+    // 015_v66_daily_login_reward.sql), same reasoning as the fields above.
+    dailyLoginDay: 0,
+    dailyLoginLastClaimDate: "",
   };
 
   const supabase = getSupabaseClient();
@@ -319,6 +335,8 @@ const CAMEL_TO_SNAKE: Record<string, string> = {
   dailyAdCoinDate: "daily_ad_coin_date",
   characterUpgradeLevels: "character_upgrade_levels",
   weaponUpgradeLevels: "weapon_upgrade_levels",
+  dailyLoginDay: "daily_login_day",
+  dailyLoginLastClaimDate: "daily_login_last_claim_date",
 };
 
 function toSnakeUpdates(updates: Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]> | Record<string, number>>): Record<string, string | number | boolean | string[] | Record<string, string> | Record<string, string[]> | Record<string, number>> {

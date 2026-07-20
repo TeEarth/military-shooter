@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import CurrencyBar from "@/components/ui/CurrencyBar";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import { sfx } from "@/lib/sfx";
 import { getWeaponSprite } from "@/lib/spriteHelpers";
 import { getEquippedSkin, characterSkinSpritePath } from "@/lib/characterSkins";
+import DailyLoginModal from "@/components/home/DailyLoginModal";
 
 interface Player {
   id: string;
@@ -42,7 +43,21 @@ const MENU_ITEMS: { href: string; label: string; icon: IconName; primary?: boole
   { href: "/settings", label: "SETTINGS", icon: "settings" },
 ];
 
-export default function HomeClient({ player, characterSprite, characterName, equippedWeaponId, vipProgress, greenBanknoteBalance, unreadMailCount, claimableMissionCount }: { player: Player; characterSprite: string; characterName: string; equippedWeaponId: string; vipProgress: VipProgress; greenBanknoteBalance: number; unreadMailCount: number; claimableMissionCount: number }) {
+interface DailyLoginStatus {
+  nextClaimDay: number;
+  alreadyClaimedToday: boolean;
+  lastClaimedDay: number;
+}
+
+export default function HomeClient({ player, characterSprite, characterName, equippedWeaponId, vipProgress, greenBanknoteBalance, unreadMailCount, claimableMissionCount, dailyLogin }: { player: Player; characterSprite: string; characterName: string; equippedWeaponId: string; vipProgress: VipProgress; greenBanknoteBalance: number; unreadMailCount: number; claimableMissionCount: number; dailyLogin: DailyLoginStatus }) {
+  const [coin, setCoin] = useState(player.coin);
+  const [diamond, setDiamond] = useState(player.diamond);
+  const [ticket, setTicket] = useState(player.ticket);
+  const [dailyLoginStatus, setDailyLoginStatus] = useState(dailyLogin);
+  // v66: auto-opens the instant Home mounts if there's an unclaimed reward —
+  // held off until the first-time tutorial is done so it doesn't stack with
+  // that onboarding flow, same gating the How To Play button already uses.
+  const [dailyLoginOpen, setDailyLoginOpen] = useState(player.tutorialCompleted && !dailyLogin.alreadyClaimedToday);
 
   // Warm the server-side sheet cache for the screens the player is most likely to
   // open next, so /play and /character render instantly off a warm cache instead
@@ -85,7 +100,7 @@ export default function HomeClient({ player, characterSprite, characterName, equ
             </div>
           </div>
 
-          <CurrencyBar coin={player.coin} diamond={player.diamond} ticket={player.ticket} greenBanknote={greenBanknoteBalance} />
+          <CurrencyBar coin={coin} diamond={diamond} ticket={ticket} greenBanknote={greenBanknoteBalance} />
           {/* v17: plain link to a dedicated cookie-clearing route (not next-auth/react's
               signOut(), which was producing a raw Vercel 404) — a real navigation so the
               Set-Cookie deletion response header actually applies. */}
@@ -203,13 +218,42 @@ export default function HomeClient({ player, characterSprite, characterName, equ
           with the main menu grid. Hidden during the first-time tutorial, same as
           every other non-Play button. */}
       {player.tutorialCompleted && (
-        <Link
-          href="/how-to-play"
-          onClick={() => sfx.play("ui_click")}
-          className="fixed bottom-4 right-4 z-20 card-military card-themed-glow px-4 py-2 flex items-center gap-2 text-sm font-bold text-military-tan hover:text-white"
-        >
-          <Icon name="howToPlay" size={20} /> How to play?
-        </Link>
+        <>
+          {/* v66: small button to reopen the Daily Login Reward window and check
+           *  progress on demand — the auto-popup (below) is still the primary way
+           *  the actual daily claim happens, this is just a "view/claim again if I
+           *  closed it" fallback. */}
+          <button
+            onClick={() => { sfx.play("ui_click"); setDailyLoginOpen(true); }}
+            className="fixed bottom-16 right-4 z-20 card-military card-themed-glow w-11 h-11 flex items-center justify-center text-military-tan hover:text-white"
+            title="Daily Login Reward"
+          >
+            <Icon name="calendar" size={20} />
+            {!dailyLoginStatus.alreadyClaimedToday && (
+              <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-600" />
+            )}
+          </button>
+          <Link
+            href="/how-to-play"
+            onClick={() => sfx.play("ui_click")}
+            className="fixed bottom-4 right-4 z-20 card-military card-themed-glow px-4 py-2 flex items-center gap-2 text-sm font-bold text-military-tan hover:text-white"
+          >
+            <Icon name="howToPlay" size={20} /> How to play?
+          </Link>
+        </>
+      )}
+
+      {dailyLoginOpen && (
+        <DailyLoginModal
+          initialStatus={dailyLoginStatus}
+          onClose={() => setDailyLoginOpen(false)}
+          onClaimed={(updated) => {
+            setCoin(updated.coin);
+            setDiamond(updated.diamond);
+            setTicket(updated.ticket);
+            setDailyLoginStatus((prev) => ({ ...prev, alreadyClaimedToday: true }));
+          }}
+        />
       )}
     </div>
   );
