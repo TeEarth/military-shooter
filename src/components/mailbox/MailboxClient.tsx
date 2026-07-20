@@ -29,10 +29,18 @@ const EMOJI_FOR_TYPE: Record<string, string> = { exp: "⭐", equipment: "🔧", 
 function MailIcon({ type }: { type: string }) {
   const iconName = ICON_NAME_FOR_TYPE[type];
   if (iconName) return <Icon name={iconName} size={30} />;
-  return <span className="text-3xl">{EMOJI_FOR_TYPE[type] ?? "📦"}</span>;
+  return <span className="text-3xl">{EMOJI_FOR_TYPE[type] || "📦"}</span>;
 }
 
-export default function MailboxClient({ items }: { items: MailItem[] }) {
+/** v67: reward-carrying types only — "withdrawal" is the admin-only
+ *  mark-paid request, and an empty reward string is a pure notification
+ *  (e.g. "Withdrawal Complete", sent to the PLAYER once an admin has
+ *  already handled the real transfer) that has nothing to actually grant. */
+function hasGrantableReward(type: string): boolean {
+  return !!type && type !== "withdrawal";
+}
+
+export default function MailboxClient({ items, isAdmin }: { items: MailItem[]; isAdmin: boolean }) {
   const [mail, setMail] = useState(items);
   const [loading, setLoading] = useState(false);
 
@@ -48,11 +56,43 @@ export default function MailboxClient({ items }: { items: MailItem[] }) {
     setLoading(false);
   }
 
+  /** v67: bulk-dismisses every unclaimed PURE NOTIFICATION (no reward) in one
+   *  go — actual reward mail (coin/diamond/equipment/etc) is deliberately
+   *  excluded, per request: those must still be claimed one at a time. */
+  async function markAllRead() {
+    if (loading) return;
+    const toDismiss = mail.filter((m) => {
+      if (m.claimed) return false;
+      const [type] = m.reward.split(":");
+      return !hasGrantableReward(type) && type !== "withdrawal";
+    });
+    if (toDismiss.length === 0) return;
+    setLoading(true);
+    for (const item of toDismiss) {
+      await fetch("/api/mailbox", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ index: item.id, action: "claim" }),
+      });
+    }
+    setMail((prev) => prev.map((m) => (toDismiss.some((d) => d.id === m.id) ? { ...m, claimed: true } : m)));
+    setLoading(false);
+  }
+
+  const hasUnreadNotifications = mail.some((m) => {
+    if (m.claimed) return false;
+    const [type] = m.reward.split(":");
+    return !hasGrantableReward(type) && type !== "withdrawal";
+  });
+
   return (
     <div className="min-h-screen page-bg-themed p-6">
       <div className="flex items-center gap-4 mb-6">
         <Link href="/home" className="text-military-steel hover:text-white text-sm">← BACK</Link>
-        <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest">Mailbox</h1>
+        <h1 className="text-2xl font-black text-military-tan uppercase tracking-widest flex-1">Mailbox</h1>
+        {hasUnreadNotifications && (
+          <button onClick={markAllRead} disabled={loading} className="btn-military text-xs whitespace-nowrap">MARK ALL AS READ</button>
+        )}
       </div>
 
       <div className="max-w-2xl mx-auto space-y-3">
@@ -60,6 +100,7 @@ export default function MailboxClient({ items }: { items: MailItem[] }) {
         {mail.map((item) => {
           const [type, value] = item.reward.split(":");
           const isWithdrawal = type === "withdrawal";
+          const hasReward = hasGrantableReward(type);
           return (
             <div key={item.id} className={`card-military flex items-start gap-4 ${!item.claimed ? "border-military-tan" : ""}`}>
               <MailIcon type={type} />
@@ -69,15 +110,25 @@ export default function MailboxClient({ items }: { items: MailItem[] }) {
                   {formatSentAt(item.sentAt) && <span className="text-military-steel text-[11px] whitespace-nowrap">{formatSentAt(item.sentAt)}</span>}
                 </div>
                 <p className="text-military-steel text-sm">{item.message}</p>
-                {!isWithdrawal && value && <p className="text-military-gold text-sm mt-1">+{value} {type}</p>}
+                {hasReward && value && <p className="text-military-gold text-sm mt-1">+{value} {type}</p>}
               </div>
-              {!item.claimed && isWithdrawal && (
+              {/* v67: "MARK PAID" is an admin-only action (see /api/mailbox's
+               *  isAdmin check) — a "withdrawal:" mail only ever lands in an
+               *  admin's own mailbox, but hide it defensively anyway rather
+               *  than rely solely on the server rejecting a non-admin click. */}
+              {!item.claimed && isWithdrawal && isAdmin && (
                 <button onClick={() => handleAction(item.id, "approve_withdrawal")} disabled={loading} className="btn-military text-xs whitespace-nowrap">✓ MARK PAID</button>
               )}
-              {!item.claimed && !isWithdrawal && (
+              {!item.claimed && !isWithdrawal && hasReward && (
                 <button onClick={() => handleAction(item.id, "claim")} disabled={loading} className="btn-military text-xs">CLAIM</button>
               )}
-              {item.claimed && <span className="text-green-400 text-xs">{isWithdrawal ? "PAID" : "CLAIMED"}</span>}
+              {/* v67: a pure notification (no reward attached, e.g. "Withdrawal
+               *  Complete") — dismissing it just marks it read, no currency
+               *  changes hands, so it shouldn't be labeled CLAIM. */}
+              {!item.claimed && !isWithdrawal && !hasReward && (
+                <button onClick={() => handleAction(item.id, "claim")} disabled={loading} className="btn-military text-xs whitespace-nowrap">MARK AS READ</button>
+              )}
+              {item.claimed && <span className="text-green-400 text-xs">{isWithdrawal ? "PAID" : hasReward ? "CLAIMED" : "READ"}</span>}
             </div>
           );
         })}

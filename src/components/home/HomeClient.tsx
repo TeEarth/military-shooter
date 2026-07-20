@@ -225,10 +225,13 @@ export default function HomeClient({ player, characterSprite, characterName, equ
            *  closed it" fallback. */}
           <button
             onClick={() => { sfx.play("ui_click"); setDailyLoginOpen(true); }}
-            className="fixed bottom-16 right-4 z-20 card-military card-themed-glow w-11 h-11 flex items-center justify-center text-military-tan hover:text-white"
+            className="fixed bottom-16 right-4 z-20 card-military card-themed-glow px-4 py-2 flex items-center gap-2 text-sm font-bold text-military-tan hover:text-white"
             title="Daily Login Reward"
           >
             <Icon name="calendar" size={20} />
+            {/* v67: visible progress ("Day 3/7") instead of just a plain
+             *  icon + dot, so status is readable without opening the popup. */}
+            <span>Day {dailyLoginStatus.lastClaimedDay}/7</span>
             {!dailyLoginStatus.alreadyClaimedToday && (
               <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-600" />
             )}

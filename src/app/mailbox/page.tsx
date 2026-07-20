@@ -9,5 +9,5 @@ export default async function MailboxPage() {
 
   const items = await getMailForPlayer(session.user.id);
 
-  return <MailboxClient items={items} />;
+  return <MailboxClient items={items} isAdmin={Boolean(session.user.isAdmin)} />;
 }

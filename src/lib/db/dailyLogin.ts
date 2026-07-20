@@ -16,6 +16,10 @@ export interface DailyLoginStatus {
   alreadyClaimedToday: boolean;
   /** 0 if never claimed. */
   lastClaimedDay: number;
+  /** v67: locked entirely until the player finishes the first-time Tutorial
+   *  (Training Mode) — per request, a fresh account shouldn't see any Daily
+   *  Login reward available until they've actually played the tutorial. */
+  locked: boolean;
 }
 
 export async function getDailyLoginStatus(playerId: string): Promise<DailyLoginStatus> {
@@ -25,7 +29,7 @@ export async function getDailyLoginStatus(playerId: string): Promise<DailyLoginS
   const alreadyClaimedToday = player.dailyLoginDay > 0 && player.dailyLoginLastClaimDate === todayUtc();
   const nextClaimDay = alreadyClaimedToday ? player.dailyLoginDay : (player.dailyLoginDay % DAILY_LOGIN_CYCLE_LENGTH) + 1;
 
-  return { nextClaimDay, alreadyClaimedToday, lastClaimedDay: player.dailyLoginDay };
+  return { nextClaimDay, alreadyClaimedToday, lastClaimedDay: player.dailyLoginDay, locked: !player.tutorialCompleted };
 }
 
 export interface DailyLoginClaimResult {
@@ -42,6 +46,7 @@ export interface DailyLoginClaimResult {
 export async function claimDailyLogin(playerId: string): Promise<DailyLoginClaimResult> {
   const player = await getPlayerById(playerId);
   if (!player) throw new Error("Player not found");
+  if (!player.tutorialCompleted) throw new Error("Finish the Tutorial (Training Mode) first to unlock Daily Login rewards.");
 
   const today = todayUtc();
   if (player.dailyLoginDay > 0 && player.dailyLoginLastClaimDate === today) {
