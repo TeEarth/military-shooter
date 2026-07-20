@@ -42,7 +42,7 @@ export const PERKS: Record<PerkId, PerkDef> = {
     name: "One Shot",
     icon: "💀",
     cost: 999,
-    description: "A skull button (above Swap, or above Reload if you don't own Spare Weapon) that arms your next shot: 3000 flat damage with any weapon. Rocket/Grenade Launcher instead spread it wide at 1000 damage. 30s cooldown per press.",
+    description: "A skull button (above Swap, or above Reload if you don't own Spare Weapon) that arms your next trigger pull: 3000 flat damage total, split evenly across however many rounds that weapon fires at once (e.g. M16A4's 3-round burst deals 1000 per round). Rocket/Grenade Launcher instead spread it wide at 1000 damage. 30s cooldown per press.",
   },
   invisible: {
     id: "invisible",

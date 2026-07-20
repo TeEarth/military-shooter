@@ -48,12 +48,19 @@ type SfxName =
 // that scales everything together) lives in setVolume()/masterGain below —
 // this constant only balances sfx AGAINST EACH OTHER.
 const NORMALIZED_SFX_GAIN = 0.75;
+// v68: the shotgun fires its whole pellet spread (16 projectiles) in one
+// trigger pull, each independently calling sfx.play("shoot_shotgun") — 16
+// overlapping instances of the same sample stack louder at the shared
+// output than any other single-shot weapon. Slightly quieter per-instance
+// gain than the shared NORMALIZED_SFX_GAIN so the combined volume reads
+// closer to the rest of the roster instead of standing out.
+const SHOTGUN_SFX_GAIN = 0.55;
 
 /** Sample-backed sfx names → their WAV file + a per-sample playback gain. */
 const SAMPLE_FILES: Partial<Record<SfxName, { url: string; gain: number }>> = {
   shoot_pistol: { url: "/assets/audio/sfx/gunshot_pistol.wav", gain: NORMALIZED_SFX_GAIN },
   shoot_rifle: { url: "/assets/audio/sfx/gunshot_rifle.wav", gain: NORMALIZED_SFX_GAIN },
-  shoot_shotgun: { url: "/assets/audio/sfx/gunshot_shotgun.wav", gain: NORMALIZED_SFX_GAIN },
+  shoot_shotgun: { url: "/assets/audio/sfx/gunshot_shotgun.wav", gain: SHOTGUN_SFX_GAIN },
   shoot_sniper: { url: "/assets/audio/sfx/gunshot_sniper.wav", gain: NORMALIZED_SFX_GAIN },
   shoot_rasor: { url: "/assets/audio/sfx/gunshot_rasor.wav", gain: NORMALIZED_SFX_GAIN },
   shoot_rocket: { url: "/assets/audio/sfx/gunshot_rocket.wav", gain: NORMALIZED_SFX_GAIN },

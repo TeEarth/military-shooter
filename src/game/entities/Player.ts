@@ -561,10 +561,18 @@ export class Player {
     // v35: One Shot perk — consumed here regardless of fireMode; AoE weapons
     // (rocket/grenade) get a much wider but weaker blast instead of the flat
     // per-target damage, per the perk's own description.
+    // v68: the flat total is now SPLIT across every round fired in this one
+    // trigger pull, not given in full to each — a multi-round weapon
+    // (M16A4's 3-round burst, the shotgun's 16-pellet spread) used to deal
+    // the whole 3000 PER bullet (9000+ total for a burst that all connects),
+    // way beyond the perk's intended "one guaranteed big hit". Single-shot
+    // weapons (projectileCount 1, including every AoE weapon) are unaffected
+    // — they still deal the full 3000/1000 in their one round.
     const isAoeWeapon = this.loadout.fireMode === "aoe" || this.loadout.fireMode === "lob";
     const oneShotThisVolley = this.oneShotArmed;
     if (oneShotThisVolley) this.oneShotArmed = false;
-    const damage = oneShotThisVolley ? (isAoeWeapon ? ONE_SHOT_AOE_DAMAGE : ONE_SHOT_DAMAGE) : this.loadout.damage;
+    const oneShotFlatTotal = isAoeWeapon ? ONE_SHOT_AOE_DAMAGE : ONE_SHOT_DAMAGE;
+    const damage = oneShotThisVolley ? Math.round(oneShotFlatTotal / Math.max(1, this.loadout.projectileCount)) : this.loadout.damage;
     const explosionRadius = oneShotThisVolley && isAoeWeapon ? this.loadout.explosionRadius * ONE_SHOT_AOE_RADIUS_MULTIPLIER : this.loadout.explosionRadius;
 
     const rounds = fireShots({

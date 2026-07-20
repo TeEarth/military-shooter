@@ -169,7 +169,8 @@ export const HOW_TO_PLAY_SECTIONS: HowToPlaySection[] = [
     iconName: "oneShot",
     title: "Perk: One Shot",
     body: [
-      "Tap the skull button to ARM your next shot — that single shot deals massive fixed damage (or a wide-but-weaker AoE blast for rocket/grenade weapons), guaranteed to hit (no accuracy/crit RNG).",
+      "Tap the skull button to ARM your next trigger pull — 3000 flat damage total (or a wide-but-weaker AoE blast for rocket/grenade weapons), guaranteed to hit (no accuracy/crit RNG).",
+      "Multi-round weapons split that total evenly across every round fired in the one pull — M16A4's 3-round burst deals 1000 per round, a shotgun's pellet spread splits it across all pellets — a single-shot weapon still gets the full 3000 in its one round.",
       "Long cooldown after arming, whether or not you actually land the shot — arm it right before you intend to fire, not early.",
     ],
     tips: [
