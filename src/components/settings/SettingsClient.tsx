@@ -192,25 +192,27 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
             </button>
           </div>
 
-          {/* v49: stick-size sliders only make sense for Layout 2 (fixed
-              joystick) — Layout 1 has no fixed stick at all (whole right half
-              is the aim/fire surface), so these did nothing there. */}
-          {controlScheme === "joystick" && (
-            <div className="mt-4 pt-4 border-t border-military-steel/30 space-y-3">
-              <p className="text-xs text-military-steel">Stick size — only affects touch devices.</p>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-military-steel w-14">Move</span>
-                <input
-                  type="range"
-                  min={MIN_CONTROL_SCALE}
-                  max={MAX_CONTROL_SCALE}
-                  step={0.05}
-                  value={moveScale}
-                  onChange={(e) => changeMoveScale(Number(e.target.value))}
-                  className="flex-1"
-                />
-                <span className="text-xs text-military-steel w-10 text-right">{Math.round(moveScale * 100)}%</span>
-              </div>
+          {/* v65: the Move stick is now a fixed, always-visible stick in BOTH
+              layouts (Layout 1 used to have no fixed stick at all, so this
+              slider was joystick-scheme-only) — Attack stays joystick-only
+              since Layout 1 still has no aim stick (whole right half is the
+              aim/fire surface there). */}
+          <div className="mt-4 pt-4 border-t border-military-steel/30 space-y-3">
+            <p className="text-xs text-military-steel">Stick size — only affects touch devices.</p>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-military-steel w-14">Move</span>
+              <input
+                type="range"
+                min={MIN_CONTROL_SCALE}
+                max={MAX_CONTROL_SCALE}
+                step={0.05}
+                value={moveScale}
+                onChange={(e) => changeMoveScale(Number(e.target.value))}
+                className="flex-1"
+              />
+              <span className="text-xs text-military-steel w-10 text-right">{Math.round(moveScale * 100)}%</span>
+            </div>
+            {controlScheme === "joystick" && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-military-steel w-14">Attack</span>
                 <input
@@ -224,8 +226,8 @@ export default function SettingsClient({ username, ticket, vipLevel, coin, diamo
                 />
                 <span className="text-xs text-military-steel w-10 text-right">{Math.round(fireScale * 100)}%</span>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         <div className="card-military">

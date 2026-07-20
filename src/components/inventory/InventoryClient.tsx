@@ -254,6 +254,31 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
     }
   }
 
+  /** v65: every equipment slot can be cleared back to empty except the main
+   *  weapon (which always has SOME weapon equipped server-side — there's no
+   *  "no main weapon" state). The server already fully supported this via
+   *  `equipped: false`; only the UI trigger was missing. */
+  async function unequipItem(equipmentId: string) {
+    const previous = equipment;
+    setEquipment((prev) => prev.map((e) => (e.id === equipmentId ? { ...e, equipped: false } : e)));
+    setOpenPicker(null);
+    setDetailEquipment(null);
+    try {
+      const res = await fetch("/api/equipment/equip", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ equipmentId, equipped: false }),
+      });
+      const data = await res.json();
+      setMessage(data.message ?? data.error);
+      if (data.success) sfx.play("ui_click");
+      else { setEquipment(previous); sfx.play("miss"); }
+    } catch {
+      setEquipment(previous);
+      sfx.play("miss");
+      setMessage("Network error — unequip not completed.");
+    }
+  }
+
   async function setSpareWeapon(weaponId: string) {
     if (spareLoading) return;
     setSpareLoading(true);
@@ -549,15 +574,28 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
                     </button>
                   ))
                 ) : openPicker === "spareWeapon" ? (
-                  ownedWeapons.filter((w) => w.id !== equippedWeaponId).map((w) => (
-                    <button key={w.id} onClick={() => setSpareWeapon(w.id)} className={`w-full text-left p-2 border text-sm flex items-center gap-2 ${w.id === spareWeaponId ? "border-military-tan bg-military-dark" : "border-military-steel"}`}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={getWeaponSprite(w.id)} alt="" className="w-6 h-6 object-contain" />
-                      {w.name}
-                    </button>
-                  ))
+                  <>
+                    {spareWeaponId && (
+                      <button onClick={() => setSpareWeapon("")} className="w-full text-left p-2 border border-red-400 text-sm text-red-300">
+                        ✕ Unequip spare weapon
+                      </button>
+                    )}
+                    {ownedWeapons.filter((w) => w.id !== equippedWeaponId).map((w) => (
+                      <button key={w.id} onClick={() => setSpareWeapon(w.id)} className={`w-full text-left p-2 border text-sm flex items-center gap-2 ${w.id === spareWeaponId ? "border-military-tan bg-military-dark" : "border-military-steel"}`}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={getWeaponSprite(w.id)} alt="" className="w-6 h-6 object-contain" />
+                        {w.name}
+                      </button>
+                    ))}
+                  </>
                 ) : (
-                  sortedEquipment.filter((e) => e.slot === openPicker).map((e) => {
+                  <>
+                    {equippedByslot[openPicker] && (
+                      <button onClick={() => unequipItem(equippedByslot[openPicker]!.id)} className="w-full text-left p-2 border border-red-400 text-sm text-red-300">
+                        ✕ Unequip {SLOT_LABEL[openPicker]}
+                      </button>
+                    )}
+                  {sortedEquipment.filter((e) => e.slot === openPicker).map((e) => {
                     const bonus = equipmentBonus(e, e.upgradeLevel);
                     return (
                       <button key={e.id} onClick={() => equipItem(e.id, e.slot)} className={`w-full text-left p-2 border text-sm flex items-center gap-2 ${e.equipped ? "border-military-tan bg-military-dark" : "border-military-steel"}`}>
@@ -577,7 +615,8 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
                         </div>
                       </button>
                     );
-                  })
+                  })}
+                  </>
                 )}
                 {openPicker !== "weapon" && openPicker !== "spareWeapon" && equipment.filter((e) => e.slot === openPicker).length === 0 && (
                   <p className="text-military-steel text-xs">No {SLOT_LABEL[openPicker]} owned yet — pull the Gacha.</p>
@@ -626,7 +665,12 @@ export default function InventoryClient({ characterSprite, characterName, ownedW
               {!detailEquipment.equipped && (
                 <button onClick={() => equipItem(detailEquipment.id, detailEquipment.slot)} className="btn-military w-full">EQUIP</button>
               )}
-              {detailEquipment.equipped && <span className="text-green-400 text-sm font-bold">✓ EQUIPPED</span>}
+              {detailEquipment.equipped && (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-green-400 text-sm font-bold">✓ EQUIPPED</span>
+                  <button onClick={() => unequipItem(detailEquipment.id)} className="btn-military text-xs px-3 py-1.5 border-red-400 text-red-300">UNEQUIP</button>
+                </div>
+              )}
             </div>
           </div>
         )}

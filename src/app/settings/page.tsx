@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { getPlayerById } from "@/lib/db/player";
 import { getPlayerCharacters } from "@/lib/db/inventory";
 import { getPlayerIncome } from "@/lib/db/income";
-import { getAllCharacters } from "@/lib/google/character";
+import { getAllCharacters, isFreelyUnlocked } from "@/lib/google/character";
 import SettingsClient from "@/components/settings/SettingsClient";
 
 export default async function SettingsPage() {
@@ -19,9 +19,16 @@ export default async function SettingsPage() {
     getAllCharacters(),
   ]);
 
-  const heroNames = ownedCharacters
-    .filter((c) => c.owned)
-    .map((c) => allCharacters.find((a) => a.id === c.characterId)?.name ?? c.characterId);
+  // v65 fix: a fresh account's starter character ("bob", unlockType FREE) is
+  // never written as a real player_character row — it's only "owned" via
+  // isFreelyUnlocked(), the same way CharacterHubClient/the character APIs
+  // already treat ownership everywhere else. Only counting DB rows here (the
+  // old behavior) made Heroes Owned read 0 for every brand-new account.
+  const ownedIds = new Set(ownedCharacters.filter((c) => c.owned).map((c) => c.characterId));
+  for (const c of allCharacters) {
+    if (isFreelyUnlocked(c, player.currentStage)) ownedIds.add(c.id);
+  }
+  const heroNames = allCharacters.filter((c) => ownedIds.has(c.id)).map((c) => c.name);
 
   return (
     <SettingsClient

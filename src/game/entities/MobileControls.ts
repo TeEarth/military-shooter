@@ -35,16 +35,12 @@ export class MobileControls {
   private readonly aimKnobRadius: number;
   private readonly aimMaxTravel: number;
 
-  /** scheme "split" only — the move stick floats to wherever the left-half
-   *  touch actually landed (see handleDown) instead of a small fixed circle,
-   *  so the whole left half of the screen is walkable, not just one exact
-   *  spot. "joystick" scheme keeps the original fixed corner. v63: it used
-   *  to be hidden until the first touch — now it's always visible at
-   *  moveDefaultCenter (still floats to the touch point while dragging,
-   *  then snaps back to moveDefaultCenter and stays visible on release). */
-  private readonly isFloatingMove: boolean;
-  private readonly moveDefaultCenter: { x: number; y: number };
-  private moveCenter: { x: number; y: number };
+  /** v64: the move stick is a fixed, always-visible circle in BOTH schemes —
+   *  it used to float to wherever "split" scheme's left-half touch landed
+   *  (v29), then was made always-visible-but-still-floating (v63); per
+   *  request it no longer relocates at all, same fixed-anchor + grab-radius
+   *  behavior as "joystick" scheme's stick always had. */
+  private readonly moveCenter: { x: number; y: number };
   private moveBase: Phaser.GameObjects.Arc;
   private moveKnob: Phaser.GameObjects.Arc;
 
@@ -70,14 +66,16 @@ export class MobileControls {
   constructor(scene: Phaser.Scene, scheme: ControlScheme = "joystick") {
     this.scene = scene;
     this.scheme = scheme;
-    this.isFloatingMove = scheme === "split";
     const { width, height } = scene.scale;
 
+    // v33: each stick's size is independently adjustable on the Settings
+    // page (getMoveScale/getFireScale — a 0.6-1.6 slider). v64: the move
+    // slider now applies in BOTH schemes (used to be joystick-scheme only),
+    // and Layout 1 ("split")'s move stick keeps its own extra 30% boost on
+    // top of that, since it was reported too small even before the slider
+    // was exposed there.
     const moveScale = getMoveScale();
     const fireScale = getFireScale();
-    // v63: Layout 1 ("split")'s move stick is now always visible (see below)
-    // and was reported too small at that point — 30% bigger than the same
-    // stick's old floating-reveal size. Layout 2 ("joystick") is unchanged.
     const layout1SizeBoost = scheme === "split" ? 1.3 : 1;
     this.moveBaseRadius = 80 * moveScale * layout1SizeBoost;
     this.moveKnobRadius = 38 * moveScale * layout1SizeBoost;
@@ -87,8 +85,7 @@ export class MobileControls {
     this.aimKnobRadius = 38 * fireScale;
     this.aimMaxTravel = 60 * fireScale;
 
-    this.moveDefaultCenter = { x: 130, y: height - 130 };
-    this.moveCenter = { ...this.moveDefaultCenter };
+    this.moveCenter = { x: 130, y: height - 130 };
     this.aimCenter = { x: width - 130, y: height - 130 };
 
     const DEPTH = 2000;
@@ -196,28 +193,9 @@ export class MobileControls {
   private handleDown(pointer: Phaser.Input.Pointer) {
     if (this.isInHudButtonZone(pointer.x, pointer.y)) return;
 
-    if (this.isFloatingMove) {
-      // Left half, nothing else already claimed as the move touch — anchor a
-      // fresh floating joystick right where the thumb landed, anywhere in
-      // that half (not just one exact fixed spot).
-      if (this.movePointerId === null && pointer.x < this.scene.scale.width / 2) {
-        this.movePointerId = pointer.id;
-        this.moveCenter = { x: pointer.x, y: pointer.y };
-        this.moveBase.setPosition(this.uiX(pointer.x), this.uiY(pointer.y));
-        this.moveKnob.setPosition(this.uiX(pointer.x), this.uiY(pointer.y));
-        this.moveVector = { x: 0, y: 0 };
-        return;
-      }
-
-      // Everything else not already the move touch or a HUD button — aim
-      // and fire toward wherever this touch landed.
-      if (this.aimPointerId === null) {
-        this.aimPointerId = pointer.id;
-        this.aimScreenPoint = { x: pointer.x, y: pointer.y };
-      }
-      return;
-    }
-
+    // v64: the move stick is fixed in place in BOTH schemes now — grabbing
+    // it requires landing within moveGrabRadius of its fixed anchor (same
+    // rule "joystick" scheme always used).
     if (this.movePointerId === null && Phaser.Math.Distance.Between(pointer.x, pointer.y, this.moveCenter.x, this.moveCenter.y) <= this.moveGrabRadius) {
       this.movePointerId = pointer.id;
       this.updateStick(pointer.x, pointer.y, this.moveCenter, this.moveKnob, this.moveMaxTravel, (v) => (this.moveVector = v));
@@ -226,16 +204,15 @@ export class MobileControls {
 
     // v33 fix: firing used to require grabbing the fire stick's small circle
     // pixel-perfectly — any other touch on the right half did nothing. The
-    // stick's base now stays fully fixed in place (never relocates, unlike
-    // "split"'s floating move stick) but ANY touch anywhere on the right half
-    // (outside the move stick's own zone and the HUD buttons, already
-    // excluded above) now claims the fire pointer, so a thumb can fire from
-    // wherever it lands. updateStick() below still clamps the knob's visual
-    // travel to maxTravel regardless of how far the touch is from aimCenter,
-    // so the direction reads correctly even from a touch far from the stick.
+    // stick's base stays fully fixed in place, but ANY touch anywhere on the
+    // right half (outside the move stick's own zone and the HUD buttons,
+    // already excluded above) now claims the fire pointer, so a thumb can
+    // fire from wherever it lands. "split" scheme aims/fires at the exact
+    // touch point instead of dragging a stick.
     if (this.aimPointerId === null && pointer.x >= this.scene.scale.width / 2) {
       this.aimPointerId = pointer.id;
-      this.updateStick(pointer.x, pointer.y, this.aimCenter, this.aimKnob!, this.aimMaxTravel, (v) => (this.aimVector = v));
+      if (this.scheme === "split") this.aimScreenPoint = { x: pointer.x, y: pointer.y };
+      else this.updateStick(pointer.x, pointer.y, this.aimCenter, this.aimKnob!, this.aimMaxTravel, (v) => (this.aimVector = v));
     }
   }
 
@@ -251,15 +228,7 @@ export class MobileControls {
     if (pointer.id === this.movePointerId) {
       this.movePointerId = null;
       this.moveVector = { x: 0, y: 0 };
-      if (this.isFloatingMove) {
-        // v63: snap back to the default anchor and stay visible, instead of
-        // hiding — the stick is always on-screen now, never tap-to-reveal.
-        this.moveCenter = { ...this.moveDefaultCenter };
-        this.moveBase.setPosition(this.uiX(this.moveCenter.x), this.uiY(this.moveCenter.y));
-        this.moveKnob.setPosition(this.uiX(this.moveCenter.x), this.uiY(this.moveCenter.y));
-      } else {
-        this.moveKnob.setPosition(this.uiX(this.moveCenter.x), this.uiY(this.moveCenter.y));
-      }
+      this.moveKnob.setPosition(this.uiX(this.moveCenter.x), this.uiY(this.moveCenter.y));
     }
     if (pointer.id === this.aimPointerId) {
       this.aimPointerId = null;

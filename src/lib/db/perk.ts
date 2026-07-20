@@ -32,13 +32,19 @@ export async function purchasePerk(playerId: string, perkId: PerkId): Promise<Pl
 /** Sets which owned weapon loads into the swap slot — requires the
  *  spare_weapon perk, the weapon to actually be owned, and that it isn't
  *  just the same weapon already equipped as main (pointless swap target). */
+/** v65: weaponId === "" unequips the spare weapon entirely (spareWeaponId's
+ *  own "unset" value, see db/player.ts) — skips the ownership/main-weapon
+ *  checks below since there's nothing to validate about "no weapon". */
 export async function setSpareWeapon(playerId: string, weaponId: string): Promise<void> {
   const player = await getPlayerById(playerId);
   if (!player) throw new Error("Player not found");
   if (!player.perkSpareWeapon) throw new Error("Spare Weapon perk not owned");
-  if (weaponId === player.currentWeapon) throw new Error("Spare weapon must be different from your main weapon");
-  const owns = await ownsWeapon(playerId, weaponId);
-  if (!owns) throw new Error("You don't own that weapon");
+
+  if (weaponId !== "") {
+    if (weaponId === player.currentWeapon) throw new Error("Spare weapon must be different from your main weapon");
+    const owns = await ownsWeapon(playerId, weaponId);
+    if (!owns) throw new Error("You don't own that weapon");
+  }
 
   await updatePlayer(playerId, { spareWeaponId: weaponId });
 }

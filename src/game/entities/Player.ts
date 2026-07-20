@@ -51,6 +51,7 @@ const SWAP_COOLDOWN_MS = 5_000;
 const INVISIBLE_DURATION_MS = 3_000;
 const INVISIBLE_COOLDOWN_MS = 7_000;
 const NEVER_DIED_INVINCIBLE_MS = 3_000;
+const REVIVE_INVINCIBLE_MS = 3_000;
 
 export class Player {
   scene: Phaser.Scene;
@@ -124,6 +125,7 @@ export class Player {
   // since that timer would otherwise immediately overwrite/cut this one short.
   private neverDiedUsed = false;
   private neverDiedInvincibleUntil = -Infinity;
+  private reviveInvincibleUntil = -Infinity;
 
   constructor(
     scene: Phaser.Scene, x: number, y: number, bullets: Phaser.Physics.Arcade.Group, loadout: CombatLoadout,
@@ -678,7 +680,7 @@ export class Player {
    *  loadout is ever built). Shield (from equipped gear + armor%) absorbs
    *  damage before HP and never regenerates mid-stage. */
   takeDamage(amount: number) {
-    if (this.isInvincible || this.isDead || this.scene.time.now < this.neverDiedInvincibleUntil) return;
+    if (this.isInvincible || this.isDead || this.scene.time.now < this.neverDiedInvincibleUntil || this.scene.time.now < this.reviveInvincibleUntil) return;
     this.applyToShieldThenHp(amount);
     this.setInvincible();
     if (this.hp <= 0) this.die();
@@ -686,7 +688,7 @@ export class Player {
 
   /** AoE splash from a rocket/grenade explosion — always full damage (still shield-first). */
   takeAoeDamage(amount: number) {
-    if (this.isDead || this.scene.time.now < this.neverDiedInvincibleUntil) return;
+    if (this.isDead || this.scene.time.now < this.neverDiedInvincibleUntil || this.scene.time.now < this.reviveInvincibleUntil) return;
     this.applyToShieldThenHp(amount);
     if (this.hp <= 0) this.die();
   }
@@ -767,13 +769,29 @@ export class Player {
   }
 
   /** Ticket-funded mid-run revive (see GameScene's reviveUsedThisGame gate) —
-   *  comes back at half max HP, full shield, and a fresh invincibility window
-   *  so the player isn't shot dead again the instant they reappear. */
+   *  comes back at half max HP, full shield, and a full 3s window of ZERO
+   *  damage from any source (not just the normal 0.3s post-hit i-frame,
+   *  which doesn't cover AoE) so the player can't be shot dead again the
+   *  instant they reappear. Same pattern/visual treatment as the Never Died
+   *  perk's invincibility window, distinct cyan tint so it doesn't read as
+   *  the same effect. */
   revive() {
     this.isDead = false;
     this.hp = Math.ceil(this.maxHp * 0.5);
     this.shield = this.shieldMax;
     this.sprite.setAlpha(1);
-    this.setInvincible();
+    this.reviveInvincibleUntil = this.scene.time.now + REVIVE_INVINCIBLE_MS;
+
+    this.sprite.setTint(0x38bdf8);
+    const glow = this.scene.add.circle(this.sprite.x, this.sprite.y, UNIT_DISPLAY_SIZE * 0.7, 0x38bdf8, 0.28).setDepth(this.sprite.depth - 1);
+    const glowTween = this.scene.tweens.add({ targets: glow, alpha: 0.55, scale: 1.25, duration: 350, yoyo: true, repeat: -1 });
+    const followGlow = () => glow.setPosition(this.sprite.x, this.sprite.y);
+    this.scene.events.on(Phaser.Scenes.Events.UPDATE, followGlow);
+    this.scene.time.delayedCall(REVIVE_INVINCIBLE_MS, () => {
+      this.sprite.clearTint();
+      this.scene.events.off(Phaser.Scenes.Events.UPDATE, followGlow);
+      glowTween.stop();
+      glow.destroy();
+    });
   }
 }

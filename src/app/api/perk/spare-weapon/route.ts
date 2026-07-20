@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { weaponId } = (await req.json()) as { weaponId?: string };
-  if (!weaponId) return NextResponse.json({ error: "weaponId required" }, { status: 400 });
+  if (weaponId === undefined) return NextResponse.json({ error: "weaponId required" }, { status: 400 });
 
   try {
     await setSpareWeapon(session.user.id, weaponId);

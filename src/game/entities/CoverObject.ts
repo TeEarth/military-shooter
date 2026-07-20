@@ -55,15 +55,17 @@ type HitboxShape =
   | { kind: "rect"; widthFrac: number; heightFrac: number; offsetXFrac: number; offsetYFrac: number };
 
 const HITBOX_SHAPE: Record<CoverType, HitboxShape> = {
-  // v24: recentered to the sprite's true center (was centerYFrac 0.646, offset
-  // noticeably downward) — an off-center hitbox is exactly what produces the
-  // "stuck on one specific corner, blocked in a spot that looks empty"
-  // symptom: the collision boundary doesn't line up symmetrically with what's
-  // drawn, so one side blocks too early and the opposite side lets shots
-  // through past where the sprite visually ends. Radius bumped back up
-  // (0.32 -> 0.36) now that it's centered, so it reliably blocks straight-on
-  // shots instead of erring toward "mostly see-through".
-  sandbag: { kind: "circle", radiusFrac: 0.36, centerXFrac: 0.5, centerYFrac: 0.5 },
+  // v65 fix: the v24 "recenter to 0.5" pass assumed the sandbag art was
+  // vertically symmetric within its viewBox and wasn't — measured directly
+  // against cover_sandbag.svg's 5 mound ellipses (viewBox 128x96), the drawn
+  // shape actually spans x:8-120, y:37-84 (center-Y fraction ~0.63, not
+  // 0.5). A circle centered at 0.5 straddled that real center, so its top
+  // half sat mostly in the empty transparent gap above the mounds (blocking
+  // walk/shoot there for no visual reason) while its bottom/left/right edges
+  // undershot the actual mound spread (letting shots through PAST where the
+  // sandbag visually ends). Switched to a rect matching the real geometry —
+  // same fix shape as crate/house/camp_tent below, which were already correct.
+  sandbag: { kind: "rect", widthFrac: 0.875, heightFrac: 0.4896, offsetXFrac: 0.0625, offsetYFrac: 0.3854 },
   // Wooden frame rect x12,y18,w72,h60 of a 96x96 viewBox — matches exactly, unchanged.
   crate: { kind: "rect", widthFrac: 0.75, heightFrac: 0.625, offsetXFrac: 0.125, offsetYFrac: 0.1875 },
   // v13: shrunk further (0.2138 -> 0.16) for the same reason as sandbag above.
@@ -71,9 +73,11 @@ const HITBOX_SHAPE: Record<CoverType, HitboxShape> = {
   // collider filter) so this shape never actually blocks anything — kept
   // centered for correctness, not because it's load-bearing.
   tree: { kind: "circle", radiusFrac: 0.16, centerXFrac: 0.5, centerYFrac: 0.5 },
-  // Wall strip rect x4,y6,w112,h30 of a 120x48 viewBox, recentered (was
-  // offsetYFrac 0.125, i.e. center at 0.4375 not 0.5 — same off-center fix as sandbag).
-  wall: { kind: "rect", widthFrac: 0.933, heightFrac: 0.625, offsetXFrac: 0.033, offsetYFrac: 0.1875 },
+  // v65 fix: same "recentered to the wrong center" bug as sandbag — the real
+  // stone rect in obstacle_wall.svg is x4,y6,w112,h30 of a 120x48 viewBox,
+  // i.e. offsetYFrac 0.125 (center-Y fraction 0.4375), not the 0.1875 the
+  // v24 pass moved it to (which shifted the hitbox 3px too far down).
+  wall: { kind: "rect", widthFrac: 0.933, heightFrac: 0.625, offsetXFrac: 0.033, offsetYFrac: 0.125 },
   // Wall-only rect x16,y30,w64,h50 of a 96x96 viewBox — excludes the roof triangle above y=30.
   house: { kind: "rect", widthFrac: 0.667, heightFrac: 0.521, offsetXFrac: 0.167, offsetYFrac: 0.3125 },
   // Inner door-panel triangle's bounding box (x24-64, y8-62 of an 88x76 viewBox) —
