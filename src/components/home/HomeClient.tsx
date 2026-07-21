@@ -250,11 +250,15 @@ export default function HomeClient({ player, characterSprite, characterName, equ
         <DailyLoginModal
           initialStatus={dailyLoginStatus}
           onClose={() => setDailyLoginOpen(false)}
-          onClaimed={(updated) => {
+          onClaimed={(updated, claimedDay) => {
             setCoin(updated.coin);
             setDiamond(updated.diamond);
             setTicket(updated.ticket);
-            setDailyLoginStatus((prev) => ({ ...prev, alreadyClaimedToday: true }));
+            // v69 fix: this used to only flip alreadyClaimedToday, never
+            // advancing lastClaimedDay/nextClaimDay — so the "Day N/7" badge
+            // (and the DB row, which WAS saving correctly) stayed stuck on
+            // the old day number until a full page reload.
+            setDailyLoginStatus({ nextClaimDay: claimedDay, alreadyClaimedToday: true, lastClaimedDay: claimedDay });
           }}
         />
       )}

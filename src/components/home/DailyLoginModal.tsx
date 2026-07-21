@@ -50,7 +50,7 @@ export default function DailyLoginModal({
 }: {
   initialStatus: DailyLoginStatus;
   onClose: () => void;
-  onClaimed: (updatedPlayer: { coin: number; diamond: number; ticket: number }) => void;
+  onClaimed: (updatedPlayer: { coin: number; diamond: number; ticket: number }, claimedDay: number) => void;
 }) {
   const [status, setStatus] = useState(initialStatus);
   const [claiming, setClaiming] = useState(false);
@@ -75,7 +75,7 @@ export default function DailyLoginModal({
       const result = data.result as ClaimResult;
       setClaimResult(result);
       setStatus({ nextClaimDay: result.day, alreadyClaimedToday: true, lastClaimedDay: result.day });
-      if (data.updatedPlayer) onClaimed(data.updatedPlayer);
+      if (data.updatedPlayer) onClaimed(data.updatedPlayer, result.day);
       sfx.play(result.day === 7 ? "gacha_legendary" : "pickup_coin");
     } catch {
       setError("Network error — reward not claimed.");
